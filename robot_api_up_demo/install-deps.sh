@@ -1,17 +1,9 @@
 #!/usr/bin/env bash
-set -e -x
-export ROS_DISTRO="noetic"
 export FILEPATH=$(dirname `realpath "${BASH_SOURCE[0]}"`)
 cd $FILEPATH/../..
 
 # Install dependencies.
-sudo apt update -qq
-sudo apt install -qq -y python3-wstool git
-if [ ! -f .rosinstall ]; then
-  wstool init
-fi
-wstool merge --merge-keep -y $FILEPATH/dependencies.rosinstall
-wstool update
+vcs import < $FILEPATH/my.repos
 
 # Also install mobipick's dependencies.
 mobipick/install-deps.sh
