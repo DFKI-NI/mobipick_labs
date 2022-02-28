@@ -3,10 +3,6 @@ repositories:
     type: git
     url: git@git.ni.dfki.de:mobipick/mobipick.git
     version: noetic
-  pbr_msgs:
-    type: git
-    url: git@git.ni.dfki.de:pbr_misc/pbr_msgs.git
-    version: master
   robot_api:
     type: git
     url: git@git.ni.dfki.de:acting/robot_api.git
