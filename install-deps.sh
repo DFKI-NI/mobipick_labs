@@ -2,6 +2,10 @@
 FILEPATH=$(dirname "$(realpath "${BASH_SOURCE[0]}")")
 cd "$FILEPATH"/.. || exit
 
+
+sudo apt-get update -qq
+sudo apt-get install -qq -y python3-vcstool git
+
 # Install dependencies.
 vcs import < "$FILEPATH"/my.repos
 
