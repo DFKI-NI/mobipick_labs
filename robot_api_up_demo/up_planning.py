@@ -48,8 +48,10 @@ class Planning:
         Return the InstantaneousAction with its parameters for convenient definition of preconditions and effects.
         """
         assert api_action not in self.actions.keys()
-        kwargs = {parameter.name: self.get_type(parameter.annotation)
-            for parameter in inspect.signature(api_action.execute).parameters.values()}
+        kwargs = {
+            parameter.name: self.get_type(parameter.annotation)
+            for parameter in inspect.signature(api_action.execute).parameters.values()
+        }
         action = InstantaneousAction(api_action.__name__, **kwargs)
         self.actions[api_action] = action
         return action, action.parameters()
@@ -69,7 +71,7 @@ class Planning:
         self.api_objects[obj] = api_object
         return obj
 
-    def create_objects(self, api_objects: Optional[Dict[str, object]]=None, **kwargs: object) -> List[Object]:
+    def create_objects(self, api_objects: Optional[Dict[str, object]] = None, **kwargs: object) -> List[Object]:
         """Create UPF objects based on api_objects."""
         api_objs: Dict[str, object] = kwargs if api_objects is None else dict(api_objects, **kwargs)
         objs: List[Object] = []

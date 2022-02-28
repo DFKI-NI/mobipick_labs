@@ -12,6 +12,7 @@ import robot_api
 
 # Define state representation classes and specifiers.
 
+
 class ArmPose(IntEnum):
     unknown = 0
     home = 1
@@ -26,6 +27,7 @@ class GripperObject(IntEnum):
 
 class Robot(robot_api.Robot):
     """Robot representation which maintains the current state and enables action execution via Robot API."""
+
     def __init__(self, namespace: str) -> None:
         super().__init__(namespace, True, True)
         self.pose = TuplePose.to_pose(self.base.get_pose())
@@ -37,6 +39,7 @@ class Robot(robot_api.Robot):
 
 
 # Define executable actions.
+
 
 class MoveBaseAction(Action):
     @staticmethod
@@ -95,6 +98,7 @@ class HandoverAction(Action):
 
 # Main demo class which orchestrates planning and execution.
 
+
 class Demo:
     BASE_START_POSE_NAME = "base_start_pose"
 
@@ -128,10 +132,12 @@ class Demo:
     def run(self) -> None:
         # Define objects for planning.
         mobipick = self.planning.create_object("mobipick", self.robot)
-        (base_handover_pose, base_home_pose, base_pick_pose, base_place_pose, _) \
-            = self.planning.create_objects(self.poses)
-        (_, arm_pose_home, arm_pose_transport, arm_pose_interaction) \
-            = self.planning.create_objects({pose.name: pose for pose in ArmPose})
+        (base_handover_pose, base_home_pose, base_pick_pose, base_place_pose, _) = self.planning.create_objects(
+            self.poses
+        )
+        (_, arm_pose_home, arm_pose_transport, arm_pose_interaction) = self.planning.create_objects(
+            {pose.name: pose for pose in ArmPose}
+        )
         (nothing, power_drill) = self.planning.create_objects({obj.name: obj for obj in GripperObject})
 
         # Define actions for planning.
@@ -189,10 +195,12 @@ class Demo:
             problem = self.planning.init_problem()
             base_pose_name = self.robot.base.get_pose_name(xy_tolerance=math.inf, yaw_tolerance=math.pi)
             problem.set_initial_value(self.robot_at(mobipick, self.planning.objects[base_pose_name]), True)
-            problem.set_initial_value(self.robot_arm_at(mobipick,
-                self.planning.objects[self.robot.arm_pose.name]), True)
-            problem.set_initial_value(self.robot_has(mobipick,
-                self.planning.objects[self.robot.gripper_object.name]), True)
+            problem.set_initial_value(
+                self.robot_arm_at(mobipick, self.planning.objects[self.robot.arm_pose.name]), True
+            )
+            problem.set_initial_value(
+                self.robot_has(mobipick, self.planning.objects[self.robot.gripper_object.name]), True
+            )
             problem.set_initial_value(self.robot_offered(mobipick), self.robot.offered_object)
             problem.add_goal(self.robot_offered(mobipick))
             problem.add_goal(self.robot_has(mobipick, nothing))
