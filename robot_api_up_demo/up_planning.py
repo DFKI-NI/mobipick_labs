@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 from typing import Dict, List, Optional, Tuple, Type
 import inspect
 from unified_planning.model import ActionParameter, Fluent, InstantaneousAction, Object, Problem
