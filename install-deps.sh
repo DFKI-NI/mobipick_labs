@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 FILEPATH=$(dirname "$(realpath "${BASH_SOURCE[0]}")")
-cd "$FILEPATH"/../.. || exit
+cd "$FILEPATH"/.. || exit
 
 # Install dependencies.
 vcs import < "$FILEPATH"/my.repos
