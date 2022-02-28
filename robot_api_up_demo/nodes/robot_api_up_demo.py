@@ -5,7 +5,7 @@ import math
 import yaml
 import rospkg
 from geometry_msgs.msg import Pose
-from up_planning import Planning
+from robot_api_up_demo.up_planning import Planning
 from robot_api import Action, TuplePose
 import robot_api
 
