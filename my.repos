@@ -3,6 +3,10 @@ repositories:
     type: git
     url: git@git.ni.dfki.de:mobipick/mobipick.git
     version: noetic
+  mobipick_task_server:
+    type: git
+    url: git@git.ni.dfki.de:mobipick/mobipick_task_server.git
+    version: master
   robot_api:
     type: git
     url: git@git.ni.dfki.de:acting/robot_api.git
