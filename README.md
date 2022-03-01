@@ -1,6 +1,13 @@
 mobipick_tables_demo
 ====================
 
+Code for the "tables" demo on 2022-05-05 and 2022-07-12.
+
+Scenario description
+--------------------
+
+See this [wiki page](https://git.ni.dfki.de/mobipick/documentation/-/wikis/Mobipick-tables-demo).
+
 pre-commit Formatting Checks
 ----------------------------
 
