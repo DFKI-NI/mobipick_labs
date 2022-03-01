@@ -55,7 +55,7 @@ roslaunch mobipick_moveit_config moveit_planning_execution.launch use_pointcloud
 roslaunch mobipick_task_server mobipick_task_server.launch
 roslaunch mobipick_pick_n_place mobipick_pick_n_place.launch simulation:=true
 roslaunch robot_api moveit_macros.launch namespace:='mobipick'
-rosrun robot_api_up_demo robot_api_up_demo.py
+rosrun robot_api_up_demo robot_api_up_demo_node.py
 ```
 
 ## Improvements

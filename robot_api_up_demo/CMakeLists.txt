@@ -15,6 +15,6 @@ catkin_package()
 #############
 
 catkin_install_python(PROGRAMS
-  nodes/robot_api_up_demo.py
+  nodes/robot_api_up_demo_node.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
