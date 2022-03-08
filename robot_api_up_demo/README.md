@@ -3,7 +3,7 @@
 Demo of planning and executing a robot's actions using simple Python interfaces.
 
 It uses the [Unified Planning Library](https://github.com/aiplan4eu/unified-planning)
-of the AIPlan4EU project for task planning and the [Robot API](https://git.ni.dfki.de/asung/robot_api/)
+of the AIPlan4EU project for task planning and the [Robot API](https://git.ni.dfki.de/acting/robot_api/)
 for plan execution.
 
 ## Description
@@ -34,8 +34,9 @@ of the world state it stores and which it can perceive.
 This demo might install a lot, depending on what you already have on your
 system. Your catkin workspace for mobipick, if you don't mind adding further
 repositories, or a new catkin workspace with only this repository is
-recommended to start with. [vcs](https://pypi.org/project/vcstool/),
-[wstool](http://wiki.ros.org/wstool), and Python 3 are assumed to be available.
+recommended to start with. [vcs](https://pypi.org/project/vcstool/) and
+[wstool](http://wiki.ros.org/wstool) will be installed when needed,
+ROS and Python 3 are assumed to be available on your system.
 
 ```bash
 ./install-deps.sh
