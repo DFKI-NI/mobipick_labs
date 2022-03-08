@@ -16,34 +16,34 @@ class Planning:
         self.problem = Problem()
 
     def create_types(self, api_types: List[Type]) -> None:
-        """Create UPF user types based on api_types."""
+        """Create UP user types based on api_types."""
         for api_type in api_types:
             assert api_type not in self.types.keys()
             self.types[api_type] = UserType(api_type.__name__)
 
     def get_type(self, api_type: Type) -> UserType:
-        """Return the UPF user type corresponding to api_type."""
+        """Return the UP user type corresponding to api_type."""
         for check_type, user_type in self.types.items():
             if issubclass(api_type, check_type):
                 return user_type
         raise ValueError(f"No corresponding UserType defined for {api_type}!")
 
     def get_object_type(self, api_object: object) -> UserType:
-        """Return the UPF user type corresponding to api_object's type."""
+        """Return the UP user type corresponding to api_object's type."""
         for api_type, user_type in self.types.items():
             if isinstance(api_object, api_type):
                 return user_type
         raise ValueError(f"No corresponding UserType defined for {api_object}!")
 
     def create_fluent(self, name: str, api_types: List[Type]) -> Fluent:
-        """Create a UPF BoolType() fluent using the UPF types corresponding to the api_types given."""
+        """Create a UP BoolType() fluent using the UP types corresponding to the api_types given."""
         assert name not in self.fluents.keys()
         self.fluents[name] = fluent = Fluent(name, BoolType(), [self.get_type(api_type) for api_type in api_types])
         return fluent
 
     def create_action(self, api_action: Type) -> Tuple[InstantaneousAction, List[ActionParameter]]:
         """
-        Create a UPF InstantaneousAction by using the execute() method signature of api_action.
+        Create a UP InstantaneousAction by using the execute() method signature of api_action.
         Return the InstantaneousAction with its parameters for convenient definition of preconditions and effects.
         """
         assert api_action not in self.actions.keys()
@@ -64,14 +64,14 @@ class Planning:
         raise ValueError(f"No corresponding robot_api.Action defined for {action}!")
 
     def create_object(self, name: str, api_object: object) -> Object:
-        """Create UPF object based on api_object."""
+        """Create UP object based on api_object."""
         assert name not in self.objects.keys()
         self.objects[name] = obj = Object(name, self.get_object_type(api_object))
         self.api_objects[obj] = api_object
         return obj
 
     def create_objects(self, api_objects: Optional[Dict[str, object]] = None, **kwargs: object) -> List[Object]:
-        """Create UPF objects based on api_objects."""
+        """Create UP objects based on api_objects."""
         api_objs: Dict[str, object] = kwargs if api_objects is None else dict(api_objects, **kwargs)
         objs: List[Object] = []
         for name, api_object in api_objs.items():
@@ -79,7 +79,7 @@ class Planning:
         return objs
 
     def init_problem(self) -> Problem:
-        """Return a UPF problem with all fluents, actions, and objects for definition of initial values and goals."""
+        """Return a UP problem with all fluents, actions, and objects for definition of initial values and goals."""
         self.problem = Problem()
         for fluent in self.fluents.values():
             self.problem.add_fluent(fluent, default_initial_value=False)
@@ -89,6 +89,6 @@ class Planning:
         return self.problem
 
     def plan(self) -> Optional[List[Tuple[ActionInstance, Action]]]:
-        """Solve planning problem, then return list of UPF and Robot API actions."""
+        """Solve planning problem, then return list of UP and Robot API actions."""
         plan = OneshotPlanner(problem_kind=self.problem.kind()).solve(self.problem)
         return [(action, self.get_action(action)) for action in plan.actions()] if plan else None
