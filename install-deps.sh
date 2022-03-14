@@ -6,15 +6,16 @@ cd "$FILEPATH"/.. || exit
 sudo apt-get update -qq
 sudo apt-get install -qq -y python3-vcstool git
 
-# Install dependencies.
-vcs import < "$FILEPATH"/my.repos
-
-# Also install mobipick's dependencies.
+# First install mobipick's dependencies.
 mobipick/install-deps.sh
 
-# Install Unified Planning library and Pyperplan planner.
+# Then install demo dependencies.
+vcs import < "$FILEPATH"/my.repos
+
+# Install Unified Planning library and its planners.
 pip install unified-planning/
 pip install up-pyperplan/
+pip install up-tamer/
 
 # Checkout working commit in geometric_shapes repository as workaround.
 cd geometric_shapes/ || exit
