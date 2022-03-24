@@ -1,6 +1,7 @@
 from typing import Dict, List, Optional, Tuple, Type
+from collections import OrderedDict
 import inspect
-from unified_planning.model import ActionParameter, Fluent, InstantaneousAction, Object, Problem
+from unified_planning.model import Fluent, InstantaneousAction, Object, Parameter, Problem
 from unified_planning.plan import ActionInstance
 from unified_planning.shortcuts import BoolType, OneshotPlanner, UserType
 from robot_api import Action
@@ -38,10 +39,11 @@ class Planning:
     def create_fluent(self, name: str, api_types: List[Type]) -> Fluent:
         """Create a UP BoolType() fluent using the UP types corresponding to the api_types given."""
         assert name not in self.fluents.keys()
-        self.fluents[name] = fluent = Fluent(name, BoolType(), [self.get_type(api_type) for api_type in api_types])
+        self.fluents[name] = fluent = Fluent(name, BoolType(), OrderedDict([(api_type.__name__.lower(),
+            self.get_type(api_type)) for api_type in api_types]))
         return fluent
 
-    def create_action(self, api_action: Type) -> Tuple[InstantaneousAction, List[ActionParameter]]:
+    def create_action(self, api_action: Type) -> Tuple[InstantaneousAction, List[Parameter]]:
         """
         Create a UP InstantaneousAction by using the execute() method signature of api_action.
         Return the InstantaneousAction with its parameters for convenient definition of preconditions and effects.

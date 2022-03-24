@@ -3,7 +3,7 @@ from random import randrange
 from unified_planning.model import Fluent, InstantaneousAction, Object, Problem
 from unified_planning.model.fnode import FNode
 from unified_planning.plan import Plan
-from unified_planning.shortcuts import And, BoolType, Not, OneshotPlanner, UserType
+from unified_planning.shortcuts import And, BoolType, Equals, Not, OneshotPlanner, UserType
 """Planning example with replanning with interim goal on failed action"""
 
 
@@ -17,35 +17,33 @@ unknown = Object("unknown", Location)
 locations = tables + [any_table, base, unknown]
 
 # Define all fluents.
-robot_at = Fluent("RobotAt", BoolType(), [Location])
+robot_at = Fluent("RobotAt", Location)
 robot_has = Fluent("RobotHas", BoolType())
-can_find_at = Fluent("CanFindAt", BoolType(), [Location])
-searched = Fluent("Searched", BoolType(), [Location])
+can_find_at = Fluent("CanFindAt", Location)
+searched = Fluent("Searched", BoolType(), location=Location)
 
 # Define all actions.
 
 # Move from location a to location b.
 move = InstantaneousAction("Move", a=Location, b=Location)
 a, b = move.parameters()
-move.add_precondition(robot_at(a))
-move.add_effect(robot_at(a), False)
-move.add_effect(robot_at(b), True)
+move.add_precondition(Equals(robot_at, a))
+move.add_effect(robot_at, b)
 
 pick = InstantaneousAction("Pick", a=Location)
 a, = pick.parameters()
-pick.add_precondition(robot_at(a))
-pick.add_precondition(Not(robot_has()))
-pick.add_precondition(can_find_at(a))
-pick.add_precondition(Not(can_find_at(unknown)))
-pick.add_effect(robot_has(), True)
-pick.add_effect(can_find_at(a), False)
-pick.add_effect(can_find_at(unknown), True)
+pick.add_precondition(Equals(robot_at, a))
+pick.add_precondition(Not(robot_has))
+pick.add_precondition(Equals(can_find_at, a))
+pick.add_precondition(Not(Equals(a, unknown)))
+pick.add_effect(robot_has, True)
+pick.add_effect(can_find_at, unknown)
 
 search = InstantaneousAction("Search", a=Location)
 a, = search.parameters()
-search.add_precondition(robot_at(a))
-search.add_precondition(Not(robot_has()))
-search.add_precondition(can_find_at(unknown))
+search.add_precondition(Equals(robot_at, a))
+search.add_precondition(Not(robot_has))
+search.add_precondition(Equals(can_find_at, unknown))
 search.add_precondition(Not(searched(a)))
 search.add_effect(searched(a), True)
 
@@ -53,11 +51,10 @@ search.add_effect(searched(a), True)
 #  to assume the item is found at any_table after searching all tables.
 #  Actually searching the tables will hopefully reveal the true item_location.
 find = InstantaneousAction("Find")
-find.add_precondition(can_find_at(unknown))
+find.add_precondition(Equals(can_find_at, unknown))
 for table in tables:
     find.add_precondition(searched(table))
-find.add_effect(can_find_at(unknown), False)
-find.add_effect(can_find_at(any_table), True)
+find.add_effect(can_find_at, any_table)
 
 # Define environment values.
 robot_location = base
@@ -79,9 +76,9 @@ problem.add_objects(locations)
 
 def get_plan(goal: FNode) -> Plan:
     # Set initial state and goals.
+    problem.set_initial_value(robot_at, robot_location)
+    problem.set_initial_value(can_find_at, assumed_item_location)
     for location in locations:
-        problem.set_initial_value(robot_at(location), location == robot_location)
-        problem.set_initial_value(can_find_at(location), location == assumed_item_location)
         problem.set_initial_value(searched(location), location == robot_location and location in tables)
     problem.clear_goals()
     problem.add_goal(goal)
@@ -95,7 +92,7 @@ def get_plan(goal: FNode) -> Plan:
 print(f"Scenario: Robot is at {robot_location}, shall fetch an item and return to base.")
 print(f"Hint: True item_location is (randomly chosen) {item_location}, robot assumes it is {assumed_item_location}.")
 print("-- ")
-final_goal = And(robot_at(base), robot_has())
+final_goal = And(Equals(robot_at, base), robot_has)
 plan = get_plan(final_goal)
 
 while plan:
@@ -103,7 +100,7 @@ while plan:
         if action.action() == pick and action.actual_parameters()[0].object() != item_location:
             print(action, "FAILED")
             assumed_item_location = unknown
-            plan = get_plan(can_find_at(any_table))
+            plan = get_plan(Equals(can_find_at, any_table))
             break
         elif action.action() == search and action.actual_parameters()[0].object() == item_location:
             print(f"{action} found item at true location")
