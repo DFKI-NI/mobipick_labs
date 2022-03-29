@@ -39,8 +39,11 @@ class Planning:
     def create_fluent(self, name: str, api_types: List[Type]) -> Fluent:
         """Create a UP BoolType() fluent using the UP types corresponding to the api_types given."""
         assert name not in self.fluents.keys()
-        self.fluents[name] = fluent = Fluent(name, BoolType(), OrderedDict([(api_type.__name__.lower(),
-            self.get_type(api_type)) for api_type in api_types]))
+        self.fluents[name] = fluent = Fluent(
+            name,
+            BoolType(),
+            OrderedDict([(api_type.__name__.lower(), self.get_type(api_type)) for api_type in api_types]),
+        )
         return fluent
 
     def create_action(self, api_action: Type) -> Tuple[InstantaneousAction, List[Parameter]]:

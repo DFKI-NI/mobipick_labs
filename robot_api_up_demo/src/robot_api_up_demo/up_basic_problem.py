@@ -1,9 +1,9 @@
-#!/usr/bin/env python3
 from random import randrange
 from unified_planning.model import Fluent, InstantaneousAction, Object, Problem
 from unified_planning.model.fnode import FNode
 from unified_planning.plan import Plan
 from unified_planning.shortcuts import And, BoolType, Equals, Not, OneshotPlanner, UserType
+
 """Planning example with replanning with interim goal on failed action"""
 
 
@@ -74,6 +74,7 @@ problem.add_action(search)
 problem.add_action(find)
 problem.add_objects(locations)
 
+
 def get_plan(goal: FNode) -> Plan:
     # Set initial state and goals.
     problem.set_initial_value(robot_at, robot_location)
@@ -88,6 +89,7 @@ def get_plan(goal: FNode) -> Plan:
         plan = planner.solve(problem)
         print(f"{planner.name()} returned: {plan}")
     return plan
+
 
 print(f"Scenario: Robot is at {robot_location}, shall fetch an item and return to base.")
 print(f"Hint: True item_location is (randomly chosen) {item_location}, robot assumes it is {assumed_item_location}.")
