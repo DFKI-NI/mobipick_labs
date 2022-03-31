@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-from typing import Dict, List
+from typing import Any, Dict, List, Tuple, Type
 from enum import IntEnum
 import math
 import yaml
 import rospkg
 from geometry_msgs.msg import Pose
-from robot_api_up_demo.up_planning import Planning
-from robot_api import Action, TuplePose
+from robot_api_up_demo.up_planning import Action, Planning
+from robot_api import TuplePose
 import robot_api
 
 
@@ -41,58 +41,73 @@ class Robot(robot_api.Robot):
 # Define executable actions.
 
 
-class MoveBaseAction(Action):
-    @staticmethod
-    def execute(robot: Robot, _: Pose, pose: Pose) -> None:
-        robot.base.move(pose=pose)
-        robot.pose = pose
+class RobotAction(Action):
+    SIGNATURE: Tuple[Type, ...] = (Robot,)
+
+    def __init__(self, *args: Any) -> None:
+        super().__init__(*args)
+        self.robot: Robot = args[0]
 
 
-class TransportAction(Action):
-    @staticmethod
-    def execute(robot: Robot, _: Pose, pose: Pose) -> None:
-        robot.base.move(pose=pose)
-        robot.pose = pose
+class MoveBaseAction(RobotAction):
+    SIGNATURE = (Robot, Pose, Pose)
 
+    def __init__(self, *args: Any) -> None:
+        super().__init__(*args)
+        self.pose: Pose = args[2]
 
-class MoveArmAction(Action):
-    @staticmethod
-    def execute(robot: Robot, _: ArmPose, pose: ArmPose) -> None:
-        robot.arm.move(pose.name)
-        robot.arm_pose = pose
-
-
-class PickAction(Action):
-    @staticmethod
-    def execute(robot: Robot) -> bool:
-        robot.arm.execute("CaptureObject")
-        robot.arm_pose = ArmPose.interaction
-        robot.arm.execute("PickUpObject")
-        if not robot.arm.get_result().result:
-            return False
-
-        robot.gripper_object = GripperObject.power_drill
+    def __call__(self) -> bool:
+        self.robot.base.move(self.pose)
+        self.robot.pose = self.pose
         return True
 
 
-class PlaceAction(Action):
-    @staticmethod
-    def execute(robot: Robot) -> None:
-        robot.arm.execute("PlaceObject")
-        robot.arm_pose = ArmPose.interaction
-        robot.gripper_object = GripperObject.nothing
+class TransportAction(MoveBaseAction):
+    pass
 
 
-class HandoverAction(Action):
-    @staticmethod
-    def execute(robot: Robot) -> bool:
-        robot.arm.execute("MoveArmToHandover")
-        robot.arm_pose = ArmPose.interaction
-        robot.offered_object = True
-        if not robot_api.ArmForceTorqueObserverAction.execute(robot.arm, 5.0, 25.0):
+class MoveArmAction(RobotAction):
+    SIGNATURE = (Robot, ArmPose, ArmPose)
+
+    def __init__(self, *args: Any) -> None:
+        super().__init__(*args)
+        self.arm_pose: ArmPose = args[2]
+
+    def __call__(self) -> bool:
+        self.robot.arm.move(self.arm_pose.name)
+        self.robot.arm_pose = self.arm_pose
+        return True
+
+
+class PickAction(RobotAction):
+    def __call__(self) -> bool:
+        self.robot.arm.execute("CaptureObject")
+        self.robot.arm_pose = ArmPose.interaction
+        self.robot.arm.execute("PickUpObject")
+        if not self.robot.arm.get_result().result:
             return False
 
-        robot.arm.execute("ReleaseGripper")
+        self.robot.gripper_object = GripperObject.power_drill
+        return True
+
+
+class PlaceAction(RobotAction):
+    def __call__(self) -> bool:
+        self.robot.arm.execute("PlaceObject")
+        self.robot.arm_pose = ArmPose.interaction
+        self.robot.gripper_object = GripperObject.nothing
+        return True
+
+
+class HandoverAction(RobotAction):
+    def __call__(self) -> bool:
+        self.robot.arm.execute("MoveArmToHandover")
+        self.robot.arm_pose = ArmPose.interaction
+        self.robot.offered_object = True
+        if not self.robot.arm.observe_force_torque(5.0, 25.0):
+            return False
+
+        self.robot.arm.execute("ReleaseGripper")
         return True
 
 
@@ -194,6 +209,7 @@ class Demo:
             # Define problem based on current state.
             problem = self.planning.init_problem()
             base_pose_name = self.robot.base.get_pose_name(xy_tolerance=math.inf, yaw_tolerance=math.pi)
+            print(base_pose_name, self.robot.arm_pose.name, self.robot.gripper_object.name)
             problem.set_initial_value(self.robot_at(mobipick, self.planning.objects[base_pose_name]), True)
             problem.set_initial_value(
                 self.robot_arm_at(mobipick, self.planning.objects[self.robot.arm_pose.name]), True

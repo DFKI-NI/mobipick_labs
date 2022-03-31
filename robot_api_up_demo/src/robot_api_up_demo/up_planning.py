@@ -1,10 +1,24 @@
-from typing import Dict, List, Optional, Tuple, Type
+from typing import Any, Dict, List, Optional, Tuple, Type
 from collections import OrderedDict
 import inspect
 from unified_planning.model import Fluent, InstantaneousAction, Object, Parameter, Problem
 from unified_planning.plan import ActionInstance
 from unified_planning.shortcuts import BoolType, OneshotPlanner, UserType
-from robot_api import Action
+
+
+class Action:
+    def __init__(self, *args: Any) -> None:
+        self.args = args
+
+    def __call__(self) -> bool:
+        """Execute this action."""
+        raise NotImplementedError(f"{self.__class__.__name__}.__call__() is not implemented!")
+
+    def update_execution(self) -> None:
+        """Update world state on action execution."""
+
+    def update_completion(self) -> None:
+        """Update world state on action completion."""
 
 
 class Planning:
@@ -52,11 +66,16 @@ class Planning:
         Return the InstantaneousAction with its parameters for convenient definition of preconditions and effects.
         """
         assert api_action not in self.actions.keys()
-        kwargs = {
-            parameter.name: self.get_type(parameter.annotation)
-            for parameter in inspect.signature(api_action.execute).parameters.values()
-        }
-        action = InstantaneousAction(api_action.__name__, **kwargs)
+
+        action = InstantaneousAction(
+            api_action.__name__,
+            OrderedDict(
+                [
+                    (f"{index}_{api_type.__name__}", self.get_type(api_type))
+                    for index, api_type in enumerate(api_action.SIGNATURE)
+                ]
+            ),
+        )
         self.actions[api_action] = action
         return action, action.parameters()
 
