@@ -114,5 +114,5 @@ class Planning:
 
     def plan(self) -> Optional[List[Tuple[ActionInstance, Action]]]:
         """Solve planning problem, then return list of UP and Robot API actions."""
-        plan = OneshotPlanner(problem_kind=self.problem.kind()).solve(self.problem)
-        return [(action, self.get_action(action)) for action in plan.actions()] if plan else None
+        result = OneshotPlanner(problem_kind=self.problem.kind()).solve(self.problem)
+        return [(action, self.get_action(action)) for action in result.plan.actions()] if result.plan else None

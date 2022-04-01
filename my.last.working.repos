@@ -1,0 +1,93 @@
+repositories:
+  Groot:
+    type: git
+    url: https://github.com/BehaviorTree/Groot.git
+    version: 05fe640172e3cd447ab5db31f71355789f6a48b3
+  Universal_Robots_ROS_Driver:
+    type: git
+    url: https://github.com/UniversalRobots/Universal_Robots_ROS_Driver.git
+    version: c09807d79b5eb2e8b4d671995ec885ceeb48fc5d
+  astra_camera:
+    type: git
+    url: https://github.com/orbbec/ros_astra_camera.git
+    version: aff227d64e226166315c2afe0d7f4a5b1c99253d
+  astra_depth_filters:
+    type: git
+    url: https://github.com/DFKI-NI/astra_depth_filters.git
+    version: b7dae8fcaa7dac52c409475bce0274e4f4525afc
+  astra_launch:
+    type: git
+    url: https://github.com/orbbec/ros_astra_launch.git
+    version: 0.2.2
+  fmauch_universal_robot:
+    type: git
+    url: https://github.com/fmauch/universal_robot.git
+    version: 1ffdd69181389b14b7d6342f0c5bad3b45c5e32f
+  gazebo_pkgs:
+    type: git
+    url: https://github.com/JenniferBuehler/gazebo-pkgs.git
+    version: d217a4cd3045cb9622936784658ea687e0e6b69f
+  general_message_pkgs:
+    type: git
+    url: https://github.com/JenniferBuehler/general-message-pkgs.git
+    version: f0c7a0cc811187cca8e928bc7c5906e463c24945
+  geometric_shapes:
+    type: git
+    url: https://github.com/ros-planning/geometric_shapes.git
+    version: ca019f4d0e7042232b1f0b9a56994b99374aa203
+  mobipick:
+    type: git
+    url: git@git.ni.dfki.de:mobipick/mobipick.git
+    version: 14da7ac1272eea3fd38d7ffc610684e82a47f4be
+  mobipick_tables_demo:
+    type: git
+    url: git@git.ni.dfki.de:mobipick/mobipick_tables_demo.git
+    version: 3b583d43a3dc7f12f80a7d7d417256b54c4e9ee0
+  mobipick_task_server:
+    type: git
+    url: git@git.ni.dfki.de:mobipick/mobipick_task_server.git
+    version: 941af2425afd203f485534dbf2fe9aec3f26cd94
+  moveit_task_constructor:
+    type: git
+    url: https://github.com/ros-planning/moveit_task_constructor.git
+    version: 8beb0f4243b4a3be1cc3ce8b7a0935eed0e9cb43
+  object_pose_msgs:
+    type: git
+    url: git@git.ni.dfki.de:environment_representation/object_pose_msgs.git
+    version: 2e731cc9364a9aac7ae718967b929e3601bc4af3
+  pbr_msgs:
+    type: git
+    url: git@git.ni.dfki.de:pbr_misc/pbr_msgs.git
+    version: c58a3a0c4121316074ebeeebbf3bea0f4fe90057
+  pbr_tools:
+    type: git
+    url: https://github.com/DFKI-NI/pbr_tools.git
+    version: f512a1b96ad1e1f07d5b118cc44f6901f0456a4c
+  pose_selector:
+    type: git
+    url: git@git.ni.dfki.de:environment_representation/pose_selector.git
+    version: 77ff6e8d7eaf9f461cea1bcbafde08a29c1a3e81
+  robot_api:
+    type: git
+    url: git@git.ni.dfki.de:acting/robot_api.git
+    version: 95c17b1b9fe68ab46d0feed6f1938e2fe75c61ca
+  roboticsgroup_gazebo_plugins:
+    type: git
+    url: https://github.com/roboticsgroup/roboticsgroup_gazebo_plugins.git
+    version: 509a32ea6accc58d03cebd9d670ae44635adc924
+  robotiq:
+    type: git
+    url: https://github.com/Krause92/robotiq.git
+    version: ae2119badb9bd32a5594a3dce07164a4e4945a2c
+  unified-planning:
+    type: git
+    url: https://github.com/aiplan4eu/unified-planning
+    version: 54f7fd1d171303f61c982810405ffb14080fef6f
+  up-pyperplan:
+    type: git
+    url: https://github.com/aiplan4eu/up-pyperplan
+    version: 6de702b9777e30bb9b1fcf179fee5fe2b1125b12
+  up-tamer:
+    type: git
+    url: https://github.com/aiplan4eu/up-tamer
+    version: e6709702d622f0d3dab74aeca147c758e13f32e6
