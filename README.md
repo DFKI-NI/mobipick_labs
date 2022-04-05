@@ -8,6 +8,21 @@ Scenario description
 
 See this [wiki page](https://git.ni.dfki.de/mobipick/documentation/-/wikis/Mobipick-tables-demo).
 
+
+Gazebo demo
+-----------
+
+```bash
+roslaunch mobipick_gazebo tables_demo.launch
+rosservice call /gazebo/unpause_physics
+
+roslaunch mir_gazebo fake_localization.launch __ns:="mobipick" odom_frame_id:="mobipick/odom" base_frame_id:="mobipick/base_footprint"
+roslaunch mir_navigation start_planner.launch map_file:=$(rospack find pbr_maps)/maps/tables_demo/tables_demo.yaml prefix:="mobipick/"
+roslaunch mobipick_moveit_config moveit_planning_execution.launch use_pointcloud:=true simulation:=true
+rviz -d $(rospack find mir_navigation)/rviz/navigation.rviz __ns:="mobipick"
+```
+
+
 pre-commit Formatting Checks
 ----------------------------
 
