@@ -213,7 +213,6 @@ class Demo:
             # Define problem based on current state.
             problem = self.planning.init_problem()
             base_pose_name = self.robot.base.get_pose_name(xy_tolerance=math.inf, yaw_tolerance=math.pi)
-            print(base_pose_name, self.robot.arm_pose.name, self.robot.gripper_object.name)
             problem.set_initial_value(self.robot_at(mobipick, self.planning.objects[base_pose_name]), True)
             problem.set_initial_value(
                 self.robot_arm_at(mobipick, self.planning.objects[self.robot.arm_pose.name]), True

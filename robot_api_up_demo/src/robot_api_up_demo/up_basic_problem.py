@@ -1,4 +1,3 @@
-from typing import List
 import time
 from random import randrange
 from unified_planning.model import Fluent, InstantaneousAction, Object, Problem
