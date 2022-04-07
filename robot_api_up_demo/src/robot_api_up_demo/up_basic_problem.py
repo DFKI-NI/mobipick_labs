@@ -1,8 +1,11 @@
+from typing import List
+import time
 from random import randrange
 from unified_planning.model import Fluent, InstantaneousAction, Object, Problem
 from unified_planning.model.fnode import FNode
 from unified_planning.plan import Plan
 from unified_planning.shortcuts import And, BoolType, Equals, Not, OneshotPlanner, UserType
+from robot_api_up_demo.plan_visualization import PlanVisualization
 
 """Planning example with replanning with interim goal on failed action"""
 
@@ -91,31 +94,49 @@ def get_plan(goal: FNode) -> Plan:
     return result.plan
 
 
+def get_action_names(plan: Plan) -> List[str]:
+    # Return plan's actions as list of str.
+    return [str(action) for action in plan.actions()]
+
+
 print(f"Scenario: Robot is at {robot_location}, shall fetch an item and return to base.")
 print(f"Hint: True item_location is (randomly chosen) {item_location}, robot assumes it is {assumed_item_location}.")
 print("-- ")
 final_goal = And(Equals(robot_at, base), robot_has)
 plan = get_plan(final_goal)
+visualization = PlanVisualization(get_action_names(plan))
 
 while plan:
-    for action in plan.actions():
+    for index, action in enumerate(plan.actions()):
+        visualization.execute(index)
+        time.sleep(3.0)
         if action.action() == pick and action.actual_parameters()[0].object() != item_location:
             print(action, "FAILED")
+            visualization.fail(index)
             assumed_item_location = unknown
+            print("Replan ...")
+            time.sleep(5.0)
             plan = get_plan(Equals(can_find_at, any_table))
+            visualization.set_actions(get_action_names(plan))
             break
         elif action.action() == search and action.actual_parameters()[0].object() == item_location:
             print(f"{action} found item at true location")
+            visualization.succeed(index)
             assumed_item_location = item_location
+            print("Replan ...")
+            time.sleep(5.0)
             plan = get_plan(final_goal)
+            visualization.set_actions(get_action_names(plan))
             break
         elif action.action() == find:
             print("Planner assumed to find the item location but this did not prove true. No solution found.")
+            visualization.fail(index)
             plan = None
             break
         else:
             if action.action() == move:
                 robot_location = action.actual_parameters()[-1].object()
             print(action)
+            visualization.succeed(index)
     else:
         break

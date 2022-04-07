@@ -1,6 +1,5 @@
 from typing import Any, Dict, List, Optional, Tuple, Type
 from collections import OrderedDict
-import inspect
 from unified_planning.model import Fluent, InstantaneousAction, Object, Parameter, Problem
 from unified_planning.plan import ActionInstance
 from unified_planning.shortcuts import BoolType, OneshotPlanner, UserType
@@ -112,7 +111,7 @@ class Planning:
         self.problem.add_objects(self.objects.values())
         return self.problem
 
-    def plan(self) -> Optional[List[Tuple[ActionInstance, Action]]]:
+    def plan_actions(self) -> Optional[List[Tuple[ActionInstance, Action]]]:
         """Solve planning problem, then return list of UP and Robot API actions."""
         result = OneshotPlanner(problem_kind=self.problem.kind()).solve(self.problem)
         return [(action, self.get_action(action)) for action in result.plan.actions()] if result.plan else None

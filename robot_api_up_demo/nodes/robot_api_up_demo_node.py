@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-from typing import Any, Dict, List, Tuple, Type
+from typing import Any, Dict, List, Optional, Tuple, Type
 from enum import IntEnum
 import math
+import time
 import yaml
 import rospkg
 from geometry_msgs.msg import Pose
+from robot_api_up_demo.plan_visualization import PlanVisualization
 from robot_api_up_demo.up_planning import Action, Planning
 from robot_api import TuplePose
 import robot_api
@@ -128,6 +130,8 @@ class Demo:
         self.robot_arm_at = self.planning.create_fluent("ArmAt", [Robot, ArmPose])
         self.robot_has = self.planning.create_fluent("Has", [Robot, GripperObject])
         self.robot_offered = self.planning.create_fluent("Offered", [Robot])
+        # Visualize plan.
+        self.visualization: Optional[PlanVisualization] = None
 
     def load_waypoints(self) -> None:
         # Load poses from mobipick config file.
@@ -223,20 +227,30 @@ class Demo:
             problem.add_goal(self.robot_at(mobipick, base_home_pose))
 
             # Plan
-            actions = self.planning.plan()
+            actions = self.planning.plan_actions()
             if not actions:
                 print("Execution ended because no plan could be found.")
                 break
 
             print("> Plan:")
-            print('\n'.join(str(up_action) for up_action, _ in actions))
+            action_names = [str(up_action) for up_action, _ in actions]
+            print('\n'.join(action_names))
+            if self.visualization:
+                self.visualization.set_actions(action_names)
+            else:
+                self.visualization = PlanVisualization(action_names)
             # ... and execute.
             print("> Execution:")
-            for up_action, api_action in actions:
+            for index, (up_action, api_action) in enumerate(actions):
                 print(up_action)
+                self.visualization.execute(index)
                 result = api_action()
-                if result is not None and not result:
+                if result is None or result:
+                    self.visualization.succeed(index)
+                else:
                     print("-- Action failed! Need to replan.")
+                    self.visualization.fail(index)
+                    time.sleep(3.0)
                     # In this simple demo, failed actions are no longer available for planning and execution.
                     for action_type in list(self.planning.actions.keys()):
                         if isinstance(api_action, action_type):
