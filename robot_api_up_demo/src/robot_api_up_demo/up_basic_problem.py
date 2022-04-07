@@ -86,9 +86,9 @@ def get_plan(goal: FNode) -> Plan:
 
     # Get plan.
     with OneshotPlanner(problem_kind=problem.kind()) as planner:
-        plan = planner.solve(problem)
-        print(f"{planner.name()} returned: {plan}")
-    return plan
+        result = planner.solve(problem)
+        print(f"{result.planner_name} returned: {result.plan}")
+    return result.plan
 
 
 print(f"Scenario: Robot is at {robot_location}, shall fetch an item and return to base.")

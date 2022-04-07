@@ -38,11 +38,11 @@ repositories:
   mobipick:
     type: git
     url: git@git.ni.dfki.de:mobipick/mobipick.git
-    version: 14da7ac1272eea3fd38d7ffc610684e82a47f4be
+    version: fee3dbbea9790baa91439a922979ac89af62ad24
   mobipick_tables_demo:
     type: git
     url: git@git.ni.dfki.de:mobipick/mobipick_tables_demo.git
-    version: 3b583d43a3dc7f12f80a7d7d417256b54c4e9ee0
+    version: c632f54a2ec008dc8304137271b2f031574ed12a
   mobipick_task_server:
     type: git
     url: git@git.ni.dfki.de:mobipick/mobipick_task_server.git
@@ -62,7 +62,7 @@ repositories:
   pbr_tools:
     type: git
     url: https://github.com/DFKI-NI/pbr_tools.git
-    version: f512a1b96ad1e1f07d5b118cc44f6901f0456a4c
+    version: 2e98fa8d5835745a4168062beeb07e9277d8c543
   pose_selector:
     type: git
     url: git@git.ni.dfki.de:environment_representation/pose_selector.git
@@ -82,7 +82,7 @@ repositories:
   unified-planning:
     type: git
     url: https://github.com/aiplan4eu/unified-planning
-    version: 54f7fd1d171303f61c982810405ffb14080fef6f
+    version: 8becf939276705a4f0e471547770faa795430668
   up-pyperplan:
     type: git
     url: https://github.com/aiplan4eu/up-pyperplan
