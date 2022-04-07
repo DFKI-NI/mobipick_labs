@@ -233,23 +233,23 @@ class Demo:
                 break
 
             print("> Plan:")
-            action_names = [str(up_action) for up_action, _ in actions]
-            print('\n'.join(action_names))
+            up_actions = [up_action for up_action, _ in actions]
+            print('\n'.join(map(str, up_actions)))
             if self.visualization:
-                self.visualization.set_actions(action_names)
+                self.visualization.set_actions(up_actions)
             else:
-                self.visualization = PlanVisualization(action_names)
+                self.visualization = PlanVisualization(up_actions)
             # ... and execute.
             print("> Execution:")
-            for index, (up_action, api_action) in enumerate(actions):
+            for up_action, api_action in actions:
                 print(up_action)
-                self.visualization.execute(index)
+                self.visualization.execute(up_action)
                 result = api_action()
                 if result is None or result:
-                    self.visualization.succeed(index)
+                    self.visualization.succeed(up_action)
                 else:
                     print("-- Action failed! Need to replan.")
-                    self.visualization.fail(index)
+                    self.visualization.fail(up_action)
                     time.sleep(3.0)
                     # In this simple demo, failed actions are no longer available for planning and execution.
                     for action_type in list(self.planning.actions.keys()):
