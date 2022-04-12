@@ -2,7 +2,7 @@ repositories:
   mobipick:
     type: git
     url: git@git.ni.dfki.de:mobipick/mobipick.git
-    version: noetic
+    version: tables-demo
   mobipick_task_server:
     type: git
     url: git@git.ni.dfki.de:mobipick/mobipick_task_server.git
