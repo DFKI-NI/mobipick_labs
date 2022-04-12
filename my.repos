@@ -7,6 +7,14 @@ repositories:
     type: git
     url: git@git.ni.dfki.de:mobipick/mobipick_task_server.git
     version: master
+  object_pose_msgs:
+     type: git
+     url: git@git.ni.dfki.de:environment_representation/object_pose_msgs
+     version: main
+  pose_selector:
+    type: git
+    url: https://git.ni.dfki.de/environment_representation/pose_selector.git
+    version: noetic
   robot_api:
     type: git
     url: git@git.ni.dfki.de:acting/robot_api.git
