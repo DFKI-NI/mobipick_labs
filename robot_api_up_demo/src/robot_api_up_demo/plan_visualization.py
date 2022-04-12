@@ -10,6 +10,7 @@ from gi.repository import Gtk
 
 class PlanVisualization:
     def __init__(self, actions: Sequence[object]) -> None:
+        DotWindow.base_title = "Plan Visualization"  # Note: Workaround because self.window.set_title() has no effect.
         self.window = DotWindow()
         self.window.connect('delete-event', Gtk.main_quit)
         self.graph: Dot = None
@@ -27,7 +28,7 @@ class PlanVisualization:
     def set_actions(self, actions: Sequence[object]) -> None:
         """Create and visualize a new graph, built from actions."""
         self.actions = actions
-        self.graph = Dot("Plan Visualization", graph_type="digraph", bgcolor="white")
+        self.graph = Dot("Plan", graph_type="digraph", bgcolor="white")
         self.nodes = [Node(str(action), style="filled", fillcolor="white") for action in actions]
         for node in self.nodes:
             self.graph.add_node(node)

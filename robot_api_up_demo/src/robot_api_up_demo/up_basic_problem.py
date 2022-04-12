@@ -102,6 +102,12 @@ visualization = PlanVisualization(plan.actions())
 
 while plan:
     for action in plan.actions():
+        # Abort plan execution on closing the visualization window.
+        if not visualization.window.props.visible:
+            visualization.thread.join()
+            plan = None
+            break
+
         visualization.execute(action)
         time.sleep(3.0)
         if action.action() == pick and action.actual_parameters()[0].object() != item_location:
