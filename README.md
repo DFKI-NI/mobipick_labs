@@ -9,6 +9,21 @@ Scenario description
 See this [wiki page](https://git.ni.dfki.de/mobipick/documentation/-/wikis/Mobipick-tables-demo).
 
 
+Installation
+------------
+
+This demo might install a lot, depending on what you already have on your
+system. Your catkin workspace for mobipick, if you don't mind adding further
+repositories, or a new catkin workspace with only this repository is
+recommended to start with. [vcs](https://pypi.org/project/vcstool/) and
+[wstool](http://wiki.ros.org/wstool) will be installed when needed,
+ROS and Python 3 are assumed to be available on your system.
+
+```bash
+./install-deps.sh
+./build.sh
+```
+
 Gazebo demo
 -----------
 

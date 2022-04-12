@@ -29,20 +29,6 @@ Goal of the robot in this demo is to
 Feel free to abort and restart the Python script at any time to see what parts
 of the world state it stores and which it can perceive.
 
-## Installation
-
-This demo might install a lot, depending on what you already have on your
-system. Your catkin workspace for mobipick, if you don't mind adding further
-repositories, or a new catkin workspace with only this repository is
-recommended to start with. [vcs](https://pypi.org/project/vcstool/) and
-[wstool](http://wiki.ros.org/wstool) will be installed when needed,
-ROS and Python 3 are assumed to be available on your system.
-
-```bash
-./install-deps.sh
-./build.sh
-```
-
 ## Execution
 
 After sourcing your ROS environment as usual, the following commands each should go into their own console:
