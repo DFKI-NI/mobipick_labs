@@ -76,13 +76,13 @@ class Planning:
             ),
         )
         self.actions[api_action] = action
-        return action, action.parameters()
+        return action, action.parameters
 
     def get_action(self, action: ActionInstance) -> Action:
         """Return the Robot API action associated with the given action."""
         for api_action, check_action in self.actions.items():
-            if action.action() == check_action:  # Note: Must check for equality, cannot use hash of dict!
-                api_parameters = [self.api_objects[parameter.object()] for parameter in action.actual_parameters()]
+            if action.action == check_action:  # Note: Must check for equality, cannot use hash of dict!
+                api_parameters = [self.api_objects[parameter.object()] for parameter in action.actual_parameters]
                 return api_action(*api_parameters)
         raise ValueError(f"No corresponding robot_api.Action defined for {action}!")
 
@@ -113,5 +113,5 @@ class Planning:
 
     def plan_actions(self) -> Optional[List[Tuple[ActionInstance, Action]]]:
         """Solve planning problem, then return list of UP and Robot API actions."""
-        result = OneshotPlanner(problem_kind=self.problem.kind()).solve(self.problem)
-        return [(action, self.get_action(action)) for action in result.plan.actions()] if result.plan else None
+        result = OneshotPlanner(problem_kind=self.problem.kind).solve(self.problem)
+        return [(action, self.get_action(action)) for action in result.plan.actions] if result.plan else None

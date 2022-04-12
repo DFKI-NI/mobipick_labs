@@ -28,12 +28,12 @@ searched = Fluent("Searched", BoolType(), location=Location)
 
 # Move from location a to location b.
 move = InstantaneousAction("Move", a=Location, b=Location)
-a, b = move.parameters()
+a, b = move.parameters
 move.add_precondition(Equals(robot_at, a))
 move.add_effect(robot_at, b)
 
 pick = InstantaneousAction("Pick", a=Location)
-(a,) = pick.parameters()
+(a,) = pick.parameters
 pick.add_precondition(Equals(robot_at, a))
 pick.add_precondition(Not(robot_has))
 pick.add_precondition(Equals(can_find_at, a))
@@ -42,7 +42,7 @@ pick.add_effect(robot_has, True)
 pick.add_effect(can_find_at, unknown)
 
 search = InstantaneousAction("Search", a=Location)
-(a,) = search.parameters()
+(a,) = search.parameters
 search.add_precondition(Equals(robot_at, a))
 search.add_precondition(Not(robot_has))
 search.add_precondition(Equals(can_find_at, unknown))
@@ -87,7 +87,7 @@ def get_plan(goal: FNode) -> Plan:
     problem.add_goal(goal)
 
     # Get plan.
-    with OneshotPlanner(problem_kind=problem.kind()) as planner:
+    with OneshotPlanner(problem_kind=problem.kind) as planner:
         result = planner.solve(problem)
         print(f"{result.planner_name} returned: {result.plan}")
     return result.plan
@@ -98,10 +98,10 @@ print(f"Hint: True item_location is (randomly chosen) {item_location}, robot ass
 print("-- ")
 final_goal = And(Equals(robot_at, base), robot_has)
 plan = get_plan(final_goal)
-visualization = PlanVisualization(plan.actions())
+visualization = PlanVisualization(plan.actions)
 
 while plan:
-    for action in plan.actions():
+    for action in plan.actions:
         # Abort plan execution on closing the visualization window.
         if not visualization.window.props.visible:
             visualization.thread.join()
@@ -110,32 +110,32 @@ while plan:
 
         visualization.execute(action)
         time.sleep(3.0)
-        if action.action() == pick and action.actual_parameters()[0].object() != item_location:
+        if action.action == pick and action.actual_parameters[0].object() != item_location:
             print(action, "FAILED")
             visualization.fail(action)
             assumed_item_location = unknown
             print("Replan ...")
             time.sleep(5.0)
             plan = get_plan(Equals(can_find_at, any_table))
-            visualization.set_actions(plan.actions())
+            visualization.set_actions(plan.actions)
             break
-        elif action.action() == search and action.actual_parameters()[0].object() == item_location:
+        elif action.action == search and action.actual_parameters[0].object() == item_location:
             print(f"{action} found item at true location")
             visualization.succeed(action)
             assumed_item_location = item_location
             print("Replan ...")
             time.sleep(5.0)
             plan = get_plan(final_goal)
-            visualization.set_actions(plan.actions())
+            visualization.set_actions(plan.actions)
             break
-        elif action.action() == find:
+        elif action.action == find:
             print("Planner assumed to find the item location but this did not prove true. No solution found.")
             visualization.fail(action)
             plan = None
             break
         else:
-            if action.action() == move:
-                robot_location = action.actual_parameters()[-1].object()
+            if action.action == move:
+                robot_location = action.actual_parameters[-1].object()
             print(action)
             visualization.succeed(action)
     else:
