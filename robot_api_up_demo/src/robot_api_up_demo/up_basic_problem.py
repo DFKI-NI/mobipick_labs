@@ -49,14 +49,14 @@ search.add_precondition(Equals(can_find_at, unknown))
 search.add_precondition(Not(searched(a)))
 search.add_effect(searched(a), True)
 
-# Note: find is a helper action which should never get executed but is used by the planner
-#  to assume the item is found at any_table after searching all tables.
-#  Actually searching the tables will hopefully reveal the true item_location.
-find = InstantaneousAction("Find")
-find.add_precondition(Equals(can_find_at, unknown))
+# Note: conclude_search is a helper action which should never get executed but is used by the planner
+#  to assume the item is found at any_table after searching all tables. Actually searching the tables
+#  will hopefully reveal the true item_location. Otherwise, plan execution fails.
+conclude_search = InstantaneousAction("ConcludeSearch")
+conclude_search.add_precondition(Equals(can_find_at, unknown))
 for table in tables:
-    find.add_precondition(searched(table))
-find.add_effect(can_find_at, any_table)
+    conclude_search.add_precondition(searched(table))
+conclude_search.add_effect(can_find_at, any_table)
 
 # Define environment values.
 robot_location = base
@@ -73,7 +73,7 @@ problem.add_fluent(searched)
 problem.add_action(move)
 problem.add_action(pick)
 problem.add_action(search)
-problem.add_action(find)
+problem.add_action(conclude_search)
 problem.add_objects(locations)
 
 
@@ -128,7 +128,7 @@ while plan:
             plan = get_plan(final_goal)
             visualization.set_actions(plan.actions)
             break
-        elif action.action == find:
+        elif action.action == conclude_search:
             print("Planner assumed to find the item location but this did not prove true. No solution found.")
             visualization.fail(action)
             plan = None
