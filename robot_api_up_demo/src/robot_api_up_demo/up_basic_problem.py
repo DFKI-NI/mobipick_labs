@@ -1,7 +1,6 @@
 import time
 from random import randrange
-from unified_planning.model import Fluent, InstantaneousAction, Object, Problem
-from unified_planning.model.fnode import FNode
+from unified_planning.model import FNode, Fluent, InstantaneousAction, Object, Problem
 from unified_planning.plan import Plan
 from unified_planning.shortcuts import And, BoolType, Equals, Not, OneshotPlanner, UserType
 from robot_api_up_demo.plan_visualization import PlanVisualization
