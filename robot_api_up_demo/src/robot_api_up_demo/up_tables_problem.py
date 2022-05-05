@@ -74,7 +74,7 @@ search.add_effect(believe_at(item), searched_location)
 actual_robot_location = unknown_location
 actual_robot_item = nothing
 believed_item_positions = {screwdriver: tables[4]}
-actual_item_positions = {power_drill: tables[1], remote_control: tables[2], screwdriver: tables[2]}
+actual_item_positions = {power_drill: tables[3], remote_control: tables[1], screwdriver: tables[3]}
 final_goal = And(Equals(believe_at(tool), target_table) for tool in tools)
 sleep_step = 1.0
 sleep_replan = 2.0
