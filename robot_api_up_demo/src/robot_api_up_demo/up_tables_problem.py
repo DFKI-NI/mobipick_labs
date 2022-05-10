@@ -10,23 +10,26 @@ from plan_visualization import PlanVisualization
 # Define object types and objects.
 
 table_count = 6
-klt_count = 1
+klt_count = 2
 Location = UserType("Location")
 target_table = Object("target_table", Location)  # Note: target_table is tables[0].
 tables = [target_table] + [Object(f"table_{table}", Location) for table in range(1, table_count)]
 klt_locations = [Object(f"klt_{chr(klt + 65)}_location", Location) for klt in range(klt_count)]
 on_robot_location = Object("on_robot_location", Location)
-searched_location = Object("searched_location", Location)
+searched_tool_location = Object("searched_tool_location", Location)
+searched_klt_location = Object("searched_klt_location", Location)
 unknown_location = Object("unknown_location", Location)
-locations = tables + klt_locations + [on_robot_location, searched_location, unknown_location]
+locations = (
+    tables + klt_locations + [on_robot_location, searched_tool_location, searched_klt_location, unknown_location]
+)
 
 Item = UserType("Item")
 power_drill = Object("power_drill", Item)
 remote_control = Object("remote_control", Item)
 screwdriver = Object("screwdriver", Item)
+tools = [power_drill, remote_control, screwdriver]
 klts = [Object(f"klt_{chr(klt + 65)}", Item) for klt in range(klt_count)]
 nothing = Object("nothing", Item)
-tools = [power_drill, remote_control, screwdriver]
 items = tools + klts + [nothing]
 
 # Define all fluents.
@@ -41,7 +44,9 @@ move = InstantaneousAction("Move", a=Location, b=Location, item=Item)
 a, b, item = move.parameters
 move.add_precondition(Equals(robot_at, a))
 move.add_precondition(Equals(robot_has, item))
-move.add_precondition(Or(Or(Equals(b, table) for table in tables), Equals(b, searched_location)))
+move.add_precondition(
+    Or(Or(Equals(b, table) for table in tables), Equals(b, searched_tool_location), Equals(b, searched_klt_location))
+)
 move.add_effect(robot_at, b)
 
 pick = InstantaneousAction("Pick", a=Location, item=Item)
@@ -58,46 +63,50 @@ place = InstantaneousAction("Place", a=Location, item=Item)
 a, item = place.parameters
 place.add_precondition(Equals(robot_at, a))
 place.add_precondition(Equals(robot_has, item))
-place.add_precondition(And(Not(Equals(believe_at(klt), a)) for klt in klts))
-place.add_precondition(Not(Equals(item, nothing)))
+place.add_precondition(Or(Equals(item, klt) for klt in klts))
 place.add_effect(robot_has, nothing)
 place.add_effect(believe_at(item), a)
 
-store = InstantaneousAction("Store", a=Location, b=Location, klt=Item, item=Item)
-a, b, klt, item = store.parameters
-store.add_precondition(Equals(robot_at, a))
-store.add_precondition(Equals(robot_has, item))
-store.add_precondition(Equals(believe_at(klt), a))
-store.add_precondition(Equals(is_klt(b), klt))
-store.add_precondition(Or(Equals(klt, check) for check in klts))
-store.add_precondition(Not(Equals(item, klt)))
-store.add_precondition(Not(Equals(item, nothing)))
-store.add_effect(robot_has, nothing)
-store.add_effect(believe_at(item), b)
+place_into = InstantaneousAction("PlaceInto", a=Location, klt_location=Location, klt_item=Item, item=Item)
+a, klt_location, klt_item, item = place_into.parameters
+place_into.add_precondition(Equals(robot_at, a))
+place_into.add_precondition(Equals(robot_has, item))
+place_into.add_precondition(Equals(believe_at(klt_item), a))
+place_into.add_precondition(Equals(is_klt(klt_location), klt_item))
+place_into.add_precondition(Or(Equals(klt_item, klt) for klt in klts))
+place_into.add_precondition(Not(Equals(item, klt_item)))
+place_into.add_precondition(Not(Equals(item, nothing)))
+place_into.add_effect(robot_has, nothing)
+place_into.add_effect(believe_at(item), klt_location)
 
-search = InstantaneousAction("Search", item=Item)
-(item,) = search.parameters
-search.add_precondition(Not(Equals(robot_at, searched_location)))
-search.add_precondition(Equals(robot_has, nothing))
-search.add_precondition(Equals(believe_at(item), unknown_location))
-search.add_precondition(
-    And(Or(Equals(believe_at(tool), target_table), Equals(believe_at(tool), unknown_location)) for tool in tools)
-)
-search.add_effect(robot_at, searched_location)
-search.add_effect(believe_at(item), searched_location)
+search_tool = InstantaneousAction("SearchTool", item=Item)
+(item,) = search_tool.parameters
+search_tool.add_precondition(Not(Equals(robot_at, searched_tool_location)))
+search_tool.add_precondition(Equals(believe_at(item), unknown_location))
+search_tool.add_precondition(Or(Equals(item, tool) for tool in tools))
+search_tool.add_effect(robot_at, searched_tool_location)
+search_tool.add_effect(believe_at(item), searched_tool_location)
+
+search_klt = InstantaneousAction("SearchKlt", item=Item)
+(item,) = search_klt.parameters
+search_klt.add_precondition(Not(Equals(robot_at, searched_klt_location)))
+search_klt.add_precondition(Equals(believe_at(item), unknown_location))
+search_klt.add_precondition(Or(Equals(item, klt) for klt in klts))
+search_klt.add_effect(robot_at, searched_klt_location)
+search_klt.add_effect(believe_at(item), searched_klt_location)
 
 # Define environment values.
 actual_robot_location = unknown_location
 actual_robot_item = nothing
-# believed_item_positions = {power_drill: tables[1], klts[0]: tables[4], klts[1]: tables[1]}
-believed_item_positions = {screwdriver: tables[4], klts[0]: target_table}
+actual_search_location = unknown_location
+believed_item_positions = {power_drill: tables[1], klts[0]: unknown_location, klts[1]: tables[1]}
 actual_item_positions = {
     power_drill: tables[3],
     remote_control: tables[1],
     screwdriver: tables[3],
-    klts[0]: target_table,
+    klts[0]: tables[2],
+    klts[1]: tables[4],
 }
-# actual_item_positions = {power_drill: tables[1], remote_control: target_table, screwdriver: target_table, klts[0]: tables[4], klts[1]: tables[1]}
 final_goal = Or(
     And(And(Equals(believe_at(tool), klt_location) for tool in tools), Equals(believe_at(klt), target_table))
     for klt_location, klt in zip(klt_locations, klts)
@@ -112,10 +121,18 @@ for fluent in (robot_at, robot_has, believe_at):
 problem.add_fluent(is_klt, default_initial_value=nothing)
 for klt_location, klt in zip(klt_locations, klts):
     problem.set_initial_value(is_klt(klt_location), klt)
-for action in (move, pick, place, store, search):
+for action in (move, pick, place, place_into, search_tool, search_klt):
     problem.add_action(action)
 problem.add_objects(locations)
 problem.add_objects(items)
+
+
+def print_items() -> None:
+    for item in tools + klts:
+        print(
+            f"- {item}, believe: {believed_item_positions.get(item, unknown_location)}, "
+            f"actual: {actual_item_positions.get(item, unknown_location)} "
+        )
 
 
 def get_plan(goal: FNode) -> Plan:
@@ -135,6 +152,7 @@ def get_plan(goal: FNode) -> Plan:
 
 def replan(goal: FNode, visualization: PlanVisualization) -> Plan:
     """Replan to achieve goal and update visualization."""
+    print_items()
     print("Replan ...")
     time.sleep(sleep_replan)
     plan = get_plan(goal)
@@ -145,11 +163,7 @@ def replan(goal: FNode, visualization: PlanVisualization) -> Plan:
 if __name__ == '__main__':
     print(f"Scenario: Robot shall place all items into a klt and bring them to {target_table}.")
     print("The item locations are:")
-    for item in tools + klts:
-        print(
-            f"- {item}, believe: {believed_item_positions.get(item, unknown_location)}, "
-            f"actual: {actual_item_positions.get(item, unknown_location)} "
-        )
+    print_items()
 
     plan = get_plan(final_goal)
     visualization = PlanVisualization(plan.actions)
@@ -164,15 +178,20 @@ if __name__ == '__main__':
             visualization.execute(action)
             parameters = action.actual_parameters
             if action.action == move:
+                target_location = parameters[1].object()
                 item = parameters[2].object()
-                print(f"Move from {actual_robot_location} to {parameters[1]} with {item}.")
-                actual_robot_location = parameters[1].object()
+                if target_location in (searched_tool_location, searched_klt_location):
+                    assert actual_search_location != unknown_location
+                    target_location = actual_search_location
+                print(f"Move from {actual_robot_location} to {target_location} with {item}.")
+                actual_robot_location = target_location
             elif action.action == pick:
                 item = parameters[1].object()
                 if actual_item_positions.get(item) == actual_robot_location:
                     print(f"Pick up {item} at {actual_robot_location}.")
                     believed_item_positions[item] = on_robot_location
                     actual_item_positions[item] = on_robot_location
+                    actual_robot_item = item
                 else:
                     print(f"Pick up {item} at {actual_robot_location} FAILED.")
                     believed_item_positions[item] = unknown_location
@@ -183,14 +202,22 @@ if __name__ == '__main__':
                 item = parameters[1].object()
                 print(f"Place {item} at {actual_robot_location}.")
                 believed_item_positions[item] = actual_item_positions[item] = actual_robot_location
-            elif action.action == store:
+                actual_robot_item = nothing
+            elif action.action == place_into:
                 klt_location = parameters[1].object()
-                klt = parameters[2].object()
+                klt_item = parameters[2].object()
                 item = parameters[3].object()
-                print(f"Place {item} into {klt} at {actual_robot_location}.")
-                believed_item_positions[item] = actual_item_positions[item] = klt_location
-                # TODO klt location might fail
-            elif action.action == search:
+                if actual_item_positions.get(klt_item) == actual_robot_location:
+                    print(f"Place {item} into {klt_item} at {actual_robot_location}.")
+                    believed_item_positions[item] = actual_item_positions[item] = klt_location
+                    actual_robot_item = nothing
+                else:
+                    print(f"Placing into {klt_item} at {actual_robot_location} FAILED.")
+                    believed_item_positions[klt_item] = unknown_location
+                    visualization.fail(action)
+                    plan = replan(final_goal, visualization)
+                    break
+            elif action.action in (search_tool, search_klt):
                 item = parameters[0].object()
                 if believed_item_positions.get(item, unknown_location) != unknown_location:
                     print(f"Search for {item} OBSOLETE.")
@@ -206,7 +233,7 @@ if __name__ == '__main__':
                 for index in indices:
                     time.sleep(sleep_step)
                     print(f"- Move from {actual_robot_location} to {tables[index]}.")
-                    actual_robot_location = tables[index]
+                    actual_search_location = actual_robot_location = tables[index]
                     time.sleep(sleep_step)
                     print(f"- Observe {actual_robot_location}.")
                     time.sleep(sleep_step)
@@ -220,14 +247,15 @@ if __name__ == '__main__':
                                     has_detected_current = True
                                 else:
                                     has_detected_new = True
-                    if actual_item_positions.get(klt) == actual_robot_location:
-                        print("- Detect klt.")
-                        if believed_item_positions.get(klt) != actual_robot_location:
-                            believed_item_positions[klt] = actual_robot_location
-                            if klt == item:
-                                has_detected_current = True
-                            else:
-                                has_detected_new = True
+                    for klt in klts:
+                        if actual_item_positions.get(klt) == actual_robot_location:
+                            print(f"- Detect {klt}.")
+                            if believed_item_positions.get(klt) != actual_robot_location:
+                                believed_item_positions[klt] = actual_robot_location
+                                if klt == item:
+                                    has_detected_current = True
+                                else:
+                                    has_detected_new = True
                     # If something is detected, stop searching.
                     if has_detected_current or has_detected_new:
                         break
