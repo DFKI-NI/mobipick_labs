@@ -99,15 +99,15 @@ search_klt.add_effect(believe_at(item), searched_klt_location)
 # Define environment values.
 actual_robot_location = unknown_location
 actual_robot_item = nothing
-believed_item_positions = {power_drill: tables[1], klts[0]: tables[1]}
-actual_item_positions = {
+believed_item_locations = {power_drill: tables[1], klts[0]: tables[1]}
+actual_item_locations = {
     power_drill: tables[3],
     remote_control: tables[1],
     screwdriver: tables[3],
     klts[0]: tables[2],
     klts[1]: tables[4],
 }
-actual_search_locations = {klt: believed_item_positions.get(klt, unknown_location) for klt in klts}
+actual_search_locations = {klt: believed_item_locations.get(klt, unknown_location) for klt in klts}
 final_goal = Or(
     And(And(Equals(believe_at(tool), klt_location) for tool in tools), Equals(believe_at(klt), target_table))
     for klt_location, klt in zip(klt_locations, klts)
@@ -131,8 +131,8 @@ problem.add_objects(items)
 def print_items() -> None:
     for item in tools + klts:
         print(
-            f"- {item}, believe: {believed_item_positions.get(item, unknown_location)}, "
-            f"actual: {actual_item_positions.get(item, unknown_location)} "
+            f"- {item}, believe: {believed_item_locations.get(item, unknown_location)}, "
+            f"actual: {actual_item_locations.get(item, unknown_location)} "
         )
 
 
@@ -141,7 +141,7 @@ def get_plan(goal: FNode) -> Plan:
     problem.set_initial_value(robot_at, actual_robot_location)
     problem.set_initial_value(robot_has, actual_robot_item)
     for item in items:
-        problem.set_initial_value(believe_at(item), believed_item_positions.get(item, unknown_location))
+        problem.set_initial_value(believe_at(item), believed_item_locations.get(item, unknown_location))
     problem.clear_goals()
     problem.add_goal(goal)
 
@@ -184,21 +184,21 @@ if __name__ == '__main__':
                 actual_robot_location = target_location
             elif action.action == pick:
                 item = parameters[1].object()
-                if actual_item_positions.get(item) == actual_robot_location:
+                if actual_item_locations.get(item) == actual_robot_location:
                     print(f"Pick up {item} at {actual_robot_location}.")
-                    believed_item_positions[item] = on_robot_location
-                    actual_item_positions[item] = on_robot_location
+                    believed_item_locations[item] = on_robot_location
+                    actual_item_locations[item] = on_robot_location
                     actual_robot_item = item
                 else:
                     print(f"Pick up {item} at {actual_robot_location} FAILED.")
-                    believed_item_positions[item] = unknown_location
+                    believed_item_locations[item] = unknown_location
                     visualization.fail(action)
                     plan = replan(final_goal, visualization)
                     break
             elif action.action == place:
                 item = parameters[1].object()
                 print(f"Place {item} at {actual_robot_location}.")
-                believed_item_positions[item] = actual_item_positions[item] = actual_robot_location
+                believed_item_locations[item] = actual_item_locations[item] = actual_robot_location
                 actual_robot_item = nothing
             elif action.action == store:
                 target_location = parameters[1].object()
@@ -216,19 +216,19 @@ if __name__ == '__main__':
                 if target_location != actual_robot_location:
                     print(f"Move from {actual_robot_location} to {target_location} with {actual_robot_item}.")
                     actual_robot_location = target_location
-                if actual_item_positions.get(klt_item) == actual_robot_location:
+                if actual_item_locations.get(klt_item) == actual_robot_location:
                     print(f"Place {item} into {klt_item} at {actual_robot_location}.")
-                    believed_item_positions[item] = actual_item_positions[item] = klt_location
+                    believed_item_locations[item] = actual_item_locations[item] = klt_location
                     actual_robot_item = nothing
                 else:
                     print(f"Placing into {klt_item} at {actual_robot_location} FAILED.")
-                    believed_item_positions[klt_item] = unknown_location
+                    believed_item_locations[klt_item] = unknown_location
                     visualization.fail(action)
                     plan = replan(final_goal, visualization)
                     break
             elif action.action in (search_tool, search_klt):
                 item = parameters[0].object()
-                if believed_item_positions.get(item, unknown_location) != unknown_location:
+                if believed_item_locations.get(item, unknown_location) != unknown_location:
                     print(f"Search for {item} OBSOLETE.")
                     plan = replan(final_goal, visualization)
                     break
@@ -248,12 +248,12 @@ if __name__ == '__main__':
                     time.sleep(sleep_step)
                     # Detect all items on the current table.
                     for check_item in tools + klts:
-                        if actual_item_positions.get(check_item) == actual_robot_location:
+                        if actual_item_locations.get(check_item) == actual_robot_location:
                             print(f"- Detect {check_item}.")
                             if check_item in klts:
                                 actual_search_locations[check_item] = actual_robot_location
-                            if believed_item_positions.get(check_item) != actual_robot_location:
-                                believed_item_positions[check_item] = actual_robot_location
+                            if believed_item_locations.get(check_item) != actual_robot_location:
+                                believed_item_locations[check_item] = actual_robot_location
                                 if check_item == item:
                                     has_detected_current = True
                                 else:
