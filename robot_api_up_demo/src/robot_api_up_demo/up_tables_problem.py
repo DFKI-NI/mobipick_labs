@@ -24,6 +24,9 @@ class UnifiedPlanning:
         self.tables = [self.target_table] + [Object(f"table_{table}", Location) for table in range(1, table_count)]
         self.klt_locations = [Object(f"klt_{chr(klt + 65)}_location", Location) for klt in range(klt_count)]
         self.on_robot_location = Object("on_robot_location", Location)
+        # Note: The tool and klt search locations must be different symbols because these locations
+        #  can differ, which is relevant when placing a tool into a klt. Search locations for the
+        #  same item type do not interfere with each other.
         self.searched_tool_location = Object("searched_tool_location", Location)
         self.searched_klt_location = Object("searched_klt_location", Location)
         self.unknown_location = Object("unknown_location", Location)
@@ -142,9 +145,8 @@ class UnifiedPlanning:
 
         # Compose search subproblem.
         self.subproblem = Problem("mobipick_search")
-        for fluent in (self.robot_at, self.believe_at):
+        for fluent in (self.robot_at, self.believe_at, self.searched_at):
             self.subproblem.add_fluent(fluent)
-        self.subproblem.add_fluent(self.searched_at, default_initial_value=False)
         for action in (self.move, self.search_at, self.conclude_klt_search, self.conclude_tool_search):
             self.subproblem.add_action(action)
         self.subproblem.add_objects(self.locations)
@@ -164,11 +166,13 @@ class UnifiedPlanning:
             return planner.solve(self.problem)
 
     def plan_search(
-        self, item: Object, robot_location: Object, item_locations: Dict[Object, Object], goal: FNode
+        self, robot_location: Object, item_locations: Dict[Object, Object], goal: FNode
     ) -> PlanGenerationResult:
         self.subproblem.set_initial_value(self.robot_at, robot_location)
         for item in self.items:
             self.subproblem.set_initial_value(self.believe_at(item), item_locations.get(item, self.unknown_location))
+        for location in self.locations:
+            self.subproblem.set_initial_value(self.searched_at(location), location == robot_location)
         self.subproblem.clear_goals()
         self.subproblem.add_goal(goal)
         with OneshotPlanner(problem_kind=self.subproblem.kind) as planner:

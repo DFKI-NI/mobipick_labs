@@ -34,6 +34,13 @@ def get_plan(up: UnifiedPlanning, env: Environment, goal: FNode, replan: bool = 
     return result.plan
 
 
+def get_search_plan(up: UnifiedPlanning, env: Environment, search_goal: FNode) -> Plan:
+    result = up.plan_search(env.actual_robot_location, env.believed_item_locations, search_goal)
+    print(f"{result.planner_name} returned: {result.plan}")
+    assert result.plan
+    return result.plan
+
+
 def execute(up: UnifiedPlanning, env: Environment, goal: FNode) -> None:
     print(f"Scenario: Robot shall place all items into a klt and bring them to {up.target_table}.")
     print("The item locations are:")
@@ -99,29 +106,38 @@ def execute(up: UnifiedPlanning, env: Environment, goal: FNode) -> None:
 
                 # Search for item by circling and observing the tables.
                 print(f"Search for {item}.")
-                index = up.tables.index(env.actual_robot_location) if env.actual_robot_location in up.tables else 0
-                indices = [(index + offset - 1) % (len(up.tables) - 1) + 1 for offset in range(1, len(up.tables))] + [0]
+                search_goal = Equals(
+                    up.believe_at(item), up.searched_klt_location if item in up.klts else up.searched_tool_location
+                )
+                search_plan = get_search_plan(up, env, search_goal)
+
                 has_detected_current = False
                 has_detected_new = False
-                for index in indices:
-                    print(f"- Move from {env.actual_robot_location} to {up.tables[index]}.")
-                    env.actual_robot_location = up.tables[index]
-                    print(f"- Observe {env.actual_robot_location}.")
-                    # Detect all items on the current table.
-                    for check_item in up.tools + up.klts:
-                        if env.actual_item_locations.get(check_item) == env.actual_robot_location:
-                            print(f"- Detect {check_item}.")
-                            if check_item in up.klts:
-                                env.actual_search_locations[check_item] = env.actual_robot_location
-                            if env.believed_item_locations.get(check_item) != env.actual_robot_location:
-                                env.believed_item_locations[check_item] = env.actual_robot_location
-                                if check_item == item:
-                                    has_detected_current = True
-                                else:
-                                    has_detected_new = True
-                    # If something is detected, stop searching.
-                    if has_detected_current or has_detected_new:
-                        break
+                for subaction in search_plan.actions:
+                    if subaction.action == up.move:
+                        target_location = subaction.actual_parameters[1].object()
+                        print(
+                            f"- Move from {env.actual_robot_location} to {target_location}"
+                            f" with {env.actual_robot_item}."
+                        )
+                        env.actual_robot_location = target_location
+                    elif subaction.action == up.search_at:
+                        print(f"- Observe {env.actual_robot_location}.")
+                        # Detect all items on the current table.
+                        for check_item in up.tools + up.klts:
+                            if env.actual_item_locations.get(check_item) == env.actual_robot_location:
+                                print(f"- Detect {check_item}.")
+                                if check_item in up.klts:
+                                    env.actual_search_locations[check_item] = env.actual_robot_location
+                                if env.believed_item_locations.get(check_item) != env.actual_robot_location:
+                                    env.believed_item_locations[check_item] = env.actual_robot_location
+                                    if check_item == item:
+                                        has_detected_current = True
+                                    else:
+                                        has_detected_new = True
+                        # If something is detected, stop searching.
+                        if has_detected_current or has_detected_new:
+                            break
                 else:
                     print(f"Search failed. No solution found.")
                     plan = None
@@ -139,12 +155,12 @@ def execute(up: UnifiedPlanning, env: Environment, goal: FNode) -> None:
 def test_tables_demo() -> None:
     up = UnifiedPlanning(6, 1)
     # Define environment values.
-    believed_item_locations = {up.power_drill: up.tables[1], up.klts[0]: up.tables[1]}
+    believed_item_locations = {up.power_drill: up.tables[3], up.klts[0]: up.tables[3]}
     actual_item_locations = {
-        up.power_drill: up.tables[3],
-        up.remote_control: up.tables[1],
-        up.screwdriver: up.tables[3],
-        up.klts[0]: up.tables[2],
+        up.power_drill: up.tables[2],
+        up.remote_control: up.tables[3],
+        up.screwdriver: up.tables[2],
+        up.klts[0]: up.tables[1],
     }
     if len(up.klts) > 1:
         actual_item_locations[up.klts[1]] = up.tables[4]
@@ -167,7 +183,7 @@ def test_search_problem() -> None:
     up = UnifiedPlanning(6, 1)
     believed_item_locations = {up.power_drill: up.tables[1], up.klts[0]: up.tables[1]}
     search_goal = Equals(up.believe_at(up.screwdriver), up.searched_tool_location)
-    result = up.plan_search(up.screwdriver, up.unknown_location, believed_item_locations, search_goal)
+    result = up.plan_search(up.unknown_location, believed_item_locations, search_goal)
     assert result.plan and len(result.plan.actions) == 2 * len(up.tables) + 1
 
 
