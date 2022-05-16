@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from unified_planning.model import FNode, Object
 from unified_planning.plan import Plan
 from unified_planning.shortcuts import And, Equals, Or
-from robot_api_up_demo.up_tables_problem import UnifiedPlanning
+from robot_api_up_demo.up_tables_demo import UnifiedPlanning
 
 
 @dataclass
