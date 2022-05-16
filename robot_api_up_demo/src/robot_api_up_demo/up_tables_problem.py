@@ -1,7 +1,7 @@
 from typing import Dict
 from unified_planning.model import FNode, Fluent, InstantaneousAction, Object, Problem
 from unified_planning.solvers import PlanGenerationResult
-from unified_planning.shortcuts import Equals, Not, OneshotPlanner, Or, UserType
+from unified_planning.shortcuts import And, BoolType, Equals, Not, OneshotPlanner, Or, UserType
 
 
 # Define object types.
@@ -14,6 +14,7 @@ class UnifiedPlanning:
     robot_at = Fluent("RobotAt", Location)
     robot_has = Fluent("RobotHas", Item)
     believe_at = Fluent("BelieveAt", Location, item=Item)
+    searched_at = Fluent("SearchedAt", BoolType(), location=Location)
     is_klt = Fluent("IsKlt", Item, location=Location)
 
     def __init__(self, table_count: int, klt_count: int) -> None:
@@ -106,6 +107,27 @@ class UnifiedPlanning:
         self.search_klt.add_effect(self.robot_at, self.searched_klt_location)
         self.search_klt.add_effect(self.believe_at(item), self.searched_klt_location)
 
+        self.search_at = InstantaneousAction("SearchAt", a=Location)
+        (a,) = self.search_at.parameters
+        self.search_at.add_precondition(Equals(self.robot_at, a))
+        self.search_at.add_precondition(Not(self.searched_at(a)))
+        self.search_at.add_precondition(Or(Equals(a, table) for table in self.tables))
+        self.search_at.add_effect(self.searched_at(a), True)
+
+        self.conclude_klt_search = InstantaneousAction("ConcludeKltSearch", item=Item)
+        (item,) = self.conclude_klt_search.parameters
+        self.conclude_klt_search.add_precondition(Equals(self.believe_at(item), self.unknown_location))
+        self.conclude_klt_search.add_precondition(And(self.searched_at(table) for table in self.tables))
+        self.conclude_klt_search.add_precondition(Or(Equals(item, klt) for klt in self.klts))
+        self.conclude_klt_search.add_effect(self.believe_at(item), self.searched_klt_location)
+
+        self.conclude_tool_search = InstantaneousAction("ConcludeToolSearch", item=Item)
+        (item,) = self.conclude_tool_search.parameters
+        self.conclude_tool_search.add_precondition(Equals(self.believe_at(item), self.unknown_location))
+        self.conclude_tool_search.add_precondition(And(self.searched_at(table) for table in self.tables))
+        self.conclude_tool_search.add_precondition(Or(Equals(item, tool) for tool in self.tools))
+        self.conclude_tool_search.add_effect(self.believe_at(item), self.searched_tool_location)
+
         # Compose base UP problem.
         self.problem = Problem("mobipick_tables")
         for fluent in (self.robot_at, self.robot_has, self.believe_at):
@@ -118,6 +140,16 @@ class UnifiedPlanning:
         self.problem.add_objects(self.locations)
         self.problem.add_objects(self.items)
 
+        # Compose search subproblem.
+        self.subproblem = Problem("mobipick_search")
+        for fluent in (self.robot_at, self.believe_at):
+            self.subproblem.add_fluent(fluent)
+        self.subproblem.add_fluent(self.searched_at, default_initial_value=False)
+        for action in (self.move, self.search_at, self.conclude_klt_search, self.conclude_tool_search):
+            self.subproblem.add_action(action)
+        self.subproblem.add_objects(self.locations)
+        self.subproblem.add_objects(self.items)
+
     def plan(
         self, robot_location: Object, robot_item: Object, item_locations: Dict[Object, Object], goal: FNode
     ) -> PlanGenerationResult:
@@ -128,6 +160,16 @@ class UnifiedPlanning:
             self.problem.set_initial_value(self.believe_at(item), item_locations.get(item, self.unknown_location))
         self.problem.clear_goals()
         self.problem.add_goal(goal)
-
         with OneshotPlanner(problem_kind=self.problem.kind) as planner:
             return planner.solve(self.problem)
+
+    def plan_search(
+        self, item: Object, robot_location: Object, item_locations: Dict[Object, Object], goal: FNode
+    ) -> PlanGenerationResult:
+        self.subproblem.set_initial_value(self.robot_at, robot_location)
+        for item in self.items:
+            self.subproblem.set_initial_value(self.believe_at(item), item_locations.get(item, self.unknown_location))
+        self.subproblem.clear_goals()
+        self.subproblem.add_goal(goal)
+        with OneshotPlanner(problem_kind=self.subproblem.kind) as planner:
+            return planner.solve(self.subproblem)

@@ -163,5 +163,13 @@ def test_tables_problem() -> None:
     execute(up, env, final_goal)
 
 
+def test_search_problem() -> None:
+    up = UnifiedPlanning(6, 1)
+    believed_item_locations = {up.power_drill: up.tables[1], up.klts[0]: up.tables[1]}
+    search_goal = Equals(up.believe_at(up.screwdriver), up.searched_tool_location)
+    result = up.plan_search(up.screwdriver, up.unknown_location, believed_item_locations, search_goal)
+    assert result.plan and len(result.plan.actions) == 2 * len(up.tables) + 1
+
+
 if __name__ == '__main__':
     test_tables_problem()
