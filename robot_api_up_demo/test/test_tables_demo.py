@@ -136,7 +136,7 @@ def execute(up: UnifiedPlanning, env: Environment, goal: FNode) -> None:
             break
 
 
-def test_tables_problem() -> None:
+def test_tables_demo() -> None:
     up = UnifiedPlanning(6, 1)
     # Define environment values.
     believed_item_locations = {up.power_drill: up.tables[1], up.klts[0]: up.tables[1]}
@@ -172,4 +172,4 @@ def test_search_problem() -> None:
 
 
 if __name__ == '__main__':
-    test_tables_problem()
+    test_tables_demo()
