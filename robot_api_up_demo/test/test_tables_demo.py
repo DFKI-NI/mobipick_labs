@@ -29,14 +29,14 @@ def get_plan(up: UnifiedPlanning, env: Environment, goal: FNode, replan: bool = 
     if replan:
         print("Replan ...")
     result = up.plan(env.actual_robot_location, env.actual_robot_item, env.believed_item_locations, goal)
-    print(f"{result.planner_name} returned: {result.plan}")
+    print(f"{result.engine_name} returned: {result.plan}")
     assert result.plan
     return result.plan
 
 
 def get_search_plan(up: UnifiedPlanning, env: Environment, search_goal: FNode) -> Plan:
     result = up.plan_search(env.actual_robot_location, env.believed_item_locations, search_goal)
-    print(f"{result.planner_name} returned: {result.plan}")
+    print(f"{result.engine_name} returned: {result.plan}")
     assert result.plan
     return result.plan
 

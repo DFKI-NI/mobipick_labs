@@ -88,7 +88,7 @@ def get_plan(goal: FNode) -> Plan:
     # Get plan.
     with OneshotPlanner(problem_kind=problem.kind) as planner:
         result = planner.solve(problem)
-        print(f"{result.planner_name} returned: {result.plan}")
+        print(f"{result.engine_name} returned: {result.plan}")
     return result.plan
 
 
