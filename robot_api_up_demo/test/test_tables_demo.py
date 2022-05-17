@@ -105,7 +105,7 @@ def execute(up: UnifiedPlanning, env: Environment, goal: FNode) -> None:
                     plan = get_plan(up, env, goal, replan=True)
                     break
 
-                # Search for item by circling and observing the tables.
+                # Search for item by generating and executing a subplan.
                 print(f"Search for {item}.")
                 search_goal = Equals(
                     up.believe_at(item), up.searched_klt_location if item in up.klts else up.searched_tool_location
@@ -133,6 +133,7 @@ def execute(up: UnifiedPlanning, env: Environment, goal: FNode) -> None:
                                         has_detected_new = True
                         # If something is detected, stop searching.
                         if has_detected_current or has_detected_new:
+                            print("- Search successful. Omitting remaining search actions.")
                             break
                 else:
                     print(f"Search failed. No solution found.")
