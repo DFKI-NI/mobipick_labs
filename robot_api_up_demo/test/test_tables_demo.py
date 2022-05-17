@@ -41,6 +41,18 @@ def get_search_plan(up: UnifiedPlanning, env: Environment, search_goal: FNode) -
     return result.plan
 
 
+def move(up: UnifiedPlanning, env: Environment, target_location: Object, item: Object) -> Object:
+    # Resolve a potentially symbolic target_location.
+    if target_location in (up.searched_tool_location, up.searched_klt_location):
+        assert item in env.actual_search_locations.keys() and env.actual_search_locations[item] != up.unknown_location
+        target_location = env.actual_search_locations[item]
+    # Only move if target_location is different.
+    if env.actual_robot_location != target_location:
+        print(f"Move from {env.actual_robot_location} to {target_location} with {env.actual_robot_item}.")
+        env.actual_robot_location = target_location
+    return target_location
+
+
 def execute(up: UnifiedPlanning, env: Environment, goal: FNode) -> None:
     print(f"Scenario: Robot shall place all items into a klt and bring them to {up.target_table}.")
     print("The item locations are:")
@@ -49,12 +61,10 @@ def execute(up: UnifiedPlanning, env: Environment, goal: FNode) -> None:
     while plan:
         for action in plan.actions:
             parameters = action.actual_parameters
-            if action.action == up.move:
+            if action.action == up.pick:
                 target_location = parameters[1].object()
-                print(f"Move from {env.actual_robot_location} to {target_location}" f" with {env.actual_robot_item}.")
-                env.actual_robot_location = target_location
-            elif action.action == up.pick:
-                item = parameters[1].object()
+                item = parameters[2].object()
+                move(up, env, target_location, item)
                 if env.actual_item_locations.get(item) == env.actual_robot_location:
                     print(f"Pick up {item} at {env.actual_robot_location}.")
                     env.believed_item_locations[item] = up.on_robot_location
@@ -66,7 +76,9 @@ def execute(up: UnifiedPlanning, env: Environment, goal: FNode) -> None:
                     plan = get_plan(up, env, goal, replan=True)
                     break
             elif action.action == up.place:
-                item = parameters[1].object()
+                target_location = parameters[1].object()
+                item = parameters[2].object()
+                move(up, env, target_location, None)  # Note: Target item is None.
                 print(f"Place {item} at {env.actual_robot_location}.")
                 env.believed_item_locations[item] = env.actual_item_locations[item] = env.actual_robot_location
                 env.actual_robot_item = up.nothing
@@ -75,19 +87,7 @@ def execute(up: UnifiedPlanning, env: Environment, goal: FNode) -> None:
                 klt_location = parameters[2].object()
                 klt_item = parameters[3].object()
                 item = parameters[4].object()
-                # Resolve a potentially symbolic target_location.
-                if target_location == up.searched_klt_location:
-                    assert (
-                        klt_item in env.actual_search_locations.keys()
-                        and env.actual_search_locations[klt_item] != up.unknown_location
-                    )
-                    target_location = env.actual_search_locations[klt_item]
-                # Only move if target_location is different.
-                if target_location != env.actual_robot_location:
-                    print(
-                        f"Move from {env.actual_robot_location} to {target_location}" f" with {env.actual_robot_item}."
-                    )
-                    env.actual_robot_location = target_location
+                move(up, env, target_location, klt_item)
                 if env.actual_item_locations.get(klt_item) == env.actual_robot_location:
                     print(f"Place {item} into {klt_item} at {env.actual_robot_location}.")
                     env.believed_item_locations[item] = env.actual_item_locations[item] = klt_location
@@ -114,20 +114,15 @@ def execute(up: UnifiedPlanning, env: Environment, goal: FNode) -> None:
                 has_detected_current = False
                 has_detected_new = False
                 for subaction in search_plan.actions:
-                    if subaction.action == up.move:
+                    if subaction.action == up.search_at:
                         target_location = subaction.actual_parameters[1].object()
-                        print(
-                            f"- Move from {env.actual_robot_location} to {target_location}"
-                            f" with {env.actual_robot_item}."
-                        )
-                        env.actual_robot_location = target_location
-                    elif subaction.action == up.search_at:
+                        move(up, env, target_location, None)
                         print(f"- Observe {env.actual_robot_location}.")
                         # Detect all items on the current table.
                         for check_item in up.tools + up.klts:
                             if env.actual_item_locations.get(check_item) == env.actual_robot_location:
                                 print(f"- Detect {check_item}.")
-                                if check_item in up.klts:
+                                if check_item in up.tools + up.klts:
                                     env.actual_search_locations[check_item] = env.actual_robot_location
                                 if env.believed_item_locations.get(check_item) != env.actual_robot_location:
                                     env.believed_item_locations[check_item] = env.actual_robot_location
@@ -155,12 +150,12 @@ def execute(up: UnifiedPlanning, env: Environment, goal: FNode) -> None:
 def test_tables_demo() -> None:
     up = UnifiedPlanning(6, 1)
     # Define environment values.
-    believed_item_locations = {up.power_drill: up.tables[3], up.klts[0]: up.tables[3]}
+    believed_item_locations = {up.power_drill: up.tables[1], up.klts[0]: up.tables[1]}
     actual_item_locations = {
         up.power_drill: up.tables[2],
-        up.remote_control: up.tables[3],
+        up.remote_control: up.tables[1],
         up.screwdriver: up.tables[2],
-        up.klts[0]: up.tables[1],
+        up.klts[0]: up.tables[3],
     }
     if len(up.klts) > 1:
         actual_item_locations[up.klts[1]] = up.tables[4]

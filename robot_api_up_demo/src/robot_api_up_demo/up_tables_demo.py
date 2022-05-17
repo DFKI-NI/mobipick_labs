@@ -46,35 +46,32 @@ class UnifiedPlanning:
 
         # Define all actions.
 
-        self.move = InstantaneousAction("Move", a=Location, b=Location)
-        a, b = self.move.parameters
-        self.move.add_precondition(Equals(self.robot_at, a))
-        self.move.add_precondition(
+        self.pick = InstantaneousAction("Pick", a=Location, b=Location, item=Item)
+        a, b, item = self.pick.parameters
+        self.pick.add_precondition(Equals(self.robot_at, a))
+        self.pick.add_precondition(Equals(self.robot_has, self.nothing))
+        self.pick.add_precondition(Equals(self.believe_at(item), b))
+        self.pick.add_precondition(
             Or(
                 Or(Equals(b, table) for table in self.tables),
                 Equals(b, self.searched_tool_location),
                 Equals(b, self.searched_klt_location),
             )
         )
-        self.move.add_effect(self.robot_at, b)
-
-        self.pick = InstantaneousAction("Pick", a=Location, item=Item)
-        a, item = self.pick.parameters
-        self.pick.add_precondition(Equals(self.robot_at, a))
-        self.pick.add_precondition(Equals(self.robot_has, self.nothing))
-        self.pick.add_precondition(Equals(self.believe_at(item), a))
-        self.pick.add_precondition(Not(Equals(a, self.unknown_location)))
         self.pick.add_precondition(Not(Equals(item, self.nothing)))
+        self.pick.add_effect(self.robot_at, b)
         self.pick.add_effect(self.robot_has, item)
         self.pick.add_effect(self.believe_at(item), self.unknown_location)
 
-        self.place = InstantaneousAction("Place", a=Location, item=Item)
-        a, item = self.place.parameters
+        self.place = InstantaneousAction("Place", a=Location, b=Location, item=Item)
+        a, b, item = self.place.parameters
         self.place.add_precondition(Equals(self.robot_at, a))
         self.place.add_precondition(Equals(self.robot_has, item))
+        self.place.add_precondition(Or(Equals(b, table) for table in self.tables))
         self.place.add_precondition(Or(Equals(item, klt) for klt in self.klts))
+        self.place.add_effect(self.robot_at, b)
         self.place.add_effect(self.robot_has, self.nothing)
-        self.place.add_effect(self.believe_at(item), a)
+        self.place.add_effect(self.believe_at(item), b)
 
         self.store = InstantaneousAction(
             "Store", a=Location, b=Location, klt_location=Location, klt_item=Item, item=Item
@@ -97,6 +94,7 @@ class UnifiedPlanning:
         self.search_tool = InstantaneousAction("SearchTool", item=Item)
         (item,) = self.search_tool.parameters
         self.search_tool.add_precondition(Not(Equals(self.robot_at, self.searched_tool_location)))
+        self.search_tool.add_precondition(Equals(self.robot_has, self.nothing))
         self.search_tool.add_precondition(Equals(self.believe_at(item), self.unknown_location))
         self.search_tool.add_precondition(Or(Equals(item, tool) for tool in self.tools))
         self.search_tool.add_effect(self.robot_at, self.searched_tool_location)
@@ -110,12 +108,13 @@ class UnifiedPlanning:
         self.search_klt.add_effect(self.robot_at, self.searched_klt_location)
         self.search_klt.add_effect(self.believe_at(item), self.searched_klt_location)
 
-        self.search_at = InstantaneousAction("SearchAt", a=Location)
-        (a,) = self.search_at.parameters
+        self.search_at = InstantaneousAction("SearchAt", a=Location, b=Location)
+        a, b = self.search_at.parameters
         self.search_at.add_precondition(Equals(self.robot_at, a))
-        self.search_at.add_precondition(Not(self.searched_at(a)))
-        self.search_at.add_precondition(Or(Equals(a, table) for table in self.tables))
-        self.search_at.add_effect(self.searched_at(a), True)
+        self.search_at.add_precondition(Not(self.searched_at(b)))
+        self.search_at.add_precondition(Or(Equals(b, table) for table in self.tables))
+        self.search_at.add_effect(self.robot_at, b)
+        self.search_at.add_effect(self.searched_at(b), True)
 
         self.conclude_klt_search = InstantaneousAction("ConcludeKltSearch", item=Item)
         (item,) = self.conclude_klt_search.parameters
@@ -138,7 +137,7 @@ class UnifiedPlanning:
         self.problem.add_fluent(self.is_klt, default_initial_value=self.nothing)
         for klt_location, klt in zip(self.klt_locations, self.klts):
             self.problem.set_initial_value(self.is_klt(klt_location), klt)
-        for action in (self.move, self.pick, self.place, self.store, self.search_tool, self.search_klt):
+        for action in (self.pick, self.place, self.store, self.search_tool, self.search_klt):
             self.problem.add_action(action)
         self.problem.add_objects(self.locations)
         self.problem.add_objects(self.items)
@@ -147,7 +146,7 @@ class UnifiedPlanning:
         self.subproblem = Problem("mobipick_search")
         for fluent in (self.robot_at, self.believe_at, self.searched_at):
             self.subproblem.add_fluent(fluent)
-        for action in (self.move, self.search_at, self.conclude_klt_search, self.conclude_tool_search):
+        for action in (self.search_at, self.conclude_klt_search, self.conclude_tool_search):
             self.subproblem.add_action(action)
         self.subproblem.add_objects(self.locations)
         self.subproblem.add_objects(self.items)
