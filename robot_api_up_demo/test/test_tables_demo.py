@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-from typing import Dict, Optional
-from dataclasses import dataclass
+from typing import Dict, Optional, Set
+from dataclasses import dataclass, field
 import time
 from unified_planning.model import FNode, Object
 from unified_planning.plan import Plan
@@ -16,7 +16,7 @@ class Environment:
     believed_item_locations: Dict[Object, Object]
     actual_item_locations: Dict[Object, Object]
     actual_search_locations: Dict[Object, Object]
-    action_success_count: int = 0
+    successful_actions: Set[str] = field(default_factory=set)
     subaction_success_count: int = 0
 
 
@@ -43,9 +43,10 @@ def get_plan(
     assert result.plan
     if visualization:
         visualization.set_actions(
-            f"{index + env.action_success_count + 1} {action}" for index, action in enumerate(result.plan.actions)
+            [f"{index + len(env.successful_actions) + 1} {action}" for index, action in enumerate(result.plan.actions)],
+            env.successful_actions,
         )
-        time.sleep(1.0)
+        time.sleep(2.0)
     return result.plan
 
 
@@ -62,12 +63,13 @@ def get_search_plan(
     if visualization:
         visualization.set_actions(
             [
-                f"{env.action_success_count + 1}{chr(index + 97)} {action}"
+                f"{len(env.successful_actions) + 1}{chr(index + 97)} {action}"
                 for index, action in enumerate(result.plan.actions)
             ],
+            env.successful_actions,
             action_name,
         )
-        time.sleep(1.0)
+        time.sleep(2.0)
     return result.plan
 
 
@@ -94,7 +96,7 @@ def execute(up: UnifiedPlanning, env: Environment, goal: FNode, visualize: bool)
     plan = get_plan(up, env, goal, visualization)
     while plan:
         for action in plan.actions:
-            action_name = f"{env.action_success_count + 1} {action}"
+            action_name = f"{len(env.successful_actions) + 1} {action}"
             if visualization:
                 # Abort plan execution on closing the visualization window.
                 if not visualization.window.props.visible:
@@ -177,7 +179,7 @@ def execute(up: UnifiedPlanning, env: Environment, goal: FNode, visualize: bool)
                 has_detected_new = False
                 for subaction in search_plan.actions:
                     subaction_name = (
-                        f"{env.action_success_count + 1}{chr(env.subaction_success_count + 97)} {subaction}"
+                        f"{len(env.successful_actions) + 1}{chr(env.subaction_success_count + 97)} {subaction}"
                     )
                     if visualization:
                         # Abort plan execution on closing the visualization window.
@@ -232,7 +234,7 @@ def execute(up: UnifiedPlanning, env: Environment, goal: FNode, visualize: bool)
                 update(visualization, action_name, True)
             if plan is None:
                 break
-            env.action_success_count += 1
+            env.successful_actions.add(action_name)
         else:
             break
 

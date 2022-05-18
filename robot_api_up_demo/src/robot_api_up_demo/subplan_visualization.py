@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Set
 from dataclasses import dataclass
 from threading import Thread
 from xdot import DotWindow
@@ -23,8 +23,7 @@ class SubPlanVisualization:
         self.window = DotWindow()
         self.window.connect('delete-event', Gtk.main_quit)
         self.graph: Dot = None
-        self.nodes: List[Tuple[VisualizationNode, ...]] = []
-        self.action_nodes: Dict[str, VisualizationNode] = {}
+        self.nodes: Dict[str, VisualizationNode] = {}
         self.thread = Thread(target=Gtk.main)
         self.thread.start()
 
@@ -32,11 +31,24 @@ class SubPlanVisualization:
         """Update visualization by dot code from self.graph."""
         self.window.set_dotcode(str.encode(self.graph.to_string()))
 
-    def set_actions(self, actions: Sequence[object], predecessor: Optional[object] = None) -> None:
+    def set_actions(
+        self,
+        actions: Sequence[object],
+        preserve_actions: Optional[Set[object]] = None,
+        predecessor: Optional[object] = None,
+    ) -> None:
         """Update graph with actions by adding them to predecessor, or creating a new one."""
         if predecessor is None:
             self.graph = Dot("Plan", graph_type="digraph", bgcolor="white")
-            self.nodes.clear()
+            if preserve_actions:
+                for action_name, node in list(self.nodes.items()):
+                    if node.action in preserve_actions:
+                        self.graph.add_node(node.node)
+                        if node.edge:
+                            self.graph.add_edge(node.edge)
+                        predecessor = node.action
+                    else:
+                        del self.nodes[action_name]
         new_nodes: List[VisualizationNode] = []
         for action in actions:
             graph_node = Node(str(action), style="filled", fillcolor="white")
@@ -44,15 +56,14 @@ class SubPlanVisualization:
             graph_edge: Optional[Edge] = Edge(predecessor, graph_node) if predecessor else None
             if graph_edge:
                 self.graph.add_edge(graph_edge)
-            new_node = self.action_nodes[str(action)] = VisualizationNode(graph_edge, graph_node, action)
+            new_node = self.nodes[str(action)] = VisualizationNode(graph_edge, graph_node, action)
             new_nodes.append(new_node)
             predecessor = graph_node
-        self.nodes.append(tuple(new_nodes))
         self.update()
 
     def execute(self, action: object) -> None:
         """Mark action as being executed."""
-        action_node = self.action_nodes[str(action)]
+        action_node = self.nodes[str(action)]
         action_node.node.set("fillcolor", "yellow")
         if action_node.edge:
             action_node.edge.set("color", "green")
@@ -60,10 +71,10 @@ class SubPlanVisualization:
 
     def succeed(self, action: object) -> None:
         """Mark action as successful."""
-        self.action_nodes[str(action)].node.set("fillcolor", "green")
+        self.nodes[str(action)].node.set("fillcolor", "green")
         self.update()
 
     def fail(self, action: object) -> None:
         """Mark action as failed."""
-        self.action_nodes[str(action)].node.set("fillcolor", "red")
+        self.nodes[str(action)].node.set("fillcolor", "red")
         self.update()
