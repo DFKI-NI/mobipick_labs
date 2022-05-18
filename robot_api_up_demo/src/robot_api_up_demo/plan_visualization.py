@@ -37,20 +37,20 @@ class PlanVisualization:
             self.graph.add_edge(edge)
         self.visualize()
 
-    def execute(self, obj: object) -> None:
-        """Mark action at index as being executed."""
-        index = self.actions.index(obj)
+    def execute(self, action: object) -> None:
+        """Mark action as being executed."""
+        index = self.actions.index(action)
         self.nodes[index].set("fillcolor", "yellow")
         if index > 0:
             self.edges[index - 1].set("color", "green")
         self.visualize()
 
-    def succeed(self, obj: object) -> None:
-        """Mark action at index as success."""
-        self.nodes[self.actions.index(obj)].set("fillcolor", "green")
+    def succeed(self, action: object) -> None:
+        """Mark action as successful."""
+        self.nodes[self.actions.index(action)].set("fillcolor", "green")
         self.visualize()
 
-    def fail(self, obj: object) -> None:
-        """Mark action at index as failure."""
-        self.nodes[self.actions.index(obj)].set("fillcolor", "red")
+    def fail(self, action: object) -> None:
+        """Mark action as failed."""
+        self.nodes[self.actions.index(action)].set("fillcolor", "red")
         self.visualize()
