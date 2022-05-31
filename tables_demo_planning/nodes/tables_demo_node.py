@@ -6,8 +6,8 @@ import time
 import yaml
 import rospkg
 from geometry_msgs.msg import Pose
-from robot_api_up_demo.plan_visualization import PlanVisualization
-from robot_api_up_demo.up_planning import Action, Planning
+from tables_demo_planning.plan_visualization import PlanVisualization
+from tables_demo_planning.up_planning import Action, Planning
 from robot_api import TuplePose
 import robot_api
 

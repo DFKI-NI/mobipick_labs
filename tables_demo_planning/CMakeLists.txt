@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(robot_api_up_demo)
+project(tables_demo_planning)
 
 find_package(catkin REQUIRED)
 
@@ -15,6 +15,6 @@ catkin_package()
 #############
 
 catkin_install_python(PROGRAMS
-  nodes/robot_api_up_demo_node.py
+  nodes/tables_demo_node.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )

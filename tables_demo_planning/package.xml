@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>robot_api_up_demo</name>
+  <name>tables_demo_planning</name>
   <version>0.0.0</version>
   <description>Demo of planning and executing a robot's actions using simple Python interfaces.</description>
 

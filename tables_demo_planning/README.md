@@ -1,4 +1,4 @@
-# Robot API + UP Demo
+# Mobipick Tables Demo Planning
 
 Demo of planning and executing a robot's actions using simple Python interfaces.
 
@@ -14,7 +14,7 @@ Goal of the robot in this demo is to
 - hand it over to a person,
 - return empty-handed to its home position.
 
-`robot_api_up_demo.py` shows how you can implement this use-case in one Python file. It
+`tables_demo_node.py` shows how you can implement this use-case in one Python file. It
 
 - defines environment representation states,
 - defines executable actions by using the Robot API,
@@ -42,7 +42,7 @@ roslaunch mobipick_moveit_config moveit_planning_execution.launch use_pointcloud
 roslaunch mobipick_task_server mobipick_task_server.launch
 roslaunch mobipick_pick_n_place mobipick_pick_n_place.launch simulation:=true
 roslaunch robot_api moveit_macros.launch namespace:='mobipick'
-rosrun robot_api_up_demo robot_api_up_demo_node.py
+rosrun tables_demo_planning tables_demo_node.py
 ```
 
 ## Improvements
