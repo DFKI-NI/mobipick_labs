@@ -5,6 +5,7 @@ import math
 import time
 import yaml
 import rospkg
+import unified_planning as up
 from geometry_msgs.msg import Pose
 from tables_demo_planning.plan_visualization import PlanVisualization
 from tables_demo_planning.up_planning import Action, Planning
@@ -262,4 +263,5 @@ class Demo:
 
 
 if __name__ == '__main__':
+    up.shortcuts.get_env().credits_stream = None
     Demo().run()

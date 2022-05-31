@@ -2,6 +2,7 @@
 from typing import Dict, Optional, Set
 from dataclasses import dataclass, field
 import time
+import unified_planning as up
 from unified_planning.model import FNode, Object
 from unified_planning.plan import Plan
 from unified_planning.shortcuts import And, Equals, Or
@@ -275,4 +276,5 @@ def test_search_problem() -> None:
 
 
 if __name__ == '__main__':
+    up.shortcuts.get_env().credits_stream = None
     test_tables_demo(visualize=True)
