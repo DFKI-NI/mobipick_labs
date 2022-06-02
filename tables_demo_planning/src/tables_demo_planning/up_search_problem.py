@@ -1,4 +1,5 @@
 import time
+import rospy
 from random import randrange
 from unified_planning.model import FNode, Fluent, InstantaneousAction, Object, Problem
 from unified_planning.plan import Plan
@@ -92,6 +93,7 @@ def get_plan(goal: FNode) -> Plan:
     return result.plan
 
 
+rospy.init_node("up_search_problem")
 print(f"Scenario: Robot is at {robot_location}, shall fetch an item and return to base.")
 print(f"Hint: True item_location is (randomly chosen) {item_location}, robot assumes it is {assumed_item_location}.")
 print("-- ")
@@ -101,12 +103,6 @@ visualization = PlanVisualization(plan.actions)
 
 while plan:
     for action in plan.actions:
-        # Abort plan execution on closing the visualization window.
-        if not visualization.window.props.visible:
-            visualization.thread.join()
-            plan = None
-            break
-
         visualization.execute(action)
         time.sleep(3.0)
         if action.action == pick and action.actual_parameters[0].object() != item_location:

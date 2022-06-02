@@ -1,12 +1,8 @@
 from typing import Dict, List, Optional, Sequence, Set
 from dataclasses import dataclass
-from threading import Thread
-from xdot import DotWindow
 from pydot import Dot, Edge, Node
-import gi
-
-gi.require_version('Gtk', '3.0')  # Note: Necessary, else a PyGIWarning appears.
-from gi.repository import Gtk
+from std_msgs.msg import String
+import rospy
 
 
 @dataclass
@@ -18,18 +14,13 @@ class VisualizationNode:
 
 class SubPlanVisualization:
     def __init__(self) -> None:
-        # Note: Set base_title as workaround because self.window.set_title() has no effect.
-        DotWindow.base_title = "Plan Visualization"
-        self.window = DotWindow()
-        self.window.connect('delete-event', Gtk.main_quit)
         self.graph: Dot = None
         self.nodes: Dict[str, VisualizationNode] = {}
-        self.thread = Thread(target=Gtk.main)
-        self.thread.start()
+        self.plan_pub = rospy.Publisher("/plan_visualization/plan_graph", String, queue_size=1)
 
     def update(self) -> None:
         """Update visualization by dot code from self.graph."""
-        self.window.set_dotcode(str.encode(self.graph.to_string()))
+        self.plan_pub.publish(self.graph.to_string())
 
     def set_actions(
         self,

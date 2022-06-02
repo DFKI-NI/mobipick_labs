@@ -2,7 +2,9 @@
 from typing import Dict, Optional, Set
 from dataclasses import dataclass, field
 import time
-import unified_planning as up
+import rospy
+import rosgraph
+import unified_planning
 from unified_planning.model import FNode, Object
 from unified_planning.plan import Plan
 from unified_planning.shortcuts import And, Equals, Or
@@ -99,12 +101,6 @@ def execute(up: UnifiedPlanning, env: Environment, goal: FNode, visualize: bool)
         for action in plan.actions:
             action_name = f"{len(env.successful_actions) + 1} {action}"
             if visualization:
-                # Abort plan execution on closing the visualization window.
-                if not visualization.window.props.visible:
-                    visualization.thread.join()
-                    plan = None
-                    break
-
                 visualization.execute(action_name)
                 time.sleep(1.0)
 
@@ -183,12 +179,6 @@ def execute(up: UnifiedPlanning, env: Environment, goal: FNode, visualize: bool)
                         f"{len(env.successful_actions) + 1}{chr(env.subaction_success_count + 97)} {subaction}"
                     )
                     if visualization:
-                        # Abort plan execution on closing the visualization window.
-                        if not visualization.window.props.visible:
-                            visualization.thread.join()
-                            plan = None
-                            break
-
                         visualization.execute(subaction_name)
                         time.sleep(1.0)
 
@@ -241,6 +231,7 @@ def execute(up: UnifiedPlanning, env: Environment, goal: FNode, visualize: bool)
 
 
 def test_tables_demo(visualize: bool = False) -> None:
+    unified_planning.shortcuts.get_env().credits_stream = None
     up = UnifiedPlanning(6, 1)
     # Define environment values.
     believed_item_locations = {up.power_drill: up.tables[3], up.klts[0]: up.tables[3]}
@@ -268,6 +259,7 @@ def test_tables_demo(visualize: bool = False) -> None:
 
 
 def test_search_problem() -> None:
+    unified_planning.shortcuts.get_env().credits_stream = None
     up = UnifiedPlanning(6, 1)
     believed_item_locations = {up.power_drill: up.tables[1], up.klts[0]: up.tables[1]}
     search_goal = Equals(up.believe_at(up.screwdriver), up.searched_tool_location)
@@ -276,5 +268,8 @@ def test_search_problem() -> None:
 
 
 if __name__ == '__main__':
-    up.shortcuts.get_env().credits_stream = None
-    test_tables_demo(visualize=True)
+    visualize = False
+    if rosgraph.is_master_online():
+        rospy.init_node("test_tables_demo")
+        visualize = True
+    test_tables_demo(visualize)

@@ -1,29 +1,21 @@
 from typing import List, Sequence
-from threading import Thread
-from xdot import DotWindow
 from pydot import Dot, Edge, Node
-import gi
-
-gi.require_version('Gtk', '3.0')  # Note: Necessary, else a PyGIWarning appears.
-from gi.repository import Gtk
+from std_msgs.msg import String
+import rospy
 
 
 class PlanVisualization:
     def __init__(self, actions: Sequence[object]) -> None:
-        DotWindow.base_title = "Plan Visualization"  # Note: Workaround because self.window.set_title() has no effect.
-        self.window = DotWindow()
-        self.window.connect('delete-event', Gtk.main_quit)
         self.graph: Dot = None
         self.nodes: List[Node] = []
         self.edges: List[Edge] = []
         self.actions: Sequence[object] = []
+        self.plan_pub = rospy.Publisher("/plan_visualization/plan_graph", String, queue_size=1)
         self.set_actions(actions)
-        self.thread = Thread(target=Gtk.main)
-        self.thread.start()
 
     def visualize(self) -> None:
         """Update the visualization by dot code from self.graph."""
-        self.window.set_dotcode(str.encode(self.graph.to_string()))
+        self.plan_pub.publish(self.graph.to_string())
 
     def set_actions(self, actions: Sequence[object]) -> None:
         """Create and visualize a new graph, built from actions."""
