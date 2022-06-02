@@ -11,7 +11,11 @@
   <author email="oscar.lima@dfki.de">Oscar Lima</author>
 
   <buildtool_depend>catkin</buildtool_depend>
-  <build_depend>message_generation</build_depend>
-  <exec_depend>message_runtime</exec_depend>
-
+  <exec_depend>mobipick_gazebo</exec_depend>
+  <exec_depend>mobipick_pick_n_place</exec_depend>
+  <exec_depend>mobipick_moveit_config</exec_depend>
+  <exec_depend>mir_gazebo</exec_depend>
+  <exec_depend>mir_navigation</exec_depend>
+  <exec_depend>pbr_maps</exec_depend>
+  <exec_depend>pose_selector</exec_depend>
 </package>
