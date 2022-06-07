@@ -11,6 +11,8 @@ from unified_planning.shortcuts import And, Equals, Or
 from tables_demo_planning.subplan_visualization import SubPlanVisualization
 from tables_demo_planning.up_tables_demo import UnifiedPlanning
 
+"""This test script tests planning, re-planning, and visualization without Gazebo simulation."""
+
 
 @dataclass
 class Environment:

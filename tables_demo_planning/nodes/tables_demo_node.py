@@ -12,6 +12,11 @@ from tables_demo_planning.up_planning import Action, Planning
 from robot_api import TuplePose
 import robot_api
 
+"""
+Main execution node of the tables demo.
+Currently, it only performs the simple pick & place demo.
+"""
+
 
 # Define state representation classes and specifiers.
 
