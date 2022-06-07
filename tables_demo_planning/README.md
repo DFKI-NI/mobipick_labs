@@ -47,10 +47,10 @@ rosrun tables_demo_planning tables_demo_node.py
 
 ## Plan visualization
 
-Install and source this [plan_visualization](https://git.ni.dfki.de/acting/plan_visualization) module, then call it with:
+Install and source this [dot_graph_visualization](https://git.ni.dfki.de/acting/dot_graph_visualization) module, then call it with:
 
 ```bash
-rqt --standalone plan_visualization
+rqt --standalone dot_graph_visualization
 ```
 
 ## Improvements
