@@ -10,7 +10,7 @@ class PlanVisualization:
         self.nodes: List[Node] = []
         self.edges: List[Edge] = []
         self.actions: Sequence[object] = []
-        self.plan_pub = rospy.Publisher("/plan_visualization/plan_graph", String, queue_size=1)
+        self.plan_pub = rospy.Publisher("/dot_graph_visualization/dot_graph", String, queue_size=1)
         self.set_actions(actions)
 
     def visualize(self) -> None:

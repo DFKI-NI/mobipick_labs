@@ -16,7 +16,7 @@ class SubPlanVisualization:
     def __init__(self) -> None:
         self.graph: Dot = None
         self.nodes: Dict[str, VisualizationNode] = {}
-        self.plan_pub = rospy.Publisher("/plan_visualization/plan_graph", String, queue_size=1)
+        self.plan_pub = rospy.Publisher("/dot_graph_visualization/dot_graph", String, queue_size=1)
 
     def update(self) -> None:
         """Update visualization by dot code from self.graph."""
