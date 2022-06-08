@@ -11,6 +11,7 @@ mobipick/install-deps.sh
 
 # Then install demo dependencies.
 vcs import < "$FILEPATH"/my.repos
+vcs pull
 
 # Install Unified Planning library and its planners.
 pip install unified-planning/
