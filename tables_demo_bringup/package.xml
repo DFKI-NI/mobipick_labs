@@ -17,4 +17,5 @@
   <exec_depend>mir_gazebo</exec_depend>
   <exec_depend>mir_navigation</exec_depend>
   <exec_depend>pbr_maps</exec_depend>
+  <exec_depend>pose_selector</exec_depend>
 </package>
