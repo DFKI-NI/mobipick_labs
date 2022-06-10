@@ -1,7 +1,7 @@
 mobipick_tables_demo
 ====================
 
-Code for the "tables" demo on 2022-05-05 and 2022-07-12.
+Code for the "tables" demo on 2022-07-12.
 
 Scenario description
 --------------------
@@ -32,9 +32,24 @@ roslaunch mobipick_gazebo tables_demo.launch
 rosservice call /gazebo/unpause_physics
 
 roslaunch mir_gazebo fake_localization.launch __ns:="mobipick" odom_frame_id:="mobipick/odom" base_frame_id:="mobipick/base_footprint"
-roslaunch mir_navigation start_planner.launch map_file:=$(rospack find pbr_maps)/maps/tables_demo/tables_demo.yaml prefix:="mobipick/"
+roslaunch mir_navigation start_planner.launch map_file:=$(rospack find pbr_maps)/maps/tables_demo/tables_demo.yaml \
+    virtual_walls_map_file:=$(rospack find pbr_maps)/maps/tables_demo/tables_demo_virtual_walls.yaml \
+    prefix:="mobipick/"
 roslaunch mobipick_moveit_config moveit_planning_execution.launch use_pointcloud:=true simulation:=true
 rviz -d $(rospack find mir_navigation)/rviz/navigation.rviz __ns:="mobipick"
+roslaunch mobipick_pick_n_place mobipick_pick_n_place.launch world:=moelk_tables_demo simulation:=true
+rosservice call /mobipick/continue_statemachine
+```
+
+
+Pick-and-place demo on the real robot
+-------------------------------------
+
+```bash
+roslaunch mobipick_bringup mobipick_bringup_both.launch
+roslaunch pbr_dope dope.launch
+roslaunch mobipick_pick_n_place mobipick_pick_n_place.launch world:=moelk_tables_demo
+rosservice call /mobipick/continue_statemachine
 ```
 
 
