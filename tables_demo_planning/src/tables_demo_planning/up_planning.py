@@ -1,7 +1,7 @@
 from typing import Any, Dict, List, Optional, Tuple, Type
 from collections import OrderedDict
 from unified_planning.model import Fluent, InstantaneousAction, Object, Parameter, Problem
-from unified_planning.plan import ActionInstance
+from unified_planning.plans.plan import ActionInstance
 from unified_planning.shortcuts import BoolType, OneshotPlanner, UserType
 
 
