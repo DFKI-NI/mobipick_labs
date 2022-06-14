@@ -6,6 +6,8 @@ from unified_planning.shortcuts import BoolType, OneshotPlanner, UserType
 
 
 class Action:
+    SIGNATURE: Tuple[Type, ...]
+
     def __init__(self, *args: Any) -> None:
         self.args = args
 
