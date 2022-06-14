@@ -4,8 +4,10 @@ from enum import IntEnum
 import math
 import time
 import yaml
+import rospy
 import rospkg
 import unified_planning as up
+from std_srvs.srv import SetBool
 from geometry_msgs.msg import Pose
 from tables_demo_planning.plan_visualization import PlanVisualization
 from tables_demo_planning.up_planning import Action, Planning
@@ -117,6 +119,18 @@ class HandoverAction(RobotAction):
 
         self.robot.arm.execute("ReleaseGripper")
         return True
+
+
+class PerceiveAction(RobotAction):
+    activate_pose_selector = rospy.ServiceProxy('/pose_selector_activate', SetBool)
+
+    def __call__(self) -> bool:
+        self.robot.arm.move("observe100cm_right")
+        rospy.wait_for_service('/pose_selector_activate')
+        activation_result = self.activate_pose_selector(True)
+        rospy.sleep(5)
+        deactivation_result = self.activate_pose_selector(False)
+        return activation_result and deactivation_result
 
 
 # Main demo class which orchestrates planning and execution.
