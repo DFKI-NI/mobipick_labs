@@ -37,13 +37,20 @@ roslaunch mir_navigation start_planner.launch map_file:=$(rospack find pbr_maps)
     prefix:="mobipick/"
 roslaunch mobipick_moveit_config moveit_planning_execution.launch use_pointcloud:=true simulation:=true
 rviz -d $(rospack find mir_navigation)/rviz/navigation.rviz __ns:="mobipick"
+roslaunch mobipick_task_server mobipick_task_server.launch
+roslaunch robot_api moveit_macros.launch namespace:='mobipick'
 roslaunch mobipick_pick_n_place mobipick_pick_n_place.launch world:=moelk_tables_demo simulation:=true
-rosservice call /mobipick/continue_statemachine
+rosrun tables_demo_planning tables_demo_node.py
 ```
-
 
 Pick-and-place demo on the real robot
 -------------------------------------
+
+Goal of the robot in this demo is to
+
+- fetch the power drill from the table,
+- hand it over to a person,
+- return empty-handed to its home position.
 
 ```bash
 roslaunch mobipick_bringup mobipick_bringup_both.launch
@@ -52,6 +59,16 @@ roslaunch mobipick_pick_n_place mobipick_pick_n_place.launch world:=moelk_tables
 rosservice call /mobipick/continue_statemachine
 ```
 
+Plan visualization
+------------------
+
+Install and source this
+[dot_graph_visualization](https://git.ni.dfki.de/acting/dot_graph_visualization)
+module, then call it with:
+
+```bash
+rqt --standalone dot_graph_visualization
+```
 
 pre-commit Formatting Checks
 ----------------------------
