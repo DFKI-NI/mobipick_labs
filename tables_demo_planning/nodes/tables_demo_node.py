@@ -155,7 +155,7 @@ class Demo:
 
     def load_waypoints(self) -> None:
         # Load poses from mobipick config file.
-        filepath = f"{rospkg.RosPack().get_path('mobipick_pick_n_place')}/config/moelk.yaml"
+        filepath = f"{rospkg.RosPack().get_path('mobipick_pick_n_place')}/config/moelk_tables_demo.yaml"
         with open(filepath, 'r') as yaml_file:
             yaml_contents: Dict[str, List[float]] = yaml.safe_load(yaml_file)["poses"]
             for pose_name in sorted(yaml_contents.keys()):
@@ -171,9 +171,16 @@ class Demo:
     def run(self) -> None:
         # Define objects for planning.
         mobipick = self.planning.create_object("mobipick", self.robot)
-        (base_handover_pose, base_home_pose, base_pick_pose, base_place_pose, _) = self.planning.create_objects(
-            self.poses
-        )
+        (
+            base_handover_pose,
+            base_home_pose,
+            base_pick_pose,
+            base_place_pose,
+            base_table1_pose,
+            base_table2_pose,
+            base_table3_pose,
+            _,
+        ) = self.planning.create_objects(self.poses)
         (_, arm_pose_home, arm_pose_transport, arm_pose_interaction) = self.planning.create_objects(
             {pose.name: pose for pose in ArmPose}
         )
