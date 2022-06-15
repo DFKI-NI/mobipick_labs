@@ -36,10 +36,10 @@ class UnifiedPlanning:
             + [self.on_robot_location, self.searched_tool_location, self.searched_klt_location, self.unknown_location]
         )
 
-        self.power_drill = Object("power_drill", Item)
-        self.remote_control = Object("remote_control", Item)
+        self.multimeter = Object("multimeter", Item)
+        self.relay = Object("relay", Item)
         self.screwdriver = Object("screwdriver", Item)
-        self.tools = [self.power_drill, self.remote_control, self.screwdriver]
+        self.tools = [self.multimeter, self.relay, self.screwdriver]
         self.klts = [Object(f"klt_{chr(klt + 65)}", Item) for klt in range(klt_count)]
         self.nothing = Object("nothing", Item)
         self.items = self.tools + self.klts + [self.nothing]

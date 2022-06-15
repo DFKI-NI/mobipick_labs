@@ -236,10 +236,10 @@ def test_tables_demo(visualize: bool = False) -> None:
     unified_planning.shortcuts.get_env().credits_stream = None
     up = UnifiedPlanning(6, 1)
     # Define environment values.
-    believed_item_locations = {up.power_drill: up.tables[3], up.klts[0]: up.tables[3]}
+    believed_item_locations = {up.multimeter: up.tables[3], up.klts[0]: up.tables[3]}
     actual_item_locations = {
-        up.power_drill: up.tables[2],
-        up.remote_control: up.tables[3],
+        up.multimeter: up.tables[2],
+        up.relay: up.tables[3],
         up.screwdriver: up.tables[2],
         up.klts[0]: up.tables[1],
     }
@@ -263,7 +263,7 @@ def test_tables_demo(visualize: bool = False) -> None:
 def test_search_problem() -> None:
     unified_planning.shortcuts.get_env().credits_stream = None
     up = UnifiedPlanning(6, 1)
-    believed_item_locations = {up.power_drill: up.tables[1], up.klts[0]: up.tables[1]}
+    believed_item_locations = {up.multimeter: up.tables[1], up.klts[0]: up.tables[1]}
     search_goal = Equals(up.believe_at(up.screwdriver), up.searched_tool_location)
     result = up.plan_search(up.unknown_location, believed_item_locations, search_goal)
     assert result.plan and len(result.plan.actions) == 2 * len(up.tables) + 1
