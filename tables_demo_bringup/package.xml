@@ -18,4 +18,6 @@
   <exec_depend>mir_navigation</exec_depend>
   <exec_depend>pbr_maps</exec_depend>
   <exec_depend>pose_selector</exec_depend>
+  <exec_depend>grasplan</exec_depend>
+  <exec_depend>incorap_sab_demo</exec_depend>
 </package>
