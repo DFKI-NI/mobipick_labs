@@ -51,7 +51,7 @@
   <!-- grasp planning -->
   <!-- visualise gripper in rviz as marker -->
   <node pkg="grasplan" type="rviz_gripper_visualiser.py" name="rviz_gripper_visualiser" output="screen">
-    <rosparam file="$(find mobipick_pick_n_place)/config/gripper_open_transformations.yaml" command="load" ns="gripper_transformations"/>
+    <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/gripper_open_transformations.yaml" command="load" ns="gripper_transformations"/>
     <remap from="pose_array" to="/mobipick/pick_object_node/grasp_poses"/>
   </node>
   <!-- pick object script using hardcoded grasp planner -->
@@ -59,9 +59,16 @@
     <param name="import_file" type="string" value="grasplan.grasp_planner.handcoded_grasp_planner" />
     <param name="import_class" type="string" value="HandcodedGraspPlanner" />
     <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/pick_params.yaml" command="load" />
-    <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/grasp_planning_core_params.yaml" command="load" />-->
+    <rosparam file="$(find tables_demo_bringup)/config/tables_planning_scene.yaml" command="load" />
+    <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/grasp_planning_core_params.yaml" command="load" />
     <!-- pregrasp planner parameters -->
     <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/object_grasps/handcoded_grasp_planner_relay.yaml"
+              command="load" ns="handcoded_grasp_planner_transforms" />
+    <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/object_grasps/handcoded_grasp_planner_screwdriver.yaml"
+              command="load" ns="handcoded_grasp_planner_transforms" />
+    <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/object_grasps/handcoded_grasp_planner_multimeter.yaml"
+              command="load" ns="handcoded_grasp_planner_transforms" />
+    <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/object_grasps/handcoded_grasp_planner_klt.yaml"
               command="load" ns="handcoded_grasp_planner_transforms" />
   </node>
 
