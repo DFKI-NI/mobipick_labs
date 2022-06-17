@@ -35,6 +35,7 @@
   <arg name="objects_of_interest" value="[relay, screwdriver, multimeter, powerdrill_with_grip, klt]"/>
   <node pkg="pose_selector" type="pose_selector_node" name="pose_selector_node" output="screen">
     <param name="debug" value="false" />
+    <param name="global_reference_frame" value="map" />
     <rosparam param="objects_of_interest" subst_value="True">$(arg objects_of_interest)</rosparam>
   </node>
 
