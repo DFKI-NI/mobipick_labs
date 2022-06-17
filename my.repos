@@ -1,4 +1,8 @@
 repositories:
+  dot_graph_visualization:
+    type: git
+    url: git@git.ni.dfki.de:acting/dot_graph_visualization.git
+    version: main
   mobipick:
     type: git
     url: git@git.ni.dfki.de:mobipick/mobipick.git
@@ -9,7 +13,7 @@ repositories:
     version: master
   object_pose_msgs:
      type: git
-     url: git@git.ni.dfki.de:environment_representation/object_pose_msgs
+     url: https://git.ni.dfki.de/environment_representation/object_pose_msgs.git
      version: main
   pose_selector:
     type: git
@@ -31,7 +35,3 @@ repositories:
     type: git
     url: https://github.com/aiplan4eu/up-tamer
     version: master
-  dot_graph_visualization:
-    type: git
-    url: git@git.ni.dfki.de:acting/dot_graph_visualization.git
-    version: main
