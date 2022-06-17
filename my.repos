@@ -35,3 +35,7 @@ repositories:
     type: git
     url: https://github.com/aiplan4eu/up-tamer
     version: master
+  grasplan:
+    type: git
+    url: git@git.ni.dfki.de:acting/grasplan.git
+    version: noetic

@@ -5,7 +5,7 @@
   <include file="$(find mobipick_gazebo)/launch/mobipick/tables_demo.launch" />
 
   <!-- automatically unpause gazebo simulation after some time -->
-  <node pkg="incorap_sab_demo" type="gazebo_unpauser" name="gazebo_unpauser" output="screen" />
+  <node pkg="pbr_gazebo" type="gazebo_unpauser" name="gazebo_unpauser" output="screen" />
 
   <!-- node to publish the camera frustum as visualisation marker -->
   <node pkg="mobipick_pick_n_place" type="camera_marker_publisher" name="camera_marker_publisher" output="screen" >
