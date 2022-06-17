@@ -16,9 +16,6 @@
   <include file="$(find mir_gazebo)/launch/fake_localization.launch" ns="mobipick">
     <arg name="odom_frame_id" value="mobipick/odom" />
     <arg name="base_frame_id" value="mobipick/base_footprint" />
-    <arg name="delta_x" value="-2.845018" />
-    <arg name="delta_y" value="12.338678" />
-    <arg name="delta_yaw" value="-1.605436" />
   </include>
 
   <!-- navigation stack -->
