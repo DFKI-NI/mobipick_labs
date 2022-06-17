@@ -1,8 +1,17 @@
 <?xml version="1.0"?>
 <launch>
 
+  <!-- the pose where to spawn the robot in simulation -->
+  <arg name="robot_x"   default="10.50" />
+  <arg name="robot_y"   default="2.30" />
+  <arg name="robot_yaw" default="3.1415" />
+
   <!-- smart factory gazebo simulation -->
-  <include file="$(find mobipick_gazebo)/launch/mobipick/tables_demo.launch" />
+  <include file="$(find mobipick_gazebo)/launch/mobipick/tables_demo.launch" >
+    <arg name="robot_x"   value="$(arg robot_x)" />
+    <arg name="robot_y"   value="$(arg robot_y)" />
+    <arg name="robot_yaw" value="$(arg robot_yaw)" />
+  </include>
 
   <!-- automatically unpause gazebo simulation after some time -->
   <node pkg="pbr_gazebo" type="gazebo_unpauser" name="gazebo_unpauser" output="screen" />
