@@ -6,8 +6,32 @@ planning_scene_boxes:
     box_y_dimension: 1.4
     box_z_dimension: 0.7
     box_position_x: 13.2
-    box_position_y: 2.4
-    box_position_z: 0.33 # 0.35
+    box_position_y: 2.2
+    box_position_z: 0.35
+    box_orientation_x: 0.0
+    box_orientation_y: 0.0
+    box_orientation_z: 0.0
+    box_orientation_w: 1.0
+  - scene_name: 'table_2'
+    frame_id: 'map'
+    box_x_dimension: 1.4
+    box_y_dimension: 0.7
+    box_z_dimension: 0.7
+    box_position_x: 12.0
+    box_position_y: 3.24
+    box_position_z: 0.35
+    box_orientation_x: 0.0
+    box_orientation_y: 0.0
+    box_orientation_z: 0.0
+    box_orientation_w: 1.0
+  - scene_name: 'table_3'
+    frame_id: 'map'
+    box_x_dimension: 1.4
+    box_y_dimension: 0.7
+    box_z_dimension: 0.7
+    box_position_x: 10.4
+    box_position_y: 3.24
+    box_position_z: 0.35
     box_orientation_x: 0.0
     box_orientation_y: 0.0
     box_orientation_z: 0.0
