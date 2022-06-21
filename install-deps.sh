@@ -19,7 +19,3 @@ mobipick/install-deps.sh
 pip install unified-planning/
 pip install up-pyperplan/
 pip install up-tamer/
-
-# Checkout working commit in geometric_shapes repository as workaround.
-cd geometric_shapes/ || exit
-git checkout ca019f4
