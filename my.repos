@@ -39,3 +39,7 @@ repositories:
     type: git
     url: git@git.ni.dfki.de:acting/grasplan.git
     version: noetic
+  symbolic_fact_generation:
+    type: git
+    url: git@git.ni.dfki.de:environment_representation/symbolic_fact_generation.git
+    version: tables_demo
