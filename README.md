@@ -37,6 +37,32 @@ Optionally for visualization:
 ```bash
 rviz -d $(rospack find mir_navigation)/rviz/navigation.rviz __ns:="mobipick"
 ```
+Grasping objects demo (using grasplan)
+--------------------------------------
+
+Goal of the robot in this demo is to
+
+- test grasplan
+- grasp multiple objects in simulation
+- useful for debugging
+
+```bash
+roscore
+roslaunch tables_demo_bringup demo_sim.launch robot_x:=12.43 robot_y:=2.21 robot_yaw:=-1.605436
+rosrun rviz rviz -d `rospack find tables_demo_bringup`/config/pick.rviz __ns:=mobipick
+rosrun grasplan pick_obj_test_action_client __ns:=mobipick powerdrill_with_grip
+```
+
+Alternatively, powerdrill_with_grip can be replaced with klt (which is also within reach with that pose).
+
+If you want to grasp the other objects you can use the following robot pose.
+
+```bash
+roslaunch tables_demo_bringup demo_sim.launch robot_x:=10.375567 robot_y:=2.442948 robot_yaw:=0.0
+```
+
+If you want to grasp another object after picking, you can use the rqt_joint_trajectory_controller to manually open the gripper,
+drop the current object and try another one.
 
 
 Pick-and-place demo on the real robot
