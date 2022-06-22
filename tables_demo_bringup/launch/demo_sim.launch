@@ -16,6 +16,12 @@
   <!-- automatically unpause gazebo simulation after some time -->
   <node pkg="pbr_gazebo" type="gazebo_unpauser" name="gazebo_unpauser" output="screen" />
 
+  <!-- object publisher for pick_n_place demo -->
+  <node name="gazebo_object_publisher" pkg="mobipick_pick_n_place" type="gazebo_object_publisher" ns="mobipick" output="screen">
+    <param name="tf_prefix"  value="mobipick" />
+    <param name="robot_name" value="mobipick" />
+  </node>
+
   <!-- node to publish the camera frustum as visualisation marker -->
   <node pkg="mobipick_pick_n_place" type="camera_marker_publisher" name="camera_marker_publisher" output="screen" >
     <param name="camera_frame" value="mobipick/gripper_astra_depth_frame" />
