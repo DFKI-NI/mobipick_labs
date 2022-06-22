@@ -1,6 +1,6 @@
 from typing import Dict
 from unified_planning.model import FNode, Fluent, InstantaneousAction, Object, Problem
-from unified_planning.solvers import PlanGenerationResult
+from unified_planning.engines import PlanGenerationResult
 from unified_planning.shortcuts import And, BoolType, Equals, Not, OneshotPlanner, Or, UserType
 
 
