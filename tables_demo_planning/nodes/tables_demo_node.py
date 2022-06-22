@@ -9,6 +9,7 @@ import rospkg
 import unified_planning as up
 from std_srvs.srv import SetBool
 from geometry_msgs.msg import Pose
+from symbolic_fact_generation import on_fact_generator
 from tables_demo_planning.plan_visualization import PlanVisualization
 from tables_demo_planning.up_planning import Action, Planning
 from robot_api import TuplePose
@@ -91,6 +92,7 @@ class MoveArmAction(RobotAction):
 
 class PickAction(RobotAction):
     def __call__(self) -> bool:
+        PerceiveAction(self.robot)()
         self.robot.arm.execute("CaptureObject")
         self.robot.arm_pose = ArmPose.interaction
         self.robot.arm.execute("PickUpObject")
@@ -129,6 +131,8 @@ class PerceiveAction(RobotAction):
         rospy.wait_for_service('/pose_selector_activate')
         activation_result = self.activate_pose_selector(True)
         rospy.sleep(5)
+        facts = on_fact_generator.get_current_facts()
+        print(facts)
         deactivation_result = self.activate_pose_selector(False)
         return activation_result and deactivation_result
 
