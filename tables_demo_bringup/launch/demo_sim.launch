@@ -40,6 +40,17 @@
     <arg name="simulation" value="true"/>
   </include>
 
+  <!-- task server -->
+  <include file="$(find mobipick_task_server)/launch/mobipick_task_server.launch" />
+
+  <!-- MoveIt macros -->
+  <include file="$(find robot_api)/launch/moveit_macros.launch">
+    <arg name="namespace" value="mobipick" />
+  </include>
+
+  <!-- force torque observer -->
+  <node name="ft_observer" pkg="mobipick_pick_n_place" type="ft_observer_sim.py" ns="mobipick" output="screen" />
+
   <!-- pose selector: DB to store object poses -->
   <arg name="objects_of_interest" value="[relay, screwdriver, multimeter, powerdrill_with_grip, klt]"/>
   <node pkg="pose_selector" type="pose_selector_node" name="pose_selector_node" output="screen">
