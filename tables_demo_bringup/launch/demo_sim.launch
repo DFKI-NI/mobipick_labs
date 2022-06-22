@@ -80,7 +80,7 @@
     <rosparam file="$(find tables_demo_bringup)/config/tables_planning_scene.yaml" command="load" />
     <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/grasp_planning_core_params.yaml" command="load" />
     <!-- allows to specify how much the gripper should close per object -->
-    <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/object_grasps/gripper_joint_values_per_object.yaml" command="load" />
+    <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/object_grasps/gripper_distance_values_per_object.yaml" command="load" />
     <!-- pregrasp planner parameters -->
     <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/object_grasps/handcoded_grasp_planner_relay.yaml"
               command="load" ns="handcoded_grasp_planner_transforms" />
