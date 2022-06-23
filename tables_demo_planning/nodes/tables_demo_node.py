@@ -6,12 +6,12 @@ import time
 import yaml
 import rospy
 import rospkg
-import unified_planning as up
+import unified_planning
 from std_srvs.srv import SetBool
 from geometry_msgs.msg import Pose
 from symbolic_fact_generation import on_fact_generator
 from tables_demo_planning.plan_visualization import PlanVisualization
-from tables_demo_planning.up_planning import Action, Planning
+from tables_demo_planning.planning_bridge import Action, Planning
 from robot_api import TuplePose
 import robot_api
 
@@ -293,5 +293,5 @@ class Demo:
 
 
 if __name__ == '__main__':
-    up.shortcuts.get_env().credits_stream = None
+    unified_planning.shortcuts.get_env().credits_stream = None
     Demo().run()

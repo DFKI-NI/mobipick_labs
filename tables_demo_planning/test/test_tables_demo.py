@@ -9,7 +9,7 @@ from unified_planning.model import FNode, Object
 from unified_planning.plans.plan import Plan
 from unified_planning.shortcuts import And, Equals, Or
 from tables_demo_planning.subplan_visualization import SubPlanVisualization
-from tables_demo_planning.up_tables_demo import UnifiedPlanning
+from tables_demo_planning.up_planning import UnifiedPlanning
 
 """This test script tests planning, re-planning, and visualization without Gazebo simulation."""
 
