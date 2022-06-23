@@ -6,7 +6,10 @@ from unified_planning.plans.plan import Plan
 from unified_planning.shortcuts import And, BoolType, Equals, Not, OneshotPlanner, UserType
 from tables_demo_planning.plan_visualization import PlanVisualization
 
-"""Planning example with replanning with interim goal on failed action"""
+"""
+Standalone planning example using replanning with interim goal on failed action.
+This script was used during development but it not part of the demo.
+"""
 
 
 # Define object types and objects.

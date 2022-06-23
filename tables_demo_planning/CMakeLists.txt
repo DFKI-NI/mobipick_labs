@@ -15,6 +15,7 @@ catkin_package()
 #############
 
 catkin_install_python(PROGRAMS
+  nodes/pick_n_place_demo_node.py
   nodes/tables_demo_node.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )

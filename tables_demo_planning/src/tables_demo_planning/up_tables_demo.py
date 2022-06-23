@@ -3,6 +3,8 @@ from unified_planning.model import FNode, Fluent, InstantaneousAction, Object, P
 from unified_planning.engines import PlanGenerationResult
 from unified_planning.shortcuts import And, BoolType, Equals, Not, OneshotPlanner, Or, UserType
 
+"""Library script for planning in the demos."""
+
 
 # Define object types.
 Location = UserType("Location")

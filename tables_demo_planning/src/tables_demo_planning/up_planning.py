@@ -4,6 +4,8 @@ from unified_planning.model import Fluent, InstantaneousAction, Object, Paramete
 from unified_planning.plans.plan import ActionInstance
 from unified_planning.shortcuts import BoolType, OneshotPlanner, UserType
 
+"""Bridge library to map between representations in robotics and planning domains."""
+
 
 class Action:
     SIGNATURE: Tuple[Type, ...]

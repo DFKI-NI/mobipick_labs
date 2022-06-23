@@ -4,6 +4,11 @@ from pydot import Dot, Edge, Node
 from std_msgs.msg import String
 import rospy
 
+"""
+Helper component which maintains the dot graph of a demo specific hierarchical plan,
+visualized by the dot_graph_visualization repository.
+"""
+
 
 @dataclass
 class VisualizationNode:
