@@ -1,37 +1,31 @@
 from typing import Any, Dict, List, Optional, Tuple, Type
+from abc import ABC, abstractmethod
 from collections import OrderedDict
-from unified_planning.model import Fluent, InstantaneousAction, Object, Parameter, Problem
+from unified_planning.model import Fluent, InstantaneousAction, Object, Parameter
 from unified_planning.plans.plan import ActionInstance
-from unified_planning.shortcuts import BoolType, OneshotPlanner, UserType
+from unified_planning.shortcuts import BoolType, UserType
 
 """Bridge library to map between representations in robotics and planning domains."""
 
 
-class Action:
+class Action(ABC):
     SIGNATURE: Tuple[Type, ...]
 
     def __init__(self, *args: Any) -> None:
         self.args = args
 
+    @abstractmethod
     def __call__(self) -> bool:
         """Execute this action."""
-        raise NotImplementedError(f"{self.__class__.__name__}.__call__() is not implemented!")
-
-    def update_execution(self) -> None:
-        """Update world state on action execution."""
-
-    def update_completion(self) -> None:
-        """Update world state on action completion."""
 
 
-class Planning:
+class Bridge:
     def __init__(self) -> None:
         self.types: Dict[Type, UserType] = {}
         self.fluents: Dict[str, Fluent] = {}
         self.actions: Dict[Type, InstantaneousAction] = {}
         self.objects: Dict[str, Object] = {}
         self.api_objects: Dict[Object, object] = {}
-        self.problem = Problem()
 
     def create_types(self, api_types: List[Type]) -> None:
         """Create UP user types based on api_types."""
@@ -65,11 +59,10 @@ class Planning:
 
     def create_action(self, api_action: Type) -> Tuple[InstantaneousAction, List[Parameter]]:
         """
-        Create a UP InstantaneousAction by using the execute() method signature of api_action.
+        Create a UP InstantaneousAction by using api_action's signature.
         Return the InstantaneousAction with its parameters for convenient definition of preconditions and effects.
         """
         assert api_action not in self.actions.keys()
-
         action = InstantaneousAction(
             api_action.__name__,
             OrderedDict(
@@ -104,18 +97,3 @@ class Planning:
         for name, api_object in api_objs.items():
             objs.append(self.create_object(name, api_object))
         return objs
-
-    def init_problem(self) -> Problem:
-        """Return a UP problem with all fluents, actions, and objects for definition of initial values and goals."""
-        self.problem = Problem()
-        for fluent in self.fluents.values():
-            self.problem.add_fluent(fluent, default_initial_value=False)
-        for action in self.actions.values():
-            self.problem.add_action(action)
-        self.problem.add_objects(self.objects.values())
-        return self.problem
-
-    def plan_actions(self) -> Optional[List[Tuple[ActionInstance, Action]]]:
-        """Solve planning problem, then return list of UP and Robot API actions."""
-        result = OneshotPlanner(problem_kind=self.problem.kind).solve(self.problem)
-        return [(action, self.get_action(action)) for action in result.plan.actions] if result.plan else None
