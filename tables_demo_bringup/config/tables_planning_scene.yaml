@@ -36,3 +36,51 @@ planning_scene_boxes:
     box_orientation_y: 0.0
     box_orientation_z: 0.0
     box_orientation_w: 1.0
+  - scene_name: 'back_wall_1'
+    frame_id: 'map'
+    box_x_dimension: 3.1
+    box_y_dimension: 0.2
+    box_z_dimension: 2.0
+    box_position_x: 10.65
+    box_position_y: 1.15
+    box_position_z: 1.0
+    box_orientation_x: 0.0
+    box_orientation_y: 0.0
+    box_orientation_z: 0.0
+    box_orientation_w: 1.0
+  - scene_name: 'back_wall_2'
+    frame_id: 'map'
+    box_x_dimension: 1.4
+    box_y_dimension: 0.25
+    box_z_dimension: 2.0
+    box_position_x: 12.85
+    box_position_y: 1.38
+    box_position_z: 1.0
+    box_orientation_x: 0.0
+    box_orientation_y: 0.0
+    box_orientation_z: 0.0
+    box_orientation_w: 1.0
+  - scene_name: 'side_wall_1'
+    frame_id: 'map'
+    box_x_dimension: 0.2
+    box_y_dimension: 1.8
+    box_z_dimension: 2.0
+    box_position_x: 9.2
+    box_position_y: 2.15
+    box_position_z: 1.0
+    box_orientation_x: 0.0
+    box_orientation_y: 0.0
+    box_orientation_z: 0.0
+    box_orientation_w: 1.0
+  - scene_name: 'side_wall_2'
+    frame_id: 'map'
+    box_x_dimension: 0.28
+    box_y_dimension: 0.63
+    box_z_dimension: 2.0
+    box_position_x: 9.45
+    box_position_y: 3.28
+    box_position_z: 1.0
+    box_orientation_x: 0.0
+    box_orientation_y: 0.0
+    box_orientation_z: 0.0
+    box_orientation_w: 1.0
