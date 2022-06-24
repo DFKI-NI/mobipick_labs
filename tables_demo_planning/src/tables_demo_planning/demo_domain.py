@@ -30,8 +30,11 @@ both for planning and for execution.
 class ArmPose(IntEnum):
     unknown = 0
     home = 1
-    transport = 2
-    interaction = 3
+    observe100cm_right = 2
+    transport = 3
+    place_1 = 4
+    tucked = 5
+    interaction = 6  # not a pose in rosparams but used to simplify planning
 
 
 class Item(IntEnum):
@@ -45,11 +48,18 @@ class Robot(robot_api.Robot):
     def __init__(self, namespace: str) -> None:
         super().__init__(namespace, True, True)
         self.pose: Pose = TuplePose.to_pose(self.base.get_pose())
-        arm_pose_name = self.arm.get_pose_name()
-        self.arm_pose = ArmPose[arm_pose_name] if arm_pose_name in ArmPose.__members__ else ArmPose.unknown
-        self.arm.execute("HasAttachedObjects")
-        self.item = Item(int(self.arm.get_result().result))
+        self.arm_pose = self.get_arm_pose()
+        self.item = self.get_item()
         self.item_offered = False
+
+    def get_arm_pose(self) -> ArmPose:
+        arm_pose_name = self.arm.get_pose_name()
+        return ArmPose[arm_pose_name] if arm_pose_name in ArmPose.__members__ else ArmPose.unknown
+
+    def get_item(self) -> Item:
+        # Note: In this demo, robot can only have the power drill.
+        self.arm.execute("HasAttachedObjects")
+        return Item(int(self.arm.get_result().result))
 
 
 # Define executable actions.
@@ -97,8 +107,9 @@ class PickAction(RobotAction):
     def __call__(self) -> bool:
         PerceiveAction(self.robot)()
         self.robot.arm.execute("CaptureObject")
-        self.robot.arm_pose = ArmPose.interaction
+        self.robot.arm_pose = self.robot.get_arm_pose()
         self.robot.arm.execute("PickUpObject")
+        self.robot.arm_pose = self.robot.get_arm_pose()
         if not self.robot.arm.get_result().result:
             return False
 
@@ -109,7 +120,7 @@ class PickAction(RobotAction):
 class PlaceAction(RobotAction):
     def __call__(self) -> bool:
         self.robot.arm.execute("PlaceObject")
-        self.robot.arm_pose = ArmPose.interaction
+        self.robot.arm_pose = ArmPose.place_1
         self.robot.item = Item.nothing
         return True
 
@@ -117,7 +128,7 @@ class PlaceAction(RobotAction):
 class HandoverAction(RobotAction):
     def __call__(self) -> bool:
         self.robot.arm.execute("MoveArmToHandover")
-        self.robot.arm_pose = ArmPose.interaction
+        self.robot.arm_pose = self.robot.get_arm_pose()
         self.robot.item_offered = True
         if not self.robot.arm.observe_force_torque(5.0, 25.0):
             return False
@@ -178,7 +189,9 @@ class Domain(Bridge, ABC):
         self.base_pick_pose = self.objects[self.BASE_PICK_POSE_NAME]
         self.base_place_pose = self.objects[self.BASE_PLACE_POSE_NAME]
         self.arm_poses = self.create_objects({pose.name: pose for pose in ArmPose})
-        (_, arm_pose_home, arm_pose_transport, arm_pose_interaction) = self.arm_poses
+        arm_pose_home = self.objects[ArmPose.home.name]
+        arm_pose_transport = self.objects[ArmPose.transport.name]
+        arm_pose_interaction = self.objects[ArmPose.interaction.name]
         self.items = self.create_objects({item.name: item for item in Item})
         (self.nothing, self.power_drill) = self.items
 
