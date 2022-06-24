@@ -33,10 +33,10 @@ class Executor:
                 self.visualization = PlanVisualization(up_actions)
             # ... and execute.
             print("> Execution:")
-            for up_action, api_action in actions:
+            for up_action, (method, parameters) in actions:
                 print(up_action)
                 self.visualization.execute(up_action)
-                result = api_action()
+                result = method(*parameters)
                 if result is None or result:
                     self.visualization.succeed(up_action)
                 else:

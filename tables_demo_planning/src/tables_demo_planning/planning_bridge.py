@@ -1,5 +1,4 @@
-from typing import Any, Dict, List, Optional, Tuple, Type
-from abc import ABC, abstractmethod
+from typing import Callable, Dict, List, Optional, Tuple, Type
 from collections import OrderedDict
 from unified_planning.model import Fluent, InstantaneousAction, Object, Parameter
 from unified_planning.plans.plan import ActionInstance
@@ -8,23 +7,12 @@ from unified_planning.shortcuts import BoolType, UserType
 """Bridge library to map between representations in robotics and planning domains."""
 
 
-class Action(ABC):
-    SIGNATURE: Tuple[Type, ...]
-
-    def __init__(self, *args: Any) -> None:
-        self.args = args
-
-    @abstractmethod
-    def __call__(self) -> bool:
-        """Execute this action."""
-
-
 class Bridge:
     def __init__(self) -> None:
         self.types: Dict[Type, UserType] = {}
         self.fluents: Dict[str, Fluent] = {}
-        self.actions: Dict[Type, InstantaneousAction] = {}
-        self.api_actions: Dict[str, Type] = {}
+        self.actions: Dict[str, InstantaneousAction] = {}
+        self.api_actions: Dict[str, Callable[..., bool]] = {}
         self.objects: Dict[str, Object] = {}
         self.api_objects: Dict[str, object] = {}
 
@@ -58,33 +46,36 @@ class Bridge:
         )
         return fluent
 
-    def create_action(self, api_action: Type) -> Tuple[InstantaneousAction, List[Parameter]]:
+    def create_action(
+        self, caller_type: Type, method: Callable[..., bool]
+    ) -> Tuple[InstantaneousAction, List[Parameter]]:
         """
-        Create a UP InstantaneousAction by using api_action's signature.
+        Create a UP InstantaneousAction by using caller_type and method's signature.
         Return the InstantaneousAction with its parameters for convenient definition
          of preconditions and effects.
         """
-        assert api_action not in self.actions.keys()
+        assert method.__name__ not in self.actions.keys()
+        api_types = [caller_type]
+        api_types.extend(method.__annotations__.values())
+        api_types = api_types[:-1]  # without return type
         action = InstantaneousAction(
-            api_action.__name__,
+            method.__name__,
             OrderedDict(
-                [
-                    (f"{index}_{api_type.__name__}", self.get_type(api_type))
-                    for index, api_type in enumerate(api_action.SIGNATURE)
-                ]
+                [(f"{index}_{api_type.__name__}", self.get_type(api_type)) for index, api_type in enumerate(api_types)]
             ),
         )
-        self.actions[api_action] = action
-        self.api_actions[api_action.__name__] = api_action
+        self.actions[method.__name__] = action
+        self.api_actions[method.__name__] = method
         return action, action.parameters
 
-    def get_action(self, action: ActionInstance) -> Action:
+    def get_action(self, action: ActionInstance) -> Tuple[Callable[..., bool], List[object]]:
         """Return the Robot API action associated with the given action."""
         if action.action.name not in self.api_actions.keys():
             raise ValueError(f"No corresponding Action defined for {action}!")
 
-        api_parameters = [self.api_objects[parameter.object().name] for parameter in action.actual_parameters]
-        return self.api_actions[action.action.name](*api_parameters)
+        return self.api_actions[action.action.name], [
+            self.api_objects[parameter.object().name] for parameter in action.actual_parameters
+        ]
 
     def create_object(self, name: str, api_object: object) -> Object:
         """Create UP object based on api_object."""
