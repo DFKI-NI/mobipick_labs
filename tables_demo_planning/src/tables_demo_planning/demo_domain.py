@@ -1,6 +1,7 @@
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Type
 from abc import ABC, abstractmethod
 from enum import IntEnum
+import math
 import os
 import yaml
 import rospkg
@@ -275,6 +276,24 @@ class Domain(Bridge, ABC):
         """Solve planning problem, then return list of UP and Robot API actions."""
         result = OneshotPlanner(problem_kind=problem.kind).solve(problem)
         return [(action, self.get_action(action)) for action in result.plan.actions] if result.plan else None
+
+    def set_values(self, problem: Problem) -> None:
+        base_pose_name = self.api_robot.base.get_pose_name(xy_tolerance=math.inf, yaw_tolerance=math.pi)
+        fluents = problem.fluents
+        if self.robot_at in fluents:
+            for pose in self.poses:
+                problem.set_initial_value(self.robot_at(self.robot, pose), pose.name == base_pose_name)
+        if self.robot_arm_at in fluents:
+            for arm_pose in self.arm_poses:
+                problem.set_initial_value(
+                    self.robot_arm_at(self.robot, arm_pose),
+                    arm_pose.name == self.api_robot.arm_pose.name,
+                )
+        if self.robot_has in fluents:
+            for item in self.items:
+                problem.set_initial_value(self.robot_has(self.robot, item), item.name == self.api_robot.item.name)
+        if self.robot_offered in fluents:
+            problem.set_initial_value(self.robot_offered(self.robot), self.api_robot.item_offered)
 
     @abstractmethod
     def initialize_problem(self) -> Problem:

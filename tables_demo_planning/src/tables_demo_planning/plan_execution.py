@@ -1,8 +1,8 @@
 from typing import Optional
-import math
-from unified_planning.model.problem import Problem
 from tables_demo_planning.demo_domain import Domain
 from tables_demo_planning.plan_visualization import PlanVisualization
+
+"""Generic execution loop for any demo in the mobipick tables domain."""
 
 
 class Executor:
@@ -10,32 +10,12 @@ class Executor:
         self.domain = domain
         self.visualization: Optional[PlanVisualization] = None
 
-    def set_values(self, problem: Problem) -> None:
-        base_pose_name = self.domain.api_robot.base.get_pose_name(xy_tolerance=math.inf, yaw_tolerance=math.pi)
-        fluents = problem.fluents
-        if self.domain.robot_at in fluents:
-            for pose in self.domain.poses:
-                problem.set_initial_value(self.domain.robot_at(self.domain.robot, pose), pose.name == base_pose_name)
-        if self.domain.robot_arm_at in fluents:
-            for arm_pose in self.domain.arm_poses:
-                problem.set_initial_value(
-                    self.domain.robot_arm_at(self.domain.robot, arm_pose),
-                    arm_pose.name == self.domain.api_robot.arm_pose.name,
-                )
-        if self.domain.robot_has in fluents:
-            for item in self.domain.items:
-                problem.set_initial_value(
-                    self.domain.robot_has(self.domain.robot, item), item.name == self.domain.api_robot.item.name
-                )
-        if self.domain.robot_offered in fluents:
-            problem.set_initial_value(self.domain.robot_offered(self.domain.robot), self.domain.api_robot.item_offered)
-
     def run(self) -> None:
         active = True
         while active:
             # Create problem based on current state.
             self.problem = self.domain.initialize_problem()
-            self.set_values(self.problem)
+            self.domain.set_values(self.problem)
             self.domain.set_goals(self.problem)
 
             # Plan
