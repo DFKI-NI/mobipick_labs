@@ -24,8 +24,9 @@ class Bridge:
         self.types: Dict[Type, UserType] = {}
         self.fluents: Dict[str, Fluent] = {}
         self.actions: Dict[Type, InstantaneousAction] = {}
+        self.api_actions: Dict[str, Type] = {}
         self.objects: Dict[str, Object] = {}
-        self.api_objects: Dict[Object, object] = {}
+        self.api_objects: Dict[str, object] = {}
 
     def create_types(self, api_types: List[Type]) -> None:
         """Create UP user types based on api_types."""
@@ -60,7 +61,8 @@ class Bridge:
     def create_action(self, api_action: Type) -> Tuple[InstantaneousAction, List[Parameter]]:
         """
         Create a UP InstantaneousAction by using api_action's signature.
-        Return the InstantaneousAction with its parameters for convenient definition of preconditions and effects.
+        Return the InstantaneousAction with its parameters for convenient definition
+         of preconditions and effects.
         """
         assert api_action not in self.actions.keys()
         action = InstantaneousAction(
@@ -73,21 +75,22 @@ class Bridge:
             ),
         )
         self.actions[api_action] = action
+        self.api_actions[api_action.__name__] = api_action
         return action, action.parameters
 
     def get_action(self, action: ActionInstance) -> Action:
         """Return the Robot API action associated with the given action."""
-        for api_action, check_action in self.actions.items():
-            if action.action == check_action:  # Note: Must check for equality, cannot use hash of dict!
-                api_parameters = [self.api_objects[parameter.object()] for parameter in action.actual_parameters]
-                return api_action(*api_parameters)
-        raise ValueError(f"No corresponding robot_api.Action defined for {action}!")
+        if action.action.name not in self.api_actions.keys():
+            raise ValueError(f"No corresponding Action defined for {action}!")
+
+        api_parameters = [self.api_objects[parameter.object().name] for parameter in action.actual_parameters]
+        return self.api_actions[action.action.name](*api_parameters)
 
     def create_object(self, name: str, api_object: object) -> Object:
         """Create UP object based on api_object."""
         assert name not in self.objects.keys()
         self.objects[name] = obj = Object(name, self.get_object_type(api_object))
-        self.api_objects[obj] = api_object
+        self.api_objects[name] = api_object
         return obj
 
     def create_objects(self, api_objects: Optional[Dict[str, object]] = None, **kwargs: object) -> List[Object]:
