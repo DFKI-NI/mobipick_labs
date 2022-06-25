@@ -89,23 +89,6 @@ class Robot(robot_api.Robot):
         self.arm_pose = arm_pose
         return True
 
-    def pick(self) -> bool:
-        self.arm.execute("CaptureObject")
-        self.arm_pose = self.get_arm_pose()
-        self.arm.execute("PickUpObject")
-        self.arm_pose = self.get_arm_pose()
-        if not self.arm.get_result().result:
-            return False
-
-        self.item = Item.power_drill
-        return True
-
-    def place(self) -> bool:
-        self.arm.execute("PlaceObject")
-        self.arm_pose = ArmPose.place_1
-        self.item = Item.nothing
-        return True
-
     def hand_over(self) -> bool:
         self.arm.execute("MoveArmToHandover")
         self.arm_pose = self.get_arm_pose()
@@ -154,9 +137,9 @@ class Domain(Bridge, ABC):
         self.base_pick_pose = self.objects[self.BASE_PICK_POSE_NAME]
         self.base_place_pose = self.objects[self.BASE_PLACE_POSE_NAME]
         self.arm_poses = self.create_objects({pose.name: pose for pose in ArmPose})
-        arm_pose_home = self.objects[ArmPose.home.name]
-        arm_pose_transport = self.objects[ArmPose.transport.name]
-        arm_pose_interaction = self.objects[ArmPose.interaction.name]
+        self.arm_pose_home = self.objects[ArmPose.home.name]
+        self.arm_pose_transport = self.objects[ArmPose.transport.name]
+        self.arm_pose_interaction = self.objects[ArmPose.interaction.name]
         self.items = self.create_objects({item.name: item for item in Item})
         self.nothing = self.objects[Item.nothing.name]
         self.power_drill = self.objects[Item.power_drill.name]
@@ -167,33 +150,21 @@ class Domain(Bridge, ABC):
         self.move_base, (robot, x, y) = self.create_action(Robot, Robot.move_base)
         self.move_base.add_precondition(Equals(self.robot_at(robot), x))
         self.move_base.add_precondition(Equals(self.robot_has(robot), self.nothing))
-        self.move_base.add_precondition(Equals(self.robot_arm_at(robot), arm_pose_home))
+        self.move_base.add_precondition(Equals(self.robot_arm_at(robot), self.arm_pose_home))
         self.move_base.add_effect(self.robot_at(robot), y)
         self.move_base_with_item, (robot, x, y) = self.create_action(Robot, Robot.move_base_with_item)
         self.move_base_with_item.add_precondition(Equals(self.robot_at(robot), x))
         self.move_base_with_item.add_precondition(Equals(self.robot_has(robot), self.power_drill))
-        self.move_base_with_item.add_precondition(Equals(self.robot_arm_at(robot), arm_pose_transport))
+        self.move_base_with_item.add_precondition(Equals(self.robot_arm_at(robot), self.arm_pose_transport))
         self.move_base_with_item.add_effect(self.robot_at(robot), y)
         self.move_arm, (robot, x, y) = self.create_action(Robot, Robot.move_arm)
         self.move_arm.add_precondition(Equals(self.robot_arm_at(robot), x))
         self.move_arm.add_effect(self.robot_arm_at(robot), y)
-        self.pick, (robot,) = self.create_action(Robot, Robot.pick)
-        self.pick.add_precondition(Equals(self.robot_has(robot), self.nothing))
-        self.pick.add_precondition(Equals(self.robot_at(robot), self.base_pick_pose))
-        self.pick.add_precondition(Equals(self.robot_arm_at(robot), arm_pose_home))
-        self.pick.add_effect(self.robot_has(robot), self.power_drill)
-        self.pick.add_effect(self.robot_arm_at(robot), arm_pose_interaction)
-        self.place, (robot,) = self.create_action(Robot, Robot.place)
-        self.place.add_precondition(Equals(self.robot_has(robot), self.power_drill))
-        self.place.add_precondition(Equals(self.robot_at(robot), self.base_place_pose))
-        self.place.add_precondition(Equals(self.robot_arm_at(robot), arm_pose_transport))
-        self.place.add_effect(self.robot_has(robot), self.nothing)
-        self.place.add_effect(self.robot_arm_at(robot), arm_pose_interaction)
         self.hand_over, (robot,) = self.create_action(Robot, Robot.hand_over)
         self.hand_over.add_precondition(Equals(self.robot_has(robot), self.power_drill))
         self.hand_over.add_precondition(Equals(self.robot_at(robot), self.base_handover_pose))
-        self.hand_over.add_precondition(Equals(self.robot_arm_at(robot), arm_pose_transport))
-        self.hand_over.add_effect(self.robot_arm_at(robot), arm_pose_interaction)
+        self.hand_over.add_precondition(Equals(self.robot_arm_at(robot), self.arm_pose_transport))
+        self.hand_over.add_effect(self.robot_arm_at(robot), self.arm_pose_interaction)
         self.hand_over.add_effect(self.robot_has(robot), self.nothing)
         self.hand_over.add_effect(self.robot_offered(robot), True)
 
