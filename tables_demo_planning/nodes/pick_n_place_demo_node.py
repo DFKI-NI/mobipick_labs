@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import unified_planning
 from unified_planning.model.problem import Problem
+from unified_planning.shortcuts import Equals
 from tables_demo_planning.demo_domain import Domain, Item, Robot
 from tables_demo_planning.plan_execution import Executor
 
@@ -27,8 +28,8 @@ class PickAndPlace(Domain):
 
     def set_goals(self, problem: Problem) -> None:
         problem.add_goal(self.robot_offered(self.robot))
-        problem.add_goal(self.robot_has(self.robot, self.nothing))
-        problem.add_goal(self.robot_at(self.robot, self.base_home_pose))
+        problem.add_goal(Equals(self.robot_has(self.robot), self.nothing))
+        problem.add_goal(Equals(self.robot_at(self.robot), self.base_home_pose))
 
 
 if __name__ == '__main__':

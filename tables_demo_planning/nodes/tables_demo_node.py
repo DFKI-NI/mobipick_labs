@@ -5,6 +5,7 @@ import rospy
 from std_srvs.srv import SetBool
 from geometry_msgs.msg import Pose
 from unified_planning.model.problem import Problem
+from unified_planning.shortcuts import Equals
 from symbolic_fact_generation import on_fact_generator
 from tables_demo_planning.demo_domain import ArmPose, Domain, Item, Location, Robot
 from tables_demo_planning.plan_execution import Executor
@@ -53,10 +54,9 @@ class TablesDemo(Domain):
     def __init__(self) -> None:
         super().__init__(TableDemoRobot)
         self.pick_item, (robot, x, item) = self.create_action(TableDemoRobot, TableDemoRobot.pick_item)
-        self.pick_item.add_precondition(self.robot_has(robot, self.nothing))
-        self.pick_item.add_precondition(self.robot_at(robot, x))
-        self.pick_item.add_effect(self.robot_has(robot, self.nothing), False)
-        self.pick_item.add_effect(self.robot_has(robot, item), True)
+        self.pick_item.add_precondition(Equals(self.robot_has(robot), self.nothing))
+        self.pick_item.add_precondition(Equals(self.robot_at(robot), x))
+        self.pick_item.add_effect(self.robot_has(robot), item)
 
         self.problem = self.define_problem(
             fluents=(self.robot_at, self.robot_arm_at, self.robot_has),
@@ -67,8 +67,8 @@ class TablesDemo(Domain):
         return self.problem
 
     def set_goals(self, problem: Problem) -> None:
-        problem.add_goal(self.robot_has(self.robot, self.power_drill))
-        problem.add_goal(self.robot_at(self.robot, self.objects[self.BASE_TABLE_1_POSE]))
+        problem.add_goal(Equals(self.robot_has(self.robot), self.power_drill))
+        problem.add_goal(Equals(self.robot_at(self.robot), self.objects[self.BASE_TABLE_1_POSE]))
 
 
 if __name__ == '__main__':

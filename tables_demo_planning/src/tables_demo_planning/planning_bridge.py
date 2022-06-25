@@ -1,4 +1,4 @@
-from typing import Callable, Dict, List, Optional, Tuple, Type
+from typing import Callable, Dict, List, Optional, Sequence, Tuple, Type
 from collections import OrderedDict
 from unified_planning.model import Fluent, InstantaneousAction, Object, Parameter
 from unified_planning.plans.plan import ActionInstance
@@ -16,7 +16,7 @@ class Bridge:
         self.objects: Dict[str, Object] = {}
         self.api_objects: Dict[str, object] = {}
 
-    def create_types(self, api_types: List[Type]) -> None:
+    def create_types(self, api_types: Sequence[Type]) -> None:
         """Create UP user types based on api_types."""
         for api_type in api_types:
             assert api_type not in self.types.keys()
@@ -36,12 +36,15 @@ class Bridge:
                 return user_type
         raise ValueError(f"No corresponding UserType defined for {api_object}!")
 
-    def create_fluent(self, name: str, api_types: List[Type]) -> Fluent:
-        """Create a UP BoolType() fluent using the UP types corresponding to the api_types given."""
+    def create_fluent(self, name: str, api_types: Sequence[Type], result_type: Optional[Type] = None) -> Fluent:
+        """
+        Create a UP fluent using the UP types corresponding to the api_types given.
+        By default, use BoolType() for the result unless specified otherwise.
+        """
         assert name not in self.fluents.keys()
         self.fluents[name] = fluent = Fluent(
             name,
-            BoolType(),
+            self.get_type(result_type) if result_type else BoolType(),
             OrderedDict([(api_type.__name__.lower(), self.get_type(api_type)) for api_type in api_types]),
         )
         return fluent
