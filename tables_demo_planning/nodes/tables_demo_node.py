@@ -8,7 +8,7 @@ from unified_planning.model.problem import Problem
 from unified_planning.shortcuts import Equals
 from symbolic_fact_generation import on_fact_generator
 from tables_demo_planning.demo_domain import ArmPose, Domain, Item, Location, Robot
-from tables_demo_planning.plan_execution import Executor
+from tables_demo_planning.subplan_visualization import SubPlanVisualization
 
 """
 Main execution node of the tables demo.
@@ -70,7 +70,43 @@ class TablesDemo(Domain):
         problem.add_goal(Equals(self.robot_has(self.robot), self.power_drill))
         problem.add_goal(Equals(self.robot_at(self.robot), self.objects[self.BASE_TABLE_1_POSE]))
 
+    def run(self) -> None:
+        visualization = SubPlanVisualization()
+        active = True
+        while active:
+            # Create problem based on current state.
+            self.problem = self.initialize_problem()
+            self.set_values(self.problem)
+            self.set_goals(self.problem)
+
+            # Plan
+            actions = self.solve(self.problem)
+            if not actions:
+                print("Execution ended because no plan could be found.")
+                break
+
+            print("> Plan:")
+            up_actions = [up_action for up_action, _ in actions]
+            print('\n'.join(map(str, up_actions)))
+            visualization.set_actions(up_actions)
+            # ... and execute.
+            print("> Execution:")
+            for up_action, (method, parameters) in actions:
+                print(up_action)
+                visualization.execute(up_action)
+                result = method(*parameters)
+                if result is None or result:
+                    visualization.succeed(up_action)
+                else:
+                    print("-- Action failed! Need to replan.")
+                    visualization.fail(up_action)
+                    # Abort execution and loop to planning.
+                    break
+            else:
+                active = False
+                print("Task complete.")
+
 
 if __name__ == '__main__':
     unified_planning.shortcuts.get_env().credits_stream = None
-    Executor(TablesDemo()).run()
+    TablesDemo().run()
