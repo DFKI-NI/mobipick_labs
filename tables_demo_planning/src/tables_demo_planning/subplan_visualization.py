@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Sequence, Set
+from typing import Dict, List, Optional, Sequence, Set, Tuple
 from dataclasses import dataclass
 from pydot import Dot, Edge, Node
 from std_msgs.msg import String
@@ -34,17 +34,27 @@ class SubPlanVisualization:
         predecessor: Optional[object] = None,
     ) -> None:
         """Update graph with actions by adding them to predecessor, or creating a new one."""
-        if predecessor is None:
-            self.graph = Dot("Plan", graph_type="digraph", bgcolor="white")
-            if preserve_actions:
-                for action_name, node in list(self.nodes.items()):
-                    if node.action in preserve_actions:
-                        self.graph.add_node(node.node)
-                        if node.edge:
-                            self.graph.add_edge(node.edge)
-                        predecessor = node.action
-                    else:
-                        del self.nodes[action_name]
+        self.graph = Dot("Plan", graph_type="digraph", bgcolor="white")
+        nodes: List[Tuple[str, VisualizationNode]] = []
+        if predecessor is not None:
+            # Keep nodes up to predecessor and append rest after adding new nodes.
+            nodes.extend(self.nodes.items())
+            while nodes:
+                action_name, node = nodes.pop(0)
+                self.graph.add_node(node.node)
+                if node.edge:
+                    self.graph.add_edge(node.edge)
+                if action_name == predecessor:
+                    break
+        elif preserve_actions:
+            for action_name, node in list(self.nodes.items()):
+                if node.action in preserve_actions:
+                    self.graph.add_node(node.node)
+                    if node.edge:
+                        self.graph.add_edge(node.edge)
+                    predecessor = node.action
+                else:
+                    del self.nodes[action_name]
         new_nodes: List[VisualizationNode] = []
         for action in actions:
             graph_node = Node(str(action), style="filled", fillcolor="white")
@@ -55,6 +65,12 @@ class SubPlanVisualization:
             new_node = self.nodes[str(action)] = VisualizationNode(graph_edge, graph_node, action)
             new_nodes.append(new_node)
             predecessor = graph_node
+        # Reapply nodes kept after predecessor to visualize new nodes to the left of them.
+        while nodes:
+            action_name, node = nodes.pop(0)
+            self.graph.add_node(node.node)
+            if node.edge:
+                self.graph.add_edge(node.edge)
         self.update()
 
     def execute(self, action: object) -> None:
