@@ -97,7 +97,7 @@ class TablesDemoRobot(Robot):
             if fact.name == "on":
                 item, table = fact.values
                 print(f"{item} on {table} detected.")
-                if item in Item.__members__.values() and table in Location.__members__.values():
+                if item in self.enum_values(Item) and table in self.enum_values(Location):
                     perceived_item_locations[Item(item)] = Location(table)
         self.domain.believed_item_locations.update(perceived_item_locations)
         return perceived_item_locations
@@ -315,6 +315,8 @@ class TablesDemo(Domain):
                             f"{len(successful_actions) + 1}{chr(subaction_success_count + 97)} {up_subaction}"
                         )
                         print(up_subaction)
+                        visualization.execute(subaction_name)
+                        # Execute search action.
                         result = submethod(*subparameters)
                         if result is not None:
                             if result:
@@ -324,8 +326,6 @@ class TablesDemo(Domain):
                                     visualization.succeed(subaction_name)
                                     print("- Continue with plan.")
                                     break
-                                else:
-                                    visualization.execute(subaction_name)
                             else:
                                 visualization.fail(subaction_name)
                                 break

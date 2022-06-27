@@ -1,4 +1,4 @@
-from typing import Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Callable, Dict, List, Optional, Sequence, Tuple, Type
 from enum import Enum
 import math
 import os
@@ -65,9 +65,13 @@ class Robot(robot_api.Robot):
         self.item = self.get_initial_item()
         self.item_offered = False
 
+    @staticmethod
+    def enum_values(enum: Type[Enum]) -> Tuple[str, ...]:
+        return tuple(member.value for member in enum)
+
     def get_arm_pose(self) -> ArmPose:
         arm_pose_name = self.arm.get_pose_name()
-        return ArmPose(arm_pose_name) if arm_pose_name in ArmPose.__members__.values() else ArmPose.unknown
+        return ArmPose(arm_pose_name) if arm_pose_name in self.enum_values(ArmPose) else ArmPose.unknown
 
     def get_initial_item(self) -> Item:
         self.arm.execute("HasAttachedObjects")
