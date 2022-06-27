@@ -1,41 +1,68 @@
 # a list of boxes to add to the planning scene
+#
+# map
+# +----> y        +-------+
+# |               |       |
+# |               |       |
+# v               |       |
+# x               |table_3|
+#                 |       |
+#                 |       |
+#                 |       |
+#                 +-------+
+#
+#                 +-------+
+#                 |       |
+#                 |       |
+#                 |       |
+#                 |table_2|
+#                 |       |
+#                 |       |
+#                 |       |
+#                 +-------+
+# +--------------+
+# |              |
+# |    table_1   |
+# |              |
+# +--------------+
+
 planning_scene_boxes:
   - scene_name: 'table_1'
     frame_id: 'map'
-    box_x_dimension: 0.7
-    box_y_dimension: 1.4
-    box_z_dimension: 0.7
-    box_position_x: 13.2
-    box_position_y: 2.2
-    box_position_z: 0.35
+    box_x_dimension: 1.40
+    box_y_dimension: 0.70
+    box_z_dimension: 0.72
+    box_position_x: 13.22
+    box_position_y: 2.15
+    box_position_z: 0.36
     box_orientation_x: 0.0
     box_orientation_y: 0.0
-    box_orientation_z: 0.0
-    box_orientation_w: 1.0
+    box_orientation_z: 0.7071
+    box_orientation_w: 0.7071
   - scene_name: 'table_2'
     frame_id: 'map'
-    box_x_dimension: 1.4
-    box_y_dimension: 0.7
-    box_z_dimension: 0.7
-    box_position_x: 12.0
-    box_position_y: 3.24
-    box_position_z: 0.35
+    box_x_dimension: 1.40
+    box_y_dimension: 0.70
+    box_z_dimension: 0.72
+    box_position_x: 12.07
+    box_position_y: 3.25
+    box_position_z: 0.36
     box_orientation_x: 0.0
     box_orientation_y: 0.0
-    box_orientation_z: 0.0
-    box_orientation_w: 1.0
+    box_orientation_z: 1.0
+    box_orientation_w: 0.0
   - scene_name: 'table_3'
     frame_id: 'map'
-    box_x_dimension: 1.4
-    box_y_dimension: 0.7
-    box_z_dimension: 0.7
-    box_position_x: 10.4
-    box_position_y: 3.24
-    box_position_z: 0.35
+    box_x_dimension: 1.40
+    box_y_dimension: 0.70
+    box_z_dimension: 0.72
+    box_position_x: 10.42
+    box_position_y: 3.25
+    box_position_z: 0.36
     box_orientation_x: 0.0
     box_orientation_y: 0.0
-    box_orientation_z: 0.0
-    box_orientation_w: 1.0
+    box_orientation_z: 1.0
+    box_orientation_w: 0.0
   - scene_name: 'back_wall_1'
     frame_id: 'map'
     box_x_dimension: 3.1
