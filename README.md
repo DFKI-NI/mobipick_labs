@@ -37,6 +37,7 @@ Optionally for visualization:
 ```bash
 rviz -d $(rospack find mir_navigation)/rviz/navigation.rviz __ns:="mobipick"
 ```
+
 Grasping objects demo (using grasplan)
 --------------------------------------
 
@@ -48,7 +49,7 @@ Goal of the robot in this demo is to
 
 ```bash
 roscore
-roslaunch tables_demo_bringup demo_sim.launch robot_x:=12.43 robot_y:=2.21 robot_yaw:=-1.605436
+roslaunch tables_demo_bringup demo_sim.launch robot_x:=12.43 robot_y:=2.21 robot_yaw:=-1.5708
 rosrun rviz rviz -d `rospack find tables_demo_bringup`/config/pick.rviz __ns:=mobipick
 rosrun grasplan pick_obj_test_action_client __ns:=mobipick powerdrill_with_grip
 ```
