@@ -1,5 +1,5 @@
-from typing import Callable, Dict, List, Optional, Sequence, Tuple, Type
-from enum import Enum, IntEnum
+from typing import Callable, Dict, List, Optional, Sequence, Tuple
+from enum import Enum
 import math
 import os
 import yaml
@@ -24,14 +24,14 @@ both for planning and for execution.
 # Define state representation classes.
 
 
-class ArmPose(IntEnum):
-    unknown = 0
-    home = 1
-    observe100cm_right = 2
-    transport = 3
-    place_1 = 4
-    tucked = 5
-    interaction = 6  # not a pose in rosparams but used to simplify planning
+class ArmPose(Enum):
+    unknown = "unknown"
+    home = "home"
+    observe = "observe100cm_right"
+    transport = "transport"
+    place = "place_1"
+    tucked = "tucked"
+    interaction = "interaction"  # not a pose in rosparams but used to simplify planning
 
 
 class Item(Enum):
@@ -67,7 +67,7 @@ class Robot(robot_api.Robot):
 
     def get_arm_pose(self) -> ArmPose:
         arm_pose_name = self.arm.get_pose_name()
-        return ArmPose[arm_pose_name] if arm_pose_name in ArmPose.__members__ else ArmPose.unknown
+        return ArmPose(arm_pose_name) if arm_pose_name in ArmPose.__members__.values() else ArmPose.unknown
 
     def get_initial_item(self) -> Item:
         self.arm.execute("HasAttachedObjects")
@@ -144,7 +144,7 @@ class Domain(Bridge):
         self.poses.extend([self.tool_search_pose, self.klt_search_pose])
         self.arm_poses = self.create_objects({pose.name: pose for pose in ArmPose})
         self.arm_pose_home = self.objects[ArmPose.home.name]
-        self.arm_pose_observe = self.objects[ArmPose.observe100cm_right.name]
+        self.arm_pose_observe = self.objects[ArmPose.observe.name]
         self.arm_pose_transport = self.objects[ArmPose.transport.name]
         self.arm_pose_interaction = self.objects[ArmPose.interaction.name]
         self.items = self.create_objects({item.name: item for item in Item})

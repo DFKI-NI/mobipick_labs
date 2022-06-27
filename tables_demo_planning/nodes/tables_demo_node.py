@@ -38,18 +38,24 @@ class TablesDemoRobot(Robot):
     def place_klt(self, pose: Pose, location: Location) -> bool:
         """At pose, place klt down at location."""
         # TODO place klt
+        self.item = Item.nothing
+        self.domain.believed_item_locations[Item.klt] = self.domain.objects[location.name]
+        self.arm.move("home")
         return True
 
     def store_item(self, pose: Pose, location: Location, item: Item) -> bool:
         """At pose, store item into klt at location."""
         # TODO place item into klt
+        self.item = Item.nothing
+        self.domain.believed_item_locations[item] = Location.in_klt
+        self.arm.move("home")
         return True
 
     def search_at(self, pose: Pose, location: Location) -> bool:
         """At pose, search for item_search at location."""
         item_locations = self.perceive()
         item = self.domain.item_search
-        assert item is not None
+        assert item
         if item in item_locations.keys():
             print(f"Search for {item.name} SUCCESSFUL.")
             self.domain.item_search = None
@@ -67,7 +73,7 @@ class TablesDemoRobot(Robot):
 
     def conclude_tool_search(self, item: Item) -> bool:
         """Conclude tool search as failed. Success is determined in search_at()."""
-        print(f"Search for {item} FAILED!")
+        print(f"Search for {item.name} FAILED!")
         return False
 
     def conclude_klt_search(self) -> bool:
@@ -78,20 +84,20 @@ class TablesDemoRobot(Robot):
     def perceive(self) -> Dict[Item, Location]:
         """Move arm into observation pose and return all perceived items with locations."""
         self.arm.move("observe100cm_right")
-        self.arm_pose = ArmPose.observe100cm_right
+        self.arm_pose = ArmPose.observe
         rospy.wait_for_service('/pose_selector_activate')
         self.activate_pose_selector(True)
+        for table in (Location.table_1, Location.table_2, Location.table_3):
+            on_fact_generator.clear_facts_and_poses_for_table(table.name)
         rospy.sleep(5)
         facts = on_fact_generator.get_current_facts()
         self.activate_pose_selector(False)
-        item_values = [item.value for item in Item]
-        location_values = [location.value for location in Location]
         perceived_item_locations: Dict[Item, Location] = {}
         for fact in facts:
             if fact.name == "on":
                 item, table = fact.values
                 print(f"{item} on {table} detected.")
-                if item in item_values and table in location_values:
+                if item in Item.__members__.values() and table in Location.__members__.values():
                     perceived_item_locations[Item(item)] = Location(table)
         self.domain.believed_item_locations.update(perceived_item_locations)
         return perceived_item_locations
@@ -102,6 +108,7 @@ class TablesDemo(Domain):
         super().__init__(TablesDemoRobot(self))
         self.believed_item_locations: Dict[Item, Location] = {}
         self.item_search: Optional[Item] = None
+        self.target_table = self.table_2
 
         self.pick_item, (robot, pose, location, item) = self.create_action(TablesDemoRobot, TablesDemoRobot.pick_item)
         self.pick_item.add_precondition(Equals(self.robot_at(robot), pose))
@@ -225,15 +232,16 @@ class TablesDemo(Domain):
         self.problem.add_goal(Equals(self.believe_item_at(self.multimeter), self.in_klt))
         self.problem.add_goal(Equals(self.believe_item_at(self.relay), self.in_klt))
         self.problem.add_goal(Equals(self.believe_item_at(self.screwdriver), self.in_klt))
-        self.problem.add_goal(Equals(self.believe_item_at(self.klt), self.table_2))
+        self.problem.add_goal(Equals(self.believe_item_at(self.klt), self.target_table))
 
     def set_search_goals(self) -> None:
         """Set the goals for the item_search subproblem."""
+        assert self.item_search
         self.subproblem.clear_goals()
         self.subproblem.add_goal(
             Equals(self.believe_item_at(self.klt), self.klt_search_location)
             if self.item_search == Item.klt
-            else Equals(self.believe_item_at(self.multimeter), self.tool_search_location)
+            else Equals(self.believe_item_at(self.objects[self.item_search.name]), self.tool_search_location)
         )
 
     def print_believed_item_locations(self) -> None:
@@ -242,7 +250,7 @@ class TablesDemo(Domain):
             print(f"- {item.name}:", self.believed_item_locations.get(item, Location.anywhere).name)
 
     def run(self) -> None:
-        print("Scenario: Mobipick shall bring all items inside the klt to target table.")
+        print(f"Scenario: Mobipick shall bring all items inside the klt to {self.target_table}.")
         print("The believed item locations are:")
 
         visualization = SubPlanVisualization()
@@ -276,7 +284,7 @@ class TablesDemo(Domain):
                 if self.item_search:
                     # Check whether an obsolete item search invalidates the previous plan.
                     if self.believed_item_locations.get(self.item_search, self.anywhere) != self.anywhere:
-                        print(f"Search for {self.item_search} OBSOLETE.")
+                        print(f"Search for {self.item_search.name} OBSOLETE.")
                         visualization.fail(action_name)
                         self.item_search = None
                         self.print_believed_item_locations()
@@ -288,6 +296,7 @@ class TablesDemo(Domain):
                     self.set_initial_values(self.subproblem)
                     self.set_search_goals()
                     subactions = self.solve(self.subproblem)
+                    assert subactions, f"No solution for: {self.subproblem}"
                     print("- Search plan:")
                     up_subactions = [up_subaction for up_subaction, _ in subactions]
                     print('\n'.join(map(str, up_subactions)))
@@ -313,6 +322,7 @@ class TablesDemo(Domain):
                                 # Check if the search actually succeeded.
                                 if self.item_search is None:
                                     visualization.succeed(subaction_name)
+                                    print("- Continue with plan.")
                                     break
                                 else:
                                     visualization.execute(subaction_name)
