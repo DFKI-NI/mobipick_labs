@@ -34,7 +34,7 @@ class PickAndPlaceRobot(Robot):
 
 class PickAndPlace(Domain):
     def __init__(self) -> None:
-        super().__init__(PickAndPlaceRobot)
+        super().__init__(PickAndPlaceRobot("mobipick"))
         self.pick, (robot,) = self.create_action(PickAndPlaceRobot, PickAndPlaceRobot.pick)
         self.pick.add_precondition(Equals(self.robot_has(robot), self.nothing))
         self.pick.add_precondition(Equals(self.robot_at(robot), self.base_pick_pose))
@@ -70,7 +70,7 @@ class PickAndPlace(Domain):
         while active:
             # Create problem based on current state.
             self.problem = self.initialize_problem()
-            self.set_values(self.problem)
+            self.set_initial_values(self.problem)
             self.set_goals(self.problem)
 
             # Plan

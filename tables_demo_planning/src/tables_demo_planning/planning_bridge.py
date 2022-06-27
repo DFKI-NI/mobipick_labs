@@ -12,7 +12,7 @@ class Bridge:
         self.types: Dict[Type, UserType] = {}
         self.fluents: Dict[str, Fluent] = {}
         self.actions: Dict[str, InstantaneousAction] = {}
-        self.api_actions: Dict[str, Callable[..., bool]] = {}
+        self.api_actions: Dict[str, Callable[..., object]] = {}
         self.objects: Dict[str, Object] = {}
         self.api_objects: Dict[str, object] = {}
 
@@ -50,7 +50,7 @@ class Bridge:
         return fluent
 
     def create_action(
-        self, caller_type: Type, method: Callable[..., bool]
+        self, caller_type: Type, method: Callable[..., object]
     ) -> Tuple[InstantaneousAction, List[Parameter]]:
         """
         Create a UP InstantaneousAction by using caller_type and method's signature.
@@ -71,7 +71,7 @@ class Bridge:
         self.api_actions[method.__name__] = method
         return action, action.parameters
 
-    def get_action(self, action: ActionInstance) -> Tuple[Callable[..., bool], List[object]]:
+    def get_action(self, action: ActionInstance) -> Tuple[Callable[..., object], List[object]]:
         """Return the Robot API action associated with the given action."""
         if action.action.name not in self.api_actions.keys():
             raise ValueError(f"No corresponding Action defined for {action}!")

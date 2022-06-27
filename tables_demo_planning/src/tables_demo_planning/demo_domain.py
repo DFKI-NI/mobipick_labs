@@ -1,5 +1,4 @@
 from typing import Callable, Dict, List, Optional, Sequence, Tuple, Type
-from abc import ABC, abstractmethod
 from enum import Enum, IntEnum
 import math
 import os
@@ -11,7 +10,7 @@ from unified_planning.model.fluent import Fluent
 from unified_planning.model.object import Object
 from unified_planning.model.problem import Problem
 from unified_planning.plans.plan import ActionInstance
-from unified_planning.shortcuts import Equals, OneshotPlanner
+from unified_planning.shortcuts import Equals, Not, OneshotPlanner
 from tables_demo_planning.planning_bridge import Bridge
 from robot_api import TuplePose
 import robot_api
@@ -52,8 +51,8 @@ class Location(Enum):
     table_3 = "table_3"
     in_klt = "klt_1"
     on_robot = "on_robot"
-    item_search = "item_search"
-    klt_search = "klt_search"
+    tool_search_location = "tool_search_location"
+    klt_search_location = "klt_search_location"
 
 
 class Robot(robot_api.Robot):
@@ -103,7 +102,7 @@ class Robot(robot_api.Robot):
 # Define domain for both planning and execution.
 
 
-class Domain(Bridge, ABC):
+class Domain(Bridge):
     BASE_HANDOVER_POSE_NAME = "base_handover_pose"
     BASE_HOME_POSE_NAME = "base_home_pose"
     BASE_PICK_POSE_NAME = "base_pick_pose"
@@ -112,7 +111,7 @@ class Domain(Bridge, ABC):
     BASE_TABLE_2_POSE = "base_table_2_pose"
     BASE_TABLE_3_POSE = "base_table_3_pose"
 
-    def __init__(self, robot_class: Type[Robot] = Robot) -> None:
+    def __init__(self, robot: Robot) -> None:
         super().__init__()
         # Create types for planning based on class types.
         self.create_types([Robot, Pose, ArmPose, Item, Location])
@@ -124,9 +123,10 @@ class Domain(Bridge, ABC):
         self.robot_offered = self.create_fluent("Offered", [Robot])
         self.believe_item_at = self.create_fluent("BelieveItemAt", [Item], Location)
         self.searched_at = self.create_fluent("SearchedAt", [Location])
+        self.pose_at = self.create_fluent("PoseAt", [Pose], Location)
 
         # Create objects for both planning and execution.
-        self.api_robot = robot_class("mobipick")
+        self.api_robot = robot
         self.robot = self.create_object("mobipick", self.api_robot)
         config_path = f"{rospkg.RosPack().get_path('mobipick_pick_n_place')}/config/"
         filename = "moelk_tables_demo.yaml"
@@ -136,15 +136,34 @@ class Domain(Bridge, ABC):
         self.base_handover_pose = self.objects[self.BASE_HANDOVER_POSE_NAME]
         self.base_pick_pose = self.objects[self.BASE_PICK_POSE_NAME]
         self.base_place_pose = self.objects[self.BASE_PLACE_POSE_NAME]
+        self.base_table_1_pose = self.objects[self.BASE_TABLE_1_POSE]
+        self.base_table_2_pose = self.objects[self.BASE_TABLE_2_POSE]
+        self.base_table_3_pose = self.objects[self.BASE_TABLE_3_POSE]
+        self.tool_search_pose = self.create_object("tool_search_pose", Pose())
+        self.klt_search_pose = self.create_object("klt_search_pose", Pose())
+        self.poses.extend([self.tool_search_pose, self.klt_search_pose])
         self.arm_poses = self.create_objects({pose.name: pose for pose in ArmPose})
         self.arm_pose_home = self.objects[ArmPose.home.name]
+        self.arm_pose_observe = self.objects[ArmPose.observe100cm_right.name]
         self.arm_pose_transport = self.objects[ArmPose.transport.name]
         self.arm_pose_interaction = self.objects[ArmPose.interaction.name]
         self.items = self.create_objects({item.name: item for item in Item})
         self.nothing = self.objects[Item.nothing.name]
         self.power_drill = self.objects[Item.power_drill.name]
+        self.klt = self.objects[Item.klt.name]
+        self.multimeter = self.objects[Item.multimeter.name]
+        self.relay = self.objects[Item.relay.name]
+        self.screwdriver = self.objects[Item.screwdriver.name]
         self.locations = self.create_objects({location.name: location for location in Location})
+        self.anywhere = self.objects[Location.anywhere.name]
+        self.table_1 = self.objects[Location.table_1.name]
+        self.table_2 = self.objects[Location.table_2.name]
+        self.table_3 = self.objects[Location.table_3.name]
+        self.tables = (self.table_1, self.table_2, self.table_3)
         self.in_klt = self.objects[Location.in_klt.name]
+        self.on_robot = self.objects[Location.on_robot.name]
+        self.tool_search_location = self.objects[Location.tool_search_location.name]
+        self.klt_search_location = self.objects[Location.klt_search_location.name]
 
         # Create actions for planning based on class definitions.
         self.move_base, (robot, x, y) = self.create_action(Robot, Robot.move_base)
@@ -154,14 +173,14 @@ class Domain(Bridge, ABC):
         self.move_base.add_effect(self.robot_at(robot), y)
         self.move_base_with_item, (robot, x, y) = self.create_action(Robot, Robot.move_base_with_item)
         self.move_base_with_item.add_precondition(Equals(self.robot_at(robot), x))
-        self.move_base_with_item.add_precondition(Equals(self.robot_has(robot), self.power_drill))
+        self.move_base_with_item.add_precondition(Not(Equals(self.robot_has(robot), self.nothing)))
         self.move_base_with_item.add_precondition(Equals(self.robot_arm_at(robot), self.arm_pose_transport))
         self.move_base_with_item.add_effect(self.robot_at(robot), y)
         self.move_arm, (robot, x, y) = self.create_action(Robot, Robot.move_arm)
         self.move_arm.add_precondition(Equals(self.robot_arm_at(robot), x))
         self.move_arm.add_effect(self.robot_arm_at(robot), y)
         self.hand_over, (robot,) = self.create_action(Robot, Robot.hand_over)
-        self.hand_over.add_precondition(Equals(self.robot_has(robot), self.power_drill))
+        self.hand_over.add_precondition(Not(Equals(self.robot_has(robot), self.nothing)))
         self.hand_over.add_precondition(Equals(self.robot_at(robot), self.base_handover_pose))
         self.hand_over.add_precondition(Equals(self.robot_arm_at(robot), self.arm_pose_transport))
         self.hand_over.add_effect(self.robot_arm_at(robot), self.arm_pose_interaction)
@@ -205,27 +224,36 @@ class Domain(Bridge, ABC):
 
     def solve(
         self, problem: Problem
-    ) -> Optional[Sequence[Tuple[ActionInstance, Tuple[Callable[..., bool], List[object]]]]]:
+    ) -> Optional[Sequence[Tuple[ActionInstance, Tuple[Callable[..., object], List[object]]]]]:
         """Solve planning problem, then return list of UP and Robot API actions."""
         result = OneshotPlanner(problem_kind=problem.kind).solve(problem)
         return [(action, self.get_action(action)) for action in result.plan.actions] if result.plan else None
 
-    def set_values(self, problem: Problem) -> None:
+    def set_initial_values(self, problem: Problem) -> None:
         base_pose_name = self.api_robot.base.get_pose_name(xy_tolerance=math.inf, yaw_tolerance=math.pi)
-        fluents = problem.fluents
-        if self.robot_at in fluents:
+        if self.robot_at in problem.fluents:
             problem.set_initial_value(self.robot_at(self.robot), self.objects[base_pose_name])
-        if self.robot_arm_at in fluents:
+        if self.robot_arm_at in problem.fluents:
             problem.set_initial_value(self.robot_arm_at(self.robot), self.objects[self.api_robot.arm_pose.name])
-        if self.robot_has in fluents:
+        if self.robot_has in problem.fluents:
             problem.set_initial_value(self.robot_has(self.robot), self.objects[self.api_robot.item.name])
-        if self.robot_offered in fluents:
+        if self.robot_offered in problem.fluents:
             problem.set_initial_value(self.robot_offered(self.robot), self.api_robot.item_offered)
-
-    @abstractmethod
-    def initialize_problem(self) -> Problem:
-        """Initialize the UP problem based on current state."""
-
-    @abstractmethod
-    def set_goals(self, problem: Problem) -> None:
-        """Define the current goals of the UP problem."""
+        if self.believe_item_at in problem.fluents:
+            for item in self.items:
+                problem.set_initial_value(self.believe_item_at(item), self.anywhere)
+        if self.searched_at in problem.fluents:
+            for location in self.locations:
+                problem.set_initial_value(self.searched_at(location), False)
+        pose_locations = {
+            self.base_table_1_pose: self.table_1,
+            self.base_table_2_pose: self.table_2,
+            self.base_table_3_pose: self.table_3,
+            self.tool_search_pose: self.tool_search_location,
+            self.klt_search_pose: self.klt_search_location,
+        }
+        if self.pose_at in problem.fluents:
+            for pose in self.poses:
+                problem.set_initial_value(
+                    self.pose_at(pose), pose_locations[pose] if pose in pose_locations.keys() else self.anywhere
+                )
