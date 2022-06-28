@@ -2,8 +2,10 @@
 from typing import Dict, Optional, Set
 import unified_planning
 import rospy
+import actionlib
 from std_srvs.srv import SetBool
 from geometry_msgs.msg import Pose
+from pbr_msgs.msg import PickObjectAction, PickObjectGoal
 from unified_planning.model.problem import Problem
 from unified_planning.shortcuts import And, Equals, Not, Or
 from symbolic_fact_generation import on_fact_generator
@@ -21,15 +23,31 @@ class TablesDemoRobot(Robot):
         super().__init__("mobipick")
         self.domain = domain
         self.activate_pose_selector = rospy.ServiceProxy('/pose_selector_activate', SetBool)
+        self.pick_object_action_client = actionlib.SimpleActionClient('/mobipick/pick_object', PickObjectAction)
+        self.pick_object_goal = PickObjectGoal()
 
     def pick_item(self, pose: Pose, location: Location, item: Item) -> bool:
         """At pose, look for item at location, pick it up, then move arm to transport pose."""
-        perceived_item_locations = self.perceive()
-        if item not in perceived_item_locations.keys():
-            print(f"Pick up {item.name} at {location.name} FAILED.")
+        if not self.pick_object_action_client.wait_for_server(timeout=rospy.Duration(2.0)):
+            rospy.logerr("Pick Object action server not available!")
             return False
 
-        # TODO pick up item
+        perceived_item_locations = self.perceive()
+        if item not in perceived_item_locations.keys():
+            rospy.logwarn(f"Cannot find {item.name} at {location.name}. Pick up FAILED!")
+            return False
+
+        self.pick_object_goal.object_name = item.name
+        self.pick_object_action_client.send_goal(self.pick_object_goal)
+        if not self.pick_object_action_client.wait_for_result(timeout=rospy.Duration(50.0)):
+            rospy.logwarn(f"Pick up {item.name} at {location.name} FAILED due to timeout!")
+            return False
+
+        result = self.pick_object_action_client.get_result()
+        if not result:
+            rospy.logwarn(f"Pick up {item.name} at {location.name} FAILED!")
+            return False
+
         self.item = item
         self.domain.believed_item_locations[item] = self.domain.on_robot
         self.arm.move("transport")
