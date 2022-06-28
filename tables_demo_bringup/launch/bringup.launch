@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <launch>
   <arg name="simulation" default="false" />
-  <arg name="objects_of_interest" value="[relay, screwdriver, multimeter, powerdrill_with_grip, klt]"/>
+  <arg name="objects_of_interest" value="[relay, screwdriver, multimeter, power_drill_with_grip, klt]"/>
   <arg name="dope_converter_config" default="$(find pbr_dope)/config/astra.yaml" />
 
   <!-- please run separately! : -->
@@ -73,7 +73,7 @@
       command="load" ns="handcoded_grasp_planner_transforms" />
     <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/object_grasps/handcoded_grasp_planner_klt.yaml"
       command="load" ns="handcoded_grasp_planner_transforms" />
-    <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/object_grasps/handcoded_grasp_planner_powerdrill_with_grip.yaml"
+    <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/object_grasps/handcoded_grasp_planner_power_drill_with_grip.yaml"
       command="load" ns="handcoded_grasp_planner_transforms" />
   </node>
 </launch>

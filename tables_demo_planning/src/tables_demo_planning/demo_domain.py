@@ -36,7 +36,7 @@ class ArmPose(Enum):
 
 class Item(Enum):
     nothing = "nothing_1"
-    power_drill = "powerdrill_with_grip_1"
+    power_drill = "power_drill_with_grip_1"
     klt = "klt_1"
     multimeter = "multimeter_1"
     relay = "relay_1"
