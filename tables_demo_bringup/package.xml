@@ -18,6 +18,7 @@
   <exec_depend>mobipick_moveit_config</exec_depend>
   <exec_depend>mobipick_pick_n_place</exec_depend>
   <exec_depend>mobipick_task_server</exec_depend>
+  <exec_depend>pbr_dope</exec_depend>
   <exec_depend>pbr_gazebo</exec_depend>
   <exec_depend>pbr_maps</exec_depend>
   <exec_depend>pose_selector</exec_depend>
