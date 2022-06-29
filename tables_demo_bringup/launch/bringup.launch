@@ -2,7 +2,7 @@
 <launch>
   <arg name="simulation" default="false" />
   <arg name="objects_of_interest" value="[relay, screwdriver, multimeter, power_drill_with_grip, klt]"/>
-  <arg name="dope_converter_config" default="$(find pbr_dope)/config/astra.yaml" />
+  <arg name="dope_converter_config" default="$(find pbr_dope)/config/class_ids.yaml" />
 
   <!-- please run separately! : -->
   <!--roslaunch mobipick_bringup mobipick_bringup_both.launch -->
