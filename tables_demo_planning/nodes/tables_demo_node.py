@@ -35,7 +35,7 @@ class TablesDemoRobot(Robot):
             return False
 
         rospy.loginfo(f"Found pick object action server.")
-        perceived_item_locations = self.perceive()
+        perceived_item_locations = self.perceive(location)
         if item not in perceived_item_locations.keys():
             rospy.logwarn(f"Cannot find {item.name} at {location.name}. Pick up FAILED!")
             return False
@@ -80,7 +80,7 @@ class TablesDemoRobot(Robot):
 
     def search_at(self, pose: Pose, location: Location) -> bool:
         """At pose, search for item_search at location."""
-        item_locations = self.perceive()
+        item_locations = self.perceive(location)
         item = self.domain.item_search
         assert item
         if item in item_locations.keys():
@@ -108,14 +108,13 @@ class TablesDemoRobot(Robot):
         print("Search for klt FAILED!")
         return False
 
-    def perceive(self) -> Dict[Item, Location]:
+    def perceive(self, location: Location) -> Dict[Item, Location]:
         """Move arm into observation pose and return all perceived items with locations."""
         self.arm.move("observe100cm_right")
         self.arm_pose = ArmPose.observe
         rospy.wait_for_service('/pose_selector_activate')
+        on_fact_generator.clear_facts_and_poses_for_table(location.name)
         self.activate_pose_selector(True)
-        for table in (Location.table_1, Location.table_2, Location.table_3):
-            on_fact_generator.clear_facts_and_poses_for_table(table.name)
         rospy.sleep(5)
         facts = on_fact_generator.get_current_facts()
         self.activate_pose_selector(False)
@@ -123,9 +122,13 @@ class TablesDemoRobot(Robot):
         for fact in facts:
             if fact.name == "on":
                 item, table = fact.values
-                print(f"{item} on {table} detected.")
-                if item in self.enum_values(Item) and table in self.enum_values(Location):
+                print(f"{item} on {table} returned by pose_selector and fact_generator.")
+                if item in self.enum_values(Item) and table == location.name:
+                    print(f"{item} is perceived as on {table}.")
                     perceived_item_locations[Item(item)] = Location(table)
+        for check_item, check_location in list(self.domain.believed_item_locations.items()):
+            if check_location == location:
+                del self.domain.believed_item_locations[check_item]
         self.domain.believed_item_locations.update(perceived_item_locations)
         return perceived_item_locations
 
