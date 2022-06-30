@@ -376,4 +376,7 @@ class TablesDemo(Domain):
 
 if __name__ == '__main__':
     unified_planning.shortcuts.get_env().credits_stream = None
-    TablesDemo().run()
+    try:
+        TablesDemo().run()
+    except rospy.ROSInterruptException:
+        pass
