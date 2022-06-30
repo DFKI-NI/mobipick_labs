@@ -50,7 +50,7 @@ class TablesDemoRobot(Robot):
 
         result = self.pick_object_action_client.get_result()
         rospy.loginfo(f"The pick object server is done with execution, resuĺt was: '{result}'")
-        if not result:
+        if not result or not result.success:
             rospy.logwarn(f"Pick up {item.name} at {location.name} FAILED!")
             return False
 
