@@ -300,6 +300,9 @@ class TablesDemo(Domain):
                 visualization.execute(action_name)
                 # Execute action.
                 result = method(*parameters)
+                if rospy.is_shutdown():
+                    return
+
                 # Handle item search as an inner execution loop.
                 # Rationale: It has additional stop criteria, and might continue the outer loop.
                 if self.item_search:
@@ -339,6 +342,9 @@ class TablesDemo(Domain):
                         visualization.execute(subaction_name)
                         # Execute search action.
                         result = submethod(*subparameters)
+                        if rospy.is_shutdown():
+                            return
+
                         if result is not None:
                             if result:
                                 # Note: True result only means any subaction succeeded.
@@ -352,6 +358,7 @@ class TablesDemo(Domain):
                                 break
                         subaction_success_count += 1
                     self.item_search = None
+
                 if result is not None:
                     if result:
                         visualization.succeed(action_name)
