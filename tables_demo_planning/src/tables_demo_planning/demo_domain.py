@@ -3,6 +3,7 @@ from enum import Enum
 import math
 import os
 import yaml
+import rospy
 import rospkg
 from geometry_msgs.msg import Pose
 from unified_planning.model.action import InstantaneousAction
@@ -78,17 +79,26 @@ class Robot(robot_api.Robot):
         return Item.something if self.arm.get_result().result else Item.nothing
 
     def move_base(self, _: Pose, pose: Pose) -> bool:
-        self.base.move(pose)
+        if not self.base.move(pose):
+            rospy.logerr(f"Move base to {pose} FAILED!")
+            return False
+
         self.pose = pose
         return True
 
     def move_base_with_item(self, _: Pose, pose: Pose) -> bool:
-        self.base.move(pose)
+        if not self.base.move(pose):
+            rospy.logerr(f"Move base to {pose} FAILED!")
+            return False
+
         self.pose = pose
         return True
 
     def move_arm(self, _: ArmPose, arm_pose: ArmPose) -> bool:
-        self.arm.move(arm_pose.name)
+        if not self.arm.move(arm_pose.name):
+            rospy.logerr(f"Move arm to '{arm_pose.name} FAILED!'")
+            return False
+
         self.arm_pose = arm_pose
         return True
 
