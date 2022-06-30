@@ -36,6 +36,7 @@ then:
 roslaunch mobipick_bringup mobipick_bringup_both.launch   # already part of the startup instructions
 roslaunch pbr_dope dope.launch
 roslaunch tables_demo_bringup bringup.launch
+rosrun tables_demo_planning tables_demo_node.py
 ```
 
 Gazebo demo
