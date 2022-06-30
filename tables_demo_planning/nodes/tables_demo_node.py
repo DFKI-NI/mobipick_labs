@@ -29,26 +29,32 @@ class TablesDemoRobot(Robot):
 
     def pick_item(self, pose: Pose, location: Location, item: Item) -> bool:
         """At pose, look for item at location, pick it up, then move arm to transport pose."""
+        rospy.loginfo(f"Waiting for pick object action server.")
         if not self.pick_object_action_client.wait_for_server(timeout=rospy.Duration(2.0)):
             rospy.logerr("Pick Object action server not available!")
             return False
 
+        rospy.loginfo(f"Found pick object action server.")
         perceived_item_locations = self.perceive()
         if item not in perceived_item_locations.keys():
             rospy.logwarn(f"Cannot find {item.name} at {location.name}. Pick up FAILED!")
             return False
 
+        rospy.loginfo(f"Sending pick '{item.name}' goal to pick object action server.")
         self.pick_object_goal.object_name = item.name
         self.pick_object_action_client.send_goal(self.pick_object_goal)
+        rospy.loginfo(f'Wait for result from pick object action server.')
         if not self.pick_object_action_client.wait_for_result(timeout=rospy.Duration(50.0)):
             rospy.logwarn(f"Pick up {item.name} at {location.name} FAILED due to timeout!")
             return False
 
         result = self.pick_object_action_client.get_result()
+        rospy.loginfo(f"The pick object server is done with execution, resuĺt was: '{result}'")
         if not result:
             rospy.logwarn(f"Pick up {item.name} at {location.name} FAILED!")
             return False
 
+        rospy.loginfo(f"Successfully picked up {item.name}.")
         self.item = item
         self.domain.believed_item_locations[item] = self.domain.on_robot
         self.arm.move("transport")
