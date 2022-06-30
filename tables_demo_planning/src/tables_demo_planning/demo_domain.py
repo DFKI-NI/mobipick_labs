@@ -36,12 +36,12 @@ class ArmPose(Enum):
 
 
 class Item(Enum):
-    nothing = "nothing"
-    power_drill = "power_drill_with_grip_0"
-    klt = "klt_0"
-    multimeter = "multimeter_0"
-    relay = "relay_0"
-    screwdriver = "screwdriver_0"
+    nothing = "nothing_1"
+    power_drill = "power_drill_with_grip_1"
+    klt = "klt_1"
+    multimeter = "multimeter_1"
+    relay = "relay_1"
+    screwdriver = "screwdriver_1"
     something = "something"
 
 
