@@ -54,7 +54,7 @@ class TablesDemoRobot(Robot):
             rospy.logwarn(f"Pick up {item.name} at {location.name} FAILED!")
             return False
 
-        rospy.loginfo(f"Successfully picked up {item.name}.")
+        print(f"Successfully picked up {item.name}.")
         self.item = item
         self.domain.believed_item_locations[item] = self.domain.on_robot
         self.arm.move("transport")
@@ -122,9 +122,9 @@ class TablesDemoRobot(Robot):
         for fact in facts:
             if fact.name == "on":
                 item, table = fact.values
-                print(f"{item} on {table} returned by pose_selector and fact_generator.")
+                rospy.loginfo(f"{item} on {table} returned by pose_selector and fact_generator.")
                 if item in self.enum_values(Item) and table == location.name:
-                    print(f"{item} is perceived as on {table}.")
+                    rospy.loginfo(f"{item} is perceived as on {table}.")
                     perceived_item_locations[Item(item)] = Location(table)
         for check_item, check_location in list(self.domain.believed_item_locations.items()):
             if check_location == location:
