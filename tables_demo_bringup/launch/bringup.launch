@@ -45,7 +45,7 @@
     </node>
 
     <!-- force torque observer -->
-    <node name="ft_observer" pkg="mobipick_pick_n_place" type="ft_observer.py" output="screen"/>
+    <node name="ft_observer" pkg="mobipick_pick_n_place" type="ft_observer.py" ns="mobipick" output="screen"/>
   </group>
 
   <!-- grasp planning -->
