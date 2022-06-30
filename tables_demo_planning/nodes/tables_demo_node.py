@@ -3,7 +3,7 @@ from typing import Dict, Optional, Set
 import unified_planning
 import rospy
 import actionlib
-from std_srvs.srv import SetBool
+from std_srvs.srv import Empty, SetBool
 from geometry_msgs.msg import Pose
 from pbr_msgs.msg import PickObjectAction, PickObjectGoal
 from unified_planning.model.problem import Problem
@@ -23,6 +23,7 @@ class TablesDemoRobot(Robot):
         super().__init__("mobipick")
         self.domain = domain
         self.activate_pose_selector = rospy.ServiceProxy('/pose_selector_activate', SetBool)
+        self.open_gripper = rospy.ServiceProxy("/mobipick/pose_teacher/open_gripper", Empty)
         self.pick_object_action_client = actionlib.SimpleActionClient('/mobipick/pick_object', PickObjectAction)
         self.pick_object_goal = PickObjectGoal()
 
@@ -55,7 +56,8 @@ class TablesDemoRobot(Robot):
 
     def place_klt(self, pose: Pose, location: Location) -> bool:
         """At pose, place klt down at location."""
-        # TODO place klt
+        self.arm.move("above")
+        self.open_gripper()
         self.item = Item.nothing
         self.domain.believed_item_locations[Item.klt] = self.domain.objects[location.name]
         self.arm.move("home")
@@ -63,7 +65,8 @@ class TablesDemoRobot(Robot):
 
     def store_item(self, pose: Pose, location: Location, item: Item) -> bool:
         """At pose, store item into klt at location."""
-        # TODO place item into klt
+        self.arm.move("above")
+        self.open_gripper()
         self.item = Item.nothing
         self.domain.believed_item_locations[item] = Location.in_klt
         self.arm.move("home")
