@@ -41,9 +41,11 @@ class SubPlanVisualization:
             nodes.extend(self.nodes.items())
             while nodes:
                 action_name, node = nodes.pop(0)
-                self.graph.add_node(node.node)
-                if node.edge:
-                    self.graph.add_edge(node.edge)
+                # Keep main plan only.
+                if action_name.split(' ', maxsplit=1)[0].isdigit():
+                    self.graph.add_node(node.node)
+                    if node.edge:
+                        self.graph.add_edge(node.edge)
                 if action_name == predecessor:
                     break
         elif preserve_actions:
@@ -68,9 +70,11 @@ class SubPlanVisualization:
         # Reapply nodes kept after predecessor to visualize new nodes to the left of them.
         while nodes:
             action_name, node = nodes.pop(0)
-            self.graph.add_node(node.node)
-            if node.edge:
-                self.graph.add_edge(node.edge)
+            # Keep remaining part of main plan only.
+            if action_name.split(' ', maxsplit=1)[0].isdigit():
+                self.graph.add_node(node.node)
+                if node.edge:
+                    self.graph.add_edge(node.edge)
         self.update()
 
     def execute(self, action: object) -> None:

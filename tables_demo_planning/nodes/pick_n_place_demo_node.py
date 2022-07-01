@@ -72,6 +72,13 @@ class PickAndPlace(Domain):
             self.hand_over.add_effect(self.robot_has(robot, item), item == self.nothing)
         self.hand_over.add_effect(self.robot_offered(robot), True)
         self.visualization: Optional[PlanVisualization] = None
+        self.method_labels.update(
+            {
+                self.pick: lambda _: "Pick up power drill",
+                self.place: lambda _: "Place power drill on table",
+                self.hand_over: lambda _: "Hand over power drill to person",
+            }
+        )
 
     def initialize_problem(self) -> Problem:
         actions = [self.move_base, self.move_base_with_item, self.move_arm, self.pick, self.place]
@@ -90,6 +97,7 @@ class PickAndPlace(Domain):
         problem.add_goal(self.robot_at(self.robot, self.base_home_pose))
 
     def run(self) -> None:
+        action_success_count = 0
         active = True
         while active:
             # Create problem based on current state.
@@ -106,24 +114,30 @@ class PickAndPlace(Domain):
             print("> Plan:")
             up_actions = [up_action for up_action, _ in actions]
             print('\n'.join(map(str, up_actions)))
+            action_names = [
+                f"{action_success_count + index + 1} {self.label(up_action)}"
+                for index, up_action in enumerate(up_actions)
+            ]
             if self.visualization:
-                self.visualization.set_actions(up_actions)
+                self.visualization.set_actions(action_names)
             else:
-                self.visualization = PlanVisualization(up_actions)
+                self.visualization = PlanVisualization(action_names)
             # ... and execute.
             print("> Execution:")
             for up_action, (method, parameters) in actions:
+                action_name = f"{action_success_count + 1} {self.label(up_action)}"
                 print(up_action)
-                self.visualization.execute(up_action)
+                self.visualization.execute(action_name)
                 if rospy.is_shutdown():
                     return
 
                 result = method(*parameters)
                 if result is None or result:
-                    self.visualization.succeed(up_action)
+                    self.visualization.succeed(action_name)
+                    action_success_count += 1
                 else:
                     print("-- Action failed! Need to replan.")
-                    self.visualization.fail(up_action)
+                    self.visualization.fail(action_name)
                     # Abort execution and loop to planning.
                     break
             else:

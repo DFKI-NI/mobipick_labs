@@ -184,6 +184,24 @@ class Domain(Bridge):
         self.move_arm.add_effect(self.robot_arm_at(robot, x), False)
         self.move_arm.add_effect(self.robot_arm_at(robot, y), True)
 
+        # Create visualization labels for actions as functions of their parameters.
+        self.method_labels: Dict[InstantaneousAction, Callable[[Sequence[str]], str]] = {
+            self.move_base: lambda parameters: f"Move to '{parameters[-1]}' pose",
+            self.move_base_with_item: lambda parameters: f"Transport item to '{parameters[-1]}' pose",
+            self.move_arm: lambda parameters: f"Move arm to its '{parameters[-1]}' pose",
+        }
+        self.parameter_labels: Dict[Object, str] = {
+            self.base_home_pose: "home",
+            self.base_handover_pose: "handover",
+            self.base_pick_pose: "pick",
+            self.base_place_pose: "place",
+            self.base_table_1_pose: "table 1",
+            self.base_table_2_pose: "table 2",
+            self.base_table_3_pose: "table 3",
+            self.tool_search_pose: "from where tool has been found",
+            self.klt_search_pose: "from where box has been found",
+        }
+
     @staticmethod
     def load_waypoints(filepath: str) -> Dict[str, Pose]:
         """Load poses from config file."""
@@ -257,3 +275,8 @@ class Domain(Bridge):
                 problem.set_initial_value(
                     self.pose_at(pose, pose_locations[pose] if pose in pose_locations.keys() else self.anywhere), True
                 )
+
+    def label(self, action: ActionInstance) -> str:
+        parameters = [parameter.object() for parameter in action.actual_parameters]
+        parameter_labels = [self.parameter_labels.get(parameter, str(parameter)) for parameter in parameters]
+        return self.method_labels[action.action](parameter_labels)

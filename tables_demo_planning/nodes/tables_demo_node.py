@@ -275,6 +275,19 @@ class TablesDemo(Domain):
             ),
         )
 
+        self.method_labels.update(
+            {
+                self.pick_item: lambda parameters: f"Pick up {parameters[-1]}",
+                self.place_klt: lambda _: "Place box on table",
+                self.store_item: lambda parameters: f"Place {parameters[-1]} into box",
+                self.search_at: lambda parameters: f"Search at {parameters[-1]}",
+                self.search_tool: lambda parameters: f"Search for {parameters[-1]} on any table",
+                self.search_klt: lambda _: "Search for the box on any table",
+                self.conclude_tool_search: lambda parameters: f"Conclude search for {parameters[-1]}",
+                self.conclude_klt_search: lambda _: "Conclude search for the box",
+            }
+        )
+
     def set_initial_values(self, problem: Problem) -> None:
         """Set initial values for UP problem based on the fluents used and the current state."""
         super().set_initial_values(problem)
@@ -319,7 +332,6 @@ class TablesDemo(Domain):
 
         visualization = SubPlanVisualization()
         successful_actions: Set[str] = set()
-        subaction_success_count = 0
         # Solve overall problem.
         self.print_believed_item_locations()
         self.set_initial_values(self.problem)
@@ -333,12 +345,15 @@ class TablesDemo(Domain):
             up_actions = [up_action for up_action, _ in actions]
             print('\n'.join(map(str, up_actions)))
             visualization.set_actions(
-                [f"{len(successful_actions) + index + 1} {up_action}" for index, up_action in enumerate(up_actions)],
+                [
+                    f"{len(successful_actions) + index + 1} {self.label(up_action)}"
+                    for index, up_action in enumerate(up_actions)
+                ],
                 successful_actions,
             )
             print("> Execution:")
             for up_action, (method, parameters) in actions:
-                action_name = f"{len(successful_actions) + 1} {up_action}"
+                action_name = f"{len(successful_actions) + 1} {self.label(up_action)}"
                 print(up_action)
                 visualization.execute(action_name)
                 # Execute action.
@@ -369,7 +384,7 @@ class TablesDemo(Domain):
                     print('\n'.join(map(str, up_subactions)))
                     visualization.set_actions(
                         [
-                            f"{len(successful_actions) + 1}{chr(index + 97)} {up_subaction}"
+                            f"{len(successful_actions) + 1}{chr(index + 97)} {self.label(up_subaction)}"
                             for index, up_subaction in enumerate(up_subactions)
                         ],
                         successful_actions,
@@ -378,9 +393,7 @@ class TablesDemo(Domain):
                     print("- Search execution:")
                     subaction_success_count = 0
                     for up_subaction, (submethod, subparameters) in subactions:
-                        subaction_name = (
-                            f"{len(successful_actions) + 1}{chr(subaction_success_count + 97)} {up_subaction}"
-                        )
+                        subaction_name = f"{len(successful_actions) + 1}{chr(subaction_success_count + 97)} {self.label(up_subaction)}"
                         print(up_subaction)
                         visualization.execute(subaction_name)
                         # Execute search action.
