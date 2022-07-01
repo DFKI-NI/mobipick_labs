@@ -2,6 +2,7 @@ from typing import Callable, Dict, List, Optional, Sequence, Tuple, Type
 from enum import Enum
 import math
 import os
+import time
 import yaml
 import rospy
 import rospkg
@@ -236,7 +237,10 @@ class Domain(Bridge):
         self, problem: Problem
     ) -> Optional[Sequence[Tuple[ActionInstance, Tuple[Callable[..., object], List[object]]]]]:
         """Solve planning problem, then return list of UP and Robot API actions."""
+        print("Calculating plan ...")
+        start_time = time.time()
         result = OneshotPlanner(problem_kind=problem.kind).solve(problem)
+        rospy.loginfo(f"Planner result received after {time.time() - start_time} seconds.")
         return [(action, self.get_action(action)) for action in result.plan.actions] if result.plan else None
 
     def set_initial_values(self, problem: Problem) -> None:
