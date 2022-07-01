@@ -10,9 +10,6 @@
   <!-- 6D pose estimation and classification with deep learning -->
   <!--include file="$(find pbr_dope)/launch/dope.launch"-->
 
-  <!-- task server -->
-  <include file="$(find mobipick_task_server)/launch/mobipick_task_server.launch" />
-
   <!-- MoveIt macros -->
   <include file="$(find robot_api)/launch/moveit_macros.launch">
     <arg name="namespace" value="mobipick" />

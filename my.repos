@@ -7,10 +7,6 @@ repositories:
     type: git
     url: git@git.ni.dfki.de:mobipick/mobipick.git
     version: tables-demo
-  mobipick_task_server:
-    type: git
-    url: git@git.ni.dfki.de:mobipick/mobipick_task_server.git
-    version: master
   object_pose_msgs:
      type: git
      url: https://git.ni.dfki.de/environment_representation/object_pose_msgs.git
@@ -30,7 +26,7 @@ repositories:
   robot_api:
     type: git
     url: git@git.ni.dfki.de:acting/robot_api.git
-    version: master
+    version: release-1.0
   grasplan:
     type: git
     url: git@git.ni.dfki.de:acting/grasplan.git
