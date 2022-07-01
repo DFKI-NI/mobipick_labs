@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 from typing import Optional
+import rospy
 import unified_planning
 from unified_planning.model.problem import Problem
-from unified_planning.shortcuts import Equals
+from unified_planning.shortcuts import Not
 from tables_demo_planning.demo_domain import ArmPose, Domain, Item, Robot
 from tables_demo_planning.plan_visualization import PlanVisualization
 
@@ -31,6 +32,16 @@ class PickAndPlaceRobot(Robot):
         self.item = Item.nothing
         return True
 
+    def hand_over(self) -> bool:
+        self.arm.execute("MoveArmToHandover")
+        self.arm_pose = self.get_arm_pose()
+        self.item_offered = True
+        if not self.arm.observe_force_torque(5.0, 25.0):
+            return False
+
+        self.arm.execute("ReleaseGripper")
+        return True
+
 
 class PickAndPlace(Domain):
     def __init__(self) -> None:
@@ -51,6 +62,15 @@ class PickAndPlace(Domain):
         self.place.add_effect(self.robot_has(robot, self.nothing), True)
         self.place.add_effect(self.robot_arm_at(robot, self.arm_pose_transport), False)
         self.place.add_effect(self.robot_arm_at(robot, self.arm_pose_interaction), True)
+        self.hand_over, (robot,) = self.create_action(PickAndPlaceRobot, PickAndPlaceRobot.hand_over)
+        self.hand_over.add_precondition(Not(self.robot_has(robot, self.nothing)))
+        self.hand_over.add_precondition(self.robot_at(robot, self.base_handover_pose))
+        self.hand_over.add_precondition(self.robot_arm_at(robot, self.arm_pose_transport))
+        self.hand_over.add_effect(self.robot_arm_at(robot, self.arm_pose_transport), False)
+        self.hand_over.add_effect(self.robot_arm_at(robot, self.arm_pose_interaction), True)
+        for item in self.items:
+            self.hand_over.add_effect(self.robot_has(robot, item), item == self.nothing)
+        self.hand_over.add_effect(self.robot_offered(robot), True)
         self.visualization: Optional[PlanVisualization] = None
 
     def initialize_problem(self) -> Problem:
@@ -95,6 +115,9 @@ class PickAndPlace(Domain):
             for up_action, (method, parameters) in actions:
                 print(up_action)
                 self.visualization.execute(up_action)
+                if rospy.is_shutdown():
+                    return
+
                 result = method(*parameters)
                 if result is None or result:
                     self.visualization.succeed(up_action)

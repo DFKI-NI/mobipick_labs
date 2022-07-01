@@ -12,7 +12,7 @@ from unified_planning.model.fluent import Fluent
 from unified_planning.model.object import Object
 from unified_planning.model.problem import Problem
 from unified_planning.plans.plan import ActionInstance
-from unified_planning.shortcuts import Equals, Not, OneshotPlanner
+from unified_planning.shortcuts import Not, OneshotPlanner
 from tables_demo_planning.planning_bridge import Bridge
 from robot_api import TuplePose
 import robot_api
@@ -99,16 +99,6 @@ class Robot(robot_api.Robot):
         self.arm_pose = arm_pose
         return True
 
-    def hand_over(self) -> bool:
-        self.arm.execute("MoveArmToHandover")
-        self.arm_pose = self.get_arm_pose()
-        self.item_offered = True
-        if not self.arm.observe_force_torque(5.0, 25.0):
-            return False
-
-        self.arm.execute("ReleaseGripper")
-        return True
-
 
 # Define domain for both planning and execution.
 
@@ -193,15 +183,6 @@ class Domain(Bridge):
         self.move_arm.add_precondition(self.robot_arm_at(robot, x))
         self.move_arm.add_effect(self.robot_arm_at(robot, x), False)
         self.move_arm.add_effect(self.robot_arm_at(robot, y), True)
-        self.hand_over, (robot,) = self.create_action(Robot, Robot.hand_over)
-        self.hand_over.add_precondition(Not(self.robot_has(robot, self.nothing)))
-        self.hand_over.add_precondition(self.robot_at(robot, self.base_handover_pose))
-        self.hand_over.add_precondition(self.robot_arm_at(robot, self.arm_pose_transport))
-        self.hand_over.add_effect(self.robot_arm_at(robot, self.arm_pose_transport), False)
-        self.hand_over.add_effect(self.robot_arm_at(robot, self.arm_pose_interaction), True)
-        for item in self.items:
-            self.hand_over.add_effect(self.robot_has(robot, item), item == self.nothing)
-        self.hand_over.add_effect(self.robot_offered(robot), True)
 
     @staticmethod
     def load_waypoints(filepath: str) -> Dict[str, Pose]:
@@ -245,7 +226,7 @@ class Domain(Bridge):
         print("Calculating plan ...")
         start_time = time.time()
         result = OneshotPlanner(problem_kind=problem.kind).solve(problem)
-        rospy.loginfo(f"Result received from '{result.engine_name}' after {time.time() - start_time} seconds.")
+        rospy.loginfo(f"Result received from '{result.engine_name}' planner after {time.time() - start_time} seconds.")
         return [(action, self.get_action(action)) for action in result.plan.actions] if result.plan else None
 
     def set_initial_values(self, problem: Problem) -> None:
