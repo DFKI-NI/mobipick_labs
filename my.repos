@@ -31,18 +31,6 @@ repositories:
     type: git
     url: git@git.ni.dfki.de:acting/robot_api.git
     version: master
-  unified-planning:
-    type: git
-    url: https://github.com/aiplan4eu/unified-planning
-    version: master
-  up-pyperplan:
-    type: git
-    url: https://github.com/aiplan4eu/up-pyperplan
-    version: master
-  up-tamer:
-    type: git
-    url: https://github.com/aiplan4eu/up-tamer
-    version: master
   grasplan:
     type: git
     url: git@git.ni.dfki.de:acting/grasplan.git
