@@ -133,4 +133,7 @@ class PickAndPlace(Domain):
 
 if __name__ == '__main__':
     unified_planning.shortcuts.get_env().credits_stream = None
-    PickAndPlace().run()
+    try:
+        PickAndPlace().run()
+    except rospy.ROSInterruptException:
+        pass
