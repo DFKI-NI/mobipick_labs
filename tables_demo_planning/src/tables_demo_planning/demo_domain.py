@@ -79,7 +79,7 @@ class Robot(robot_api.Robot):
         return Item.something if self.arm.get_result().result else Item.nothing
 
     def move_base(self, _: Pose, pose: Pose) -> bool:
-        if not self.base.move(pose):
+        if self.base.move(pose) != 3:
             rospy.logerr(f"Move base to {pose} FAILED!")
             return False
 
@@ -87,12 +87,8 @@ class Robot(robot_api.Robot):
         return True
 
     def move_base_with_item(self, _: Pose, pose: Pose) -> bool:
-        if not self.base.move(pose):
-            rospy.logerr(f"Move base to {pose} FAILED!")
-            return False
-
-        self.pose = pose
-        return True
+        # Note: Same action as move_base(), just in transport pose.
+        return self.move_base(_, pose)
 
     def move_arm(self, _: ArmPose, arm_pose: ArmPose) -> bool:
         if not self.arm.move(arm_pose.name):
