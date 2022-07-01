@@ -57,7 +57,7 @@ class TablesDemoRobot(Robot):
 
         print(f"Successfully picked up {item.name}.")
         self.item = item
-        self.domain.believed_item_locations[item] = self.domain.on_robot
+        self.domain.believed_item_locations[item] = Location.on_robot
         self.arm.move("transport")
         return True
 
@@ -66,7 +66,7 @@ class TablesDemoRobot(Robot):
         self.arm.move("above")
         self.open_gripper()
         self.item = Item.nothing
-        self.domain.believed_item_locations[Item.klt] = self.domain.objects[location.name]
+        self.domain.believed_item_locations[Item.klt] = location
         self.arm.move("home")
         return True
 
@@ -159,15 +159,20 @@ class TablesDemo(Domain):
         self.pick_item.add_precondition(Equals(self.robot_has(robot), self.nothing))
         self.pick_item.add_precondition(Equals(self.believe_item_at(item), location))
         self.pick_item.add_precondition(Equals(self.pose_at(pose), location))
-        self.pick_item.add_precondition(Not(Equals(location, self.anywhere)))
+        self.pick_item.add_precondition(
+            Or(
+                Equals(location, table) for table in [*self.tables, self.tool_search_location, self.klt_search_location]
+            ),
+        )
         self.pick_item.add_precondition(Not(Equals(item, self.nothing)))
         self.pick_item.add_effect(self.robot_has(robot), item)
         self.pick_item.add_effect(self.robot_arm_at(robot), self.arm_pose_transport)
-        self.pick_item.add_effect(self.believe_item_at(item), self.anywhere)
+        self.pick_item.add_effect(self.believe_item_at(item), self.on_robot)
         self.place_klt, (robot, pose, location) = self.create_action(TablesDemoRobot, TablesDemoRobot.place_klt)
         self.place_klt.add_precondition(Equals(self.robot_at(robot), pose))
         self.place_klt.add_precondition(Equals(self.robot_arm_at(robot), self.arm_pose_transport))
         self.place_klt.add_precondition(Equals(self.robot_has(robot), self.klt))
+        self.place_klt.add_precondition(Equals(self.believe_item_at(self.klt), self.on_robot))
         self.place_klt.add_precondition(Equals(self.pose_at(pose), location))
         self.place_klt.add_effect(self.robot_has(robot), self.nothing)
         self.place_klt.add_effect(self.robot_arm_at(robot), self.arm_pose_home)
@@ -176,6 +181,7 @@ class TablesDemo(Domain):
         self.store_item.add_precondition(Equals(self.robot_at(robot), pose))
         self.store_item.add_precondition(Equals(self.robot_arm_at(robot), self.arm_pose_transport))
         self.store_item.add_precondition(Equals(self.robot_has(robot), item))
+        self.store_item.add_precondition(Equals(self.believe_item_at(item), self.on_robot))
         self.store_item.add_precondition(Equals(self.believe_item_at(self.klt), location))
         self.store_item.add_precondition(Equals(self.pose_at(pose), location))
         self.store_item.add_precondition(Not(Equals(location, self.anywhere)))
