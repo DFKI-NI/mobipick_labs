@@ -64,7 +64,7 @@ Goal of the robot in this demo is to
 
 ```bash
 roscore
-roslaunch tables_demo_bringup demo_sim.launch robot_x:=12.43 robot_y:=2.21 robot_yaw:=-1.5708
+roslaunch tables_demo_bringup demo_sim.launch robot_x:=12.43 robot_y:=2.21 robot_yaw:=1.5708
 rosrun rviz rviz -d `rospack find tables_demo_bringup`/config/pick.rviz __ns:=mobipick
 rosrun grasplan pick_obj_test_action_client __ns:=mobipick power_drill_with_grip
 ```
