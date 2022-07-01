@@ -128,13 +128,13 @@ class Domain(Bridge):
         self.create_types([Robot, Pose, ArmPose, Item, Location])
 
         # Create fluents for planning.
-        self.robot_at = self.create_fluent("At", [Robot], Pose)
-        self.robot_arm_at = self.create_fluent("ArmAt", [Robot], ArmPose)
-        self.robot_has = self.create_fluent("Has", [Robot], Item)
+        self.robot_at = self.create_fluent("At", [Robot, Pose])
+        self.robot_arm_at = self.create_fluent("ArmAt", [Robot, ArmPose])
+        self.robot_has = self.create_fluent("Has", [Robot, Item])
         self.robot_offered = self.create_fluent("Offered", [Robot])
-        self.believe_item_at = self.create_fluent("BelieveItemAt", [Item], Location)
+        self.believe_item_at = self.create_fluent("BelieveItemAt", [Item, Location])
         self.searched_at = self.create_fluent("SearchedAt", [Location])
-        self.pose_at = self.create_fluent("PoseAt", [Pose], Location)
+        self.pose_at = self.create_fluent("PoseAt", [Pose, Location])
 
         # Create objects for both planning and execution.
         self.api_robot = robot
@@ -178,24 +178,29 @@ class Domain(Bridge):
 
         # Create actions for planning based on class definitions.
         self.move_base, (robot, x, y) = self.create_action(Robot, Robot.move_base)
-        self.move_base.add_precondition(Equals(self.robot_at(robot), x))
-        self.move_base.add_precondition(Equals(self.robot_has(robot), self.nothing))
-        self.move_base.add_precondition(Equals(self.robot_arm_at(robot), self.arm_pose_home))
-        self.move_base.add_effect(self.robot_at(robot), y)
+        self.move_base.add_precondition(self.robot_at(robot, x))
+        self.move_base.add_precondition(self.robot_has(robot, self.nothing))
+        self.move_base.add_precondition(self.robot_arm_at(robot, self.arm_pose_home))
+        self.move_base.add_effect(self.robot_at(robot, x), False)
+        self.move_base.add_effect(self.robot_at(robot, y), True)
         self.move_base_with_item, (robot, x, y) = self.create_action(Robot, Robot.move_base_with_item)
-        self.move_base_with_item.add_precondition(Equals(self.robot_at(robot), x))
-        self.move_base_with_item.add_precondition(Not(Equals(self.robot_has(robot), self.nothing)))
-        self.move_base_with_item.add_precondition(Equals(self.robot_arm_at(robot), self.arm_pose_transport))
-        self.move_base_with_item.add_effect(self.robot_at(robot), y)
+        self.move_base_with_item.add_precondition(self.robot_at(robot, x))
+        self.move_base_with_item.add_precondition(Not(self.robot_has(robot, self.nothing)))
+        self.move_base_with_item.add_precondition(self.robot_arm_at(robot, self.arm_pose_transport))
+        self.move_base_with_item.add_effect(self.robot_at(robot, x), False)
+        self.move_base_with_item.add_effect(self.robot_at(robot, y), True)
         self.move_arm, (robot, x, y) = self.create_action(Robot, Robot.move_arm)
-        self.move_arm.add_precondition(Equals(self.robot_arm_at(robot), x))
-        self.move_arm.add_effect(self.robot_arm_at(robot), y)
+        self.move_arm.add_precondition(self.robot_arm_at(robot, x))
+        self.move_arm.add_effect(self.robot_arm_at(robot, x), False)
+        self.move_arm.add_effect(self.robot_arm_at(robot, y), True)
         self.hand_over, (robot,) = self.create_action(Robot, Robot.hand_over)
-        self.hand_over.add_precondition(Not(Equals(self.robot_has(robot), self.nothing)))
-        self.hand_over.add_precondition(Equals(self.robot_at(robot), self.base_handover_pose))
-        self.hand_over.add_precondition(Equals(self.robot_arm_at(robot), self.arm_pose_transport))
-        self.hand_over.add_effect(self.robot_arm_at(robot), self.arm_pose_interaction)
-        self.hand_over.add_effect(self.robot_has(robot), self.nothing)
+        self.hand_over.add_precondition(Not(self.robot_has(robot, self.nothing)))
+        self.hand_over.add_precondition(self.robot_at(robot, self.base_handover_pose))
+        self.hand_over.add_precondition(self.robot_arm_at(robot, self.arm_pose_transport))
+        self.hand_over.add_effect(self.robot_arm_at(robot, self.arm_pose_transport), False)
+        self.hand_over.add_effect(self.robot_arm_at(robot, self.arm_pose_interaction), True)
+        for item in self.items:
+            self.hand_over.add_effect(self.robot_has(robot, item), item == self.nothing)
         self.hand_over.add_effect(self.robot_offered(robot), True)
 
     @staticmethod
@@ -223,7 +228,7 @@ class Domain(Bridge):
         """Define a UP problem by its (potential subsets of) fluents, objects, and actions."""
         problem = Problem()
         for fluent in self.fluents.values() if fluents is None else fluents:
-            problem.add_fluent(fluent)
+            problem.add_fluent(fluent, default_initial_value=False)
         problem.add_object(self.robot)
         problem.add_objects(self.poses if poses is None else poses)
         problem.add_objects(self.arm_poses)
@@ -240,22 +245,22 @@ class Domain(Bridge):
         print("Calculating plan ...")
         start_time = time.time()
         result = OneshotPlanner(problem_kind=problem.kind).solve(problem)
-        rospy.loginfo(f"Planner result received after {time.time() - start_time} seconds.")
+        rospy.loginfo(f"Result received from '{result.engine_name}' after {time.time() - start_time} seconds.")
         return [(action, self.get_action(action)) for action in result.plan.actions] if result.plan else None
 
     def set_initial_values(self, problem: Problem) -> None:
         base_pose_name = self.api_robot.base.get_pose_name(xy_tolerance=math.inf, yaw_tolerance=math.pi)
         if self.robot_at in problem.fluents:
-            problem.set_initial_value(self.robot_at(self.robot), self.objects[base_pose_name])
+            problem.set_initial_value(self.robot_at(self.robot, self.objects[base_pose_name]), True)
         if self.robot_arm_at in problem.fluents:
-            problem.set_initial_value(self.robot_arm_at(self.robot), self.objects[self.api_robot.arm_pose.name])
+            problem.set_initial_value(self.robot_arm_at(self.robot, self.objects[self.api_robot.arm_pose.name]), True)
         if self.robot_has in problem.fluents:
-            problem.set_initial_value(self.robot_has(self.robot), self.objects[self.api_robot.item.name])
+            problem.set_initial_value(self.robot_has(self.robot, self.objects[self.api_robot.item.name]), True)
         if self.robot_offered in problem.fluents:
             problem.set_initial_value(self.robot_offered(self.robot), self.api_robot.item_offered)
         if self.believe_item_at in problem.fluents:
             for item in self.items:
-                problem.set_initial_value(self.believe_item_at(item), self.anywhere)
+                problem.set_initial_value(self.believe_item_at(item, self.anywhere), True)
         if self.searched_at in problem.fluents:
             for location in self.locations:
                 problem.set_initial_value(self.searched_at(location), False)
@@ -269,5 +274,5 @@ class Domain(Bridge):
         if self.pose_at in problem.fluents:
             for pose in self.poses:
                 problem.set_initial_value(
-                    self.pose_at(pose), pose_locations[pose] if pose in pose_locations.keys() else self.anywhere
+                    self.pose_at(pose, pose_locations[pose] if pose in pose_locations.keys() else self.anywhere), True
                 )

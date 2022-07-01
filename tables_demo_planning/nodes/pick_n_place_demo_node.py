@@ -36,17 +36,21 @@ class PickAndPlace(Domain):
     def __init__(self) -> None:
         super().__init__(PickAndPlaceRobot("mobipick"))
         self.pick, (robot,) = self.create_action(PickAndPlaceRobot, PickAndPlaceRobot.pick_power_drill)
-        self.pick.add_precondition(Equals(self.robot_has(robot), self.nothing))
-        self.pick.add_precondition(Equals(self.robot_at(robot), self.base_pick_pose))
-        self.pick.add_precondition(Equals(self.robot_arm_at(robot), self.arm_pose_home))
-        self.pick.add_effect(self.robot_has(robot), self.power_drill)
-        self.pick.add_effect(self.robot_arm_at(robot), self.arm_pose_interaction)
+        self.pick.add_precondition(self.robot_has(robot, self.nothing))
+        self.pick.add_precondition(self.robot_at(robot, self.base_pick_pose))
+        self.pick.add_precondition(self.robot_arm_at(robot, self.arm_pose_home))
+        self.pick.add_effect(self.robot_has(robot, self.nothing), False)
+        self.pick.add_effect(self.robot_has(robot, self.power_drill), True)
+        self.pick.add_effect(self.robot_arm_at(robot, self.arm_pose_home), False)
+        self.pick.add_effect(self.robot_arm_at(robot, self.arm_pose_interaction), True)
         self.place, (robot,) = self.create_action(PickAndPlaceRobot, PickAndPlaceRobot.place_power_drill)
-        self.place.add_precondition(Equals(self.robot_has(robot), self.power_drill))
-        self.place.add_precondition(Equals(self.robot_at(robot), self.base_place_pose))
-        self.place.add_precondition(Equals(self.robot_arm_at(robot), self.arm_pose_transport))
-        self.place.add_effect(self.robot_has(robot), self.nothing)
-        self.place.add_effect(self.robot_arm_at(robot), self.arm_pose_interaction)
+        self.place.add_precondition(self.robot_has(robot, self.power_drill))
+        self.place.add_precondition(self.robot_at(robot, self.base_place_pose))
+        self.place.add_precondition(self.robot_arm_at(robot, self.arm_pose_transport))
+        self.place.add_effect(self.robot_has(robot, self.power_drill), False)
+        self.place.add_effect(self.robot_has(robot, self.nothing), True)
+        self.place.add_effect(self.robot_arm_at(robot, self.arm_pose_transport), False)
+        self.place.add_effect(self.robot_arm_at(robot, self.arm_pose_interaction), True)
         self.visualization: Optional[PlanVisualization] = None
 
     def initialize_problem(self) -> Problem:
@@ -62,8 +66,8 @@ class PickAndPlace(Domain):
 
     def set_goals(self, problem: Problem) -> None:
         problem.add_goal(self.robot_offered(self.robot))
-        problem.add_goal(Equals(self.robot_has(self.robot), self.nothing))
-        problem.add_goal(Equals(self.robot_at(self.robot), self.base_home_pose))
+        problem.add_goal(self.robot_has(self.robot, self.nothing))
+        problem.add_goal(self.robot_at(self.robot, self.base_home_pose))
 
     def run(self) -> None:
         active = True
