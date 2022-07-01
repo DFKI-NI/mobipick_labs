@@ -35,6 +35,7 @@ class TablesDemoRobot(Robot):
             return False
 
         rospy.loginfo(f"Found pick object action server.")
+        location = self.resolve_search_location(location)
         perceived_item_locations = self.perceive(location)
         if item not in perceived_item_locations.keys():
             rospy.logwarn(f"Cannot find {item.name} at {location.name}. Pick up FAILED!")
@@ -80,6 +81,7 @@ class TablesDemoRobot(Robot):
 
     def search_at(self, pose: Pose, location: Location) -> bool:
         """At pose, search for item_search at location."""
+        self.domain.search_location = location
         item_locations = self.perceive(location)
         item = self.domain.item_search
         assert item
@@ -107,6 +109,14 @@ class TablesDemoRobot(Robot):
         """Conclude klt search as failed. Success is determined in search_at()."""
         print("Search for klt FAILED!")
         return False
+
+    def resolve_search_location(self, location: Location) -> Location:
+        assert self.domain.search_location in (Location.table_1, Location.table_2, Location.table_3)
+        return (
+            self.domain.search_location
+            if location in (Location.tool_search_location, Location.klt_search_location)
+            else location
+        )
 
     def perceive(self, location: Location) -> Dict[Item, Location]:
         """Move arm into observation pose and return all perceived items with locations."""
@@ -138,6 +148,7 @@ class TablesDemo(Domain):
         super().__init__(TablesDemoRobot(self))
         self.believed_item_locations: Dict[Item, Location] = {}
         self.item_search: Optional[Item] = None
+        self.search_location = Location.anywhere
         self.target_table = self.table_2
 
         self.pick_item, (robot, pose, location, item) = self.create_action(TablesDemoRobot, TablesDemoRobot.pick_item)
