@@ -7,14 +7,14 @@ repositories:
     type: git
     url: git@git.ni.dfki.de:mobipick/mobipick.git
     version: tables-demo
-  mobipick_task_server:
-    type: git
-    url: git@git.ni.dfki.de:mobipick/mobipick_task_server.git
-    version: master
   object_pose_msgs:
      type: git
      url: https://git.ni.dfki.de/environment_representation/object_pose_msgs.git
      version: main
+  pbr_dope:
+    type: git
+    url: git@git.ni.dfki.de:perception/pbr_dope.git
+    version: master
   pbr_msgs:
     type: git
     url: git@git.ni.dfki.de:pbr_misc/pbr_msgs.git
@@ -26,19 +26,7 @@ repositories:
   robot_api:
     type: git
     url: git@git.ni.dfki.de:acting/robot_api.git
-    version: master
-  unified-planning:
-    type: git
-    url: https://github.com/aiplan4eu/unified-planning
-    version: master
-  up-pyperplan:
-    type: git
-    url: https://github.com/aiplan4eu/up-pyperplan
-    version: master
-  up-tamer:
-    type: git
-    url: https://github.com/aiplan4eu/up-tamer
-    version: master
+    version: release-1.0
   grasplan:
     type: git
     url: git@git.ni.dfki.de:acting/grasplan.git

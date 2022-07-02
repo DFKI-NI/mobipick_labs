@@ -24,6 +24,21 @@ ROS and Python 3 are assumed to be available on your system.
 ./build.sh
 ```
 
+Real robot demo
+---------------
+
+Start up the robot according to the [instructions on the
+wiki](https://git.ni.dfki.de/mobipick/documentation/-/wikis/starting-up-the-robot),
+then:
+
+
+```bash
+roslaunch mobipick_bringup mobipick_bringup_both.launch   # already part of the startup instructions
+roslaunch pbr_dope dope.launch
+roslaunch tables_demo_bringup bringup.launch
+rosrun tables_demo_planning tables_demo_node.py
+```
+
 Gazebo demo
 -----------
 
@@ -37,6 +52,7 @@ Optionally for visualization:
 ```bash
 rviz -d $(rospack find mir_navigation)/rviz/navigation.rviz __ns:="mobipick"
 ```
+
 Grasping objects demo (using grasplan)
 --------------------------------------
 
@@ -48,12 +64,12 @@ Goal of the robot in this demo is to
 
 ```bash
 roscore
-roslaunch tables_demo_bringup demo_sim.launch robot_x:=12.43 robot_y:=2.21 robot_yaw:=-1.605436
+roslaunch tables_demo_bringup demo_sim.launch robot_x:=12.43 robot_y:=2.21 robot_yaw:=1.5708
 rosrun rviz rviz -d `rospack find tables_demo_bringup`/config/pick.rviz __ns:=mobipick
-rosrun grasplan pick_obj_test_action_client __ns:=mobipick powerdrill_with_grip
+rosrun grasplan pick_obj_test_action_client __ns:=mobipick power_drill_with_grip table_1
 ```
 
-Alternatively, powerdrill_with_grip can be replaced with klt (which is also within reach with that pose).
+Alternatively, power_drill_with_grip can be replaced with klt (which is also within reach with that pose).
 
 If you want to grasp the other objects you can use the following robot pose.
 

@@ -1,260 +1,112 @@
 #!/usr/bin/env python3
-from typing import Any, Dict, List, Optional, Tuple, Type
-from enum import IntEnum
-import math
-import time
-import yaml
+from typing import Optional
 import rospy
-import rospkg
 import unified_planning
-from std_srvs.srv import SetBool
-from geometry_msgs.msg import Pose
-from symbolic_fact_generation import on_fact_generator
+from unified_planning.model.problem import Problem
+from unified_planning.shortcuts import Not
+from tables_demo_planning.demo_domain import ArmPose, Domain, Item, Robot
 from tables_demo_planning.plan_visualization import PlanVisualization
-from tables_demo_planning.planning_bridge import Action, Planning
-from robot_api import TuplePose
-import robot_api
 
-"""Execution node of the pick & place demo."""
+"""Execution of the pick & place demo."""
 
 
-# Define state representation classes and specifiers.
-
-
-class ArmPose(IntEnum):
-    unknown = 0
-    home = 1
-    transport = 2
-    interaction = 3
-
-
-class GripperObject(IntEnum):
-    nothing = 0
-    power_drill = 1
-
-
-class Robot(robot_api.Robot):
-    """Robot representation which maintains the current state and enables action execution via Robot API."""
-
-    def __init__(self, namespace: str) -> None:
-        super().__init__(namespace, True, True)
-        self.pose = TuplePose.to_pose(self.base.get_pose())
-        arm_pose_name = self.arm.get_pose_name()
-        self.arm_pose = ArmPose[arm_pose_name] if arm_pose_name in ArmPose.__members__ else ArmPose.unknown
+class PickAndPlaceRobot(Robot):
+    def get_initial_item(self) -> Item:
         self.arm.execute("HasAttachedObjects")
-        self.gripper_object = GripperObject(int(self.arm.get_result().result))
-        self.offered_object = False
+        return Item.power_drill if self.arm.get_result().result else Item.nothing
 
-
-# Define executable actions.
-
-
-class RobotAction(Action):
-    SIGNATURE: Tuple[Type, ...] = (Robot,)
-
-    def __init__(self, *args: Any) -> None:
-        super().__init__(*args)
-        self.robot: Robot = args[0]
-
-
-class MoveBaseAction(RobotAction):
-    SIGNATURE = (Robot, Pose, Pose)
-
-    def __init__(self, *args: Any) -> None:
-        super().__init__(*args)
-        self.pose: Pose = args[2]
-
-    def __call__(self) -> bool:
-        self.robot.base.move(self.pose)
-        self.robot.pose = self.pose
-        return True
-
-
-class TransportAction(MoveBaseAction):
-    pass
-
-
-class MoveArmAction(RobotAction):
-    SIGNATURE = (Robot, ArmPose, ArmPose)
-
-    def __init__(self, *args: Any) -> None:
-        super().__init__(*args)
-        self.arm_pose: ArmPose = args[2]
-
-    def __call__(self) -> bool:
-        self.robot.arm.move(self.arm_pose.name)
-        self.robot.arm_pose = self.arm_pose
-        return True
-
-
-class PickAction(RobotAction):
-    def __call__(self) -> bool:
-        PerceiveAction(self.robot)()
-        self.robot.arm.execute("CaptureObject")
-        self.robot.arm_pose = ArmPose.interaction
-        self.robot.arm.execute("PickUpObject")
-        if not self.robot.arm.get_result().result:
+    def pick_power_drill(self) -> bool:
+        self.arm.execute("CaptureObject")
+        self.arm_pose = self.get_arm_pose()
+        self.arm.execute("PickUpObject")
+        self.arm_pose = self.get_arm_pose()
+        if not self.arm.get_result().result:
             return False
 
-        self.robot.gripper_object = GripperObject.power_drill
+        self.item = Item.power_drill
         return True
 
-
-class PlaceAction(RobotAction):
-    def __call__(self) -> bool:
-        self.robot.arm.execute("PlaceObject")
-        self.robot.arm_pose = ArmPose.interaction
-        self.robot.gripper_object = GripperObject.nothing
+    def place_power_drill(self) -> bool:
+        self.arm.execute("PlaceObject")
+        self.arm_pose = ArmPose.place
+        self.item = Item.nothing
         return True
 
-
-class HandoverAction(RobotAction):
-    def __call__(self) -> bool:
-        self.robot.arm.execute("MoveArmToHandover")
-        self.robot.arm_pose = ArmPose.interaction
-        self.robot.offered_object = True
-        if not self.robot.arm.observe_force_torque(5.0, 25.0):
+    def hand_over(self) -> bool:
+        self.arm.execute("MoveArmToHandover")
+        self.arm_pose = self.get_arm_pose()
+        self.item_offered = True
+        if not self.arm.observe_force_torque(5.0, 25.0):
             return False
 
-        self.robot.arm.execute("ReleaseGripper")
+        self.arm.execute("ReleaseGripper")
         return True
 
 
-class PerceiveAction(RobotAction):
-    activate_pose_selector = rospy.ServiceProxy('/pose_selector_activate', SetBool)
-
-    def __call__(self) -> bool:
-        self.robot.arm.move("observe100cm_right")
-        rospy.wait_for_service('/pose_selector_activate')
-        activation_result = self.activate_pose_selector(True)
-        rospy.sleep(5)
-        facts = on_fact_generator.get_current_facts()
-        print(facts)
-        deactivation_result = self.activate_pose_selector(False)
-        return activation_result and deactivation_result
-
-
-# Main demo class which orchestrates planning and execution.
-
-
-class Demo:
-    BASE_START_POSE_NAME = "base_start_pose"
-
+class PickAndPlace(Domain):
     def __init__(self) -> None:
-        self.robot = Robot("mobipick")
-        self.poses: Dict[str, Pose] = {}
-        self.load_waypoints()
-        # Define types and fluents for planning.
-        self.planning = Planning()
-        self.planning.create_types([Robot, Pose, ArmPose, GripperObject])
-        self.robot_at = self.planning.create_fluent("At", [Robot, Pose])
-        self.robot_arm_at = self.planning.create_fluent("ArmAt", [Robot, ArmPose])
-        self.robot_has = self.planning.create_fluent("Has", [Robot, GripperObject])
-        self.robot_offered = self.planning.create_fluent("Offered", [Robot])
-        # Visualize plan.
+        super().__init__(PickAndPlaceRobot("mobipick"))
+        self.pick, (robot,) = self.create_action(PickAndPlaceRobot, PickAndPlaceRobot.pick_power_drill)
+        self.pick.add_precondition(self.robot_has(robot, self.nothing))
+        self.pick.add_precondition(self.robot_at(robot, self.base_pick_pose))
+        self.pick.add_precondition(self.robot_arm_at(robot, self.arm_pose_home))
+        self.pick.add_effect(self.robot_has(robot, self.nothing), False)
+        self.pick.add_effect(self.robot_has(robot, self.power_drill), True)
+        self.pick.add_effect(self.robot_arm_at(robot, self.arm_pose_home), False)
+        self.pick.add_effect(self.robot_arm_at(robot, self.arm_pose_interaction), True)
+        self.place, (robot,) = self.create_action(PickAndPlaceRobot, PickAndPlaceRobot.place_power_drill)
+        self.place.add_precondition(self.robot_has(robot, self.power_drill))
+        self.place.add_precondition(self.robot_at(robot, self.base_place_pose))
+        self.place.add_precondition(self.robot_arm_at(robot, self.arm_pose_transport))
+        self.place.add_effect(self.robot_has(robot, self.power_drill), False)
+        self.place.add_effect(self.robot_has(robot, self.nothing), True)
+        self.place.add_effect(self.robot_arm_at(robot, self.arm_pose_transport), False)
+        self.place.add_effect(self.robot_arm_at(robot, self.arm_pose_interaction), True)
+        self.hand_over, (robot,) = self.create_action(PickAndPlaceRobot, PickAndPlaceRobot.hand_over)
+        self.hand_over.add_precondition(Not(self.robot_has(robot, self.nothing)))
+        self.hand_over.add_precondition(self.robot_at(robot, self.base_handover_pose))
+        self.hand_over.add_precondition(self.robot_arm_at(robot, self.arm_pose_transport))
+        self.hand_over.add_effect(self.robot_arm_at(robot, self.arm_pose_transport), False)
+        self.hand_over.add_effect(self.robot_arm_at(robot, self.arm_pose_interaction), True)
+        for item in self.items:
+            self.hand_over.add_effect(self.robot_has(robot, item), item == self.nothing)
+        self.hand_over.add_effect(self.robot_offered(robot), True)
         self.visualization: Optional[PlanVisualization] = None
+        self.method_labels.update(
+            {
+                self.pick: lambda _: "Pick up power drill",
+                self.place: lambda _: "Place power drill on table",
+                self.hand_over: lambda _: "Hand over power drill to person",
+            }
+        )
 
-    def load_waypoints(self) -> None:
-        # Load poses from mobipick config file.
-        filepath = f"{rospkg.RosPack().get_path('mobipick_pick_n_place')}/config/moelk_tables_demo.yaml"
-        with open(filepath, 'r') as yaml_file:
-            yaml_contents: Dict[str, List[float]] = yaml.safe_load(yaml_file)["poses"]
-            for pose_name in sorted(yaml_contents.keys()):
-                if pose_name.startswith("base_") and pose_name.endswith("_pose"):
-                    pose = yaml_contents[pose_name]
-                    position, orientation = pose[:3], pose[4:] + [pose[3]]
-                    self.poses[pose_name] = TuplePose.to_pose((position, orientation))
-                    robot_api.add_waypoint(pose_name, (position, orientation))
-        # Add current robot pose as named pose and waypoint.
-        self.poses[self.BASE_START_POSE_NAME] = self.robot.pose
-        robot_api.add_waypoint(self.BASE_START_POSE_NAME, TuplePose.from_pose(self.robot.pose))
+    def initialize_problem(self) -> Problem:
+        actions = [self.move_base, self.move_base_with_item, self.move_arm, self.pick, self.place]
+        if not self.api_robot.item_offered:
+            actions.append(self.hand_over)
+        return self.define_problem(
+            fluents=(self.robot_at, self.robot_arm_at, self.robot_has, self.robot_offered),
+            items=(self.nothing, self.power_drill),
+            locations=[],
+            actions=actions,
+        )
+
+    def set_goals(self, problem: Problem) -> None:
+        problem.add_goal(self.robot_offered(self.robot))
+        problem.add_goal(self.robot_has(self.robot, self.nothing))
+        problem.add_goal(self.robot_at(self.robot, self.base_home_pose))
 
     def run(self) -> None:
-        # Define objects for planning.
-        mobipick = self.planning.create_object("mobipick", self.robot)
-        (
-            base_handover_pose,
-            base_home_pose,
-            base_pick_pose,
-            base_place_pose,
-            base_table1_pose,
-            base_table2_pose,
-            base_table3_pose,
-            _,
-        ) = self.planning.create_objects(self.poses)
-        (_, arm_pose_home, arm_pose_transport, arm_pose_interaction) = self.planning.create_objects(
-            {pose.name: pose for pose in ArmPose}
-        )
-        (nothing, power_drill) = self.planning.create_objects({obj.name: obj for obj in GripperObject})
-
-        # Define actions for planning.
-        move_base, (robot, x, y) = self.planning.create_action(MoveBaseAction)
-        move_base.add_precondition(self.robot_at(robot, x))
-        move_base.add_precondition(self.robot_has(robot, nothing))
-        move_base.add_precondition(self.robot_arm_at(robot, arm_pose_home))
-        move_base.add_effect(self.robot_at(robot, x), False)
-        move_base.add_effect(self.robot_at(robot, y), True)
-
-        move_base, (robot, x, y) = self.planning.create_action(TransportAction)
-        move_base.add_precondition(self.robot_at(robot, x))
-        move_base.add_precondition(self.robot_has(robot, power_drill))
-        move_base.add_precondition(self.robot_arm_at(robot, arm_pose_transport))
-        move_base.add_effect(self.robot_at(robot, x), False)
-        move_base.add_effect(self.robot_at(robot, y), True)
-
-        move_arm, (robot, x, y) = self.planning.create_action(MoveArmAction)
-        move_arm.add_precondition(self.robot_arm_at(robot, x))
-        move_arm.add_effect(self.robot_arm_at(robot, x), False)
-        move_arm.add_effect(self.robot_arm_at(robot, y), True)
-
-        pick, (robot,) = self.planning.create_action(PickAction)
-        pick.add_precondition(self.robot_has(robot, nothing))
-        pick.add_precondition(self.robot_at(robot, base_pick_pose))
-        pick.add_precondition(self.robot_arm_at(robot, arm_pose_home))
-        pick.add_effect(self.robot_has(robot, nothing), False)
-        pick.add_effect(self.robot_has(robot, power_drill), True)
-        pick.add_effect(self.robot_arm_at(robot, arm_pose_home), False)
-        pick.add_effect(self.robot_arm_at(robot, arm_pose_interaction), True)
-
-        place, (robot,) = self.planning.create_action(PlaceAction)
-        place.add_precondition(self.robot_has(robot, power_drill))
-        place.add_precondition(self.robot_at(robot, base_place_pose))
-        place.add_precondition(self.robot_arm_at(robot, arm_pose_transport))
-        place.add_effect(self.robot_has(robot, power_drill), False)
-        place.add_effect(self.robot_has(robot, nothing), True)
-        place.add_effect(self.robot_arm_at(robot, arm_pose_transport), False)
-        place.add_effect(self.robot_arm_at(robot, arm_pose_interaction), True)
-
-        hand_over, (robot,) = self.planning.create_action(HandoverAction)
-        hand_over.add_precondition(self.robot_has(robot, power_drill))
-        hand_over.add_precondition(self.robot_at(robot, base_handover_pose))
-        hand_over.add_precondition(self.robot_arm_at(robot, arm_pose_transport))
-        hand_over.add_effect(self.robot_arm_at(robot, arm_pose_transport), False)
-        hand_over.add_effect(self.robot_arm_at(robot, arm_pose_interaction), True)
-        hand_over.add_effect(self.robot_has(robot, power_drill), False)
-        hand_over.add_effect(self.robot_has(robot, nothing), True)
-        hand_over.add_effect(self.robot_offered(robot), True)
-
-        # Now handle the pick and place task.
-        complete = False
-        while not complete:
-            # Define problem based on current state.
-            problem = self.planning.init_problem()
-            base_pose_name = self.robot.base.get_pose_name(xy_tolerance=math.inf, yaw_tolerance=math.pi)
-            problem.set_initial_value(self.robot_at(mobipick, self.planning.objects[base_pose_name]), True)
-            problem.set_initial_value(
-                self.robot_arm_at(mobipick, self.planning.objects[self.robot.arm_pose.name]), True
-            )
-            problem.set_initial_value(
-                self.robot_has(mobipick, self.planning.objects[self.robot.gripper_object.name]), True
-            )
-            problem.set_initial_value(self.robot_offered(mobipick), self.robot.offered_object)
-            problem.add_goal(self.robot_offered(mobipick))
-            problem.add_goal(self.robot_has(mobipick, nothing))
-            problem.add_goal(self.robot_at(mobipick, base_home_pose))
+        action_success_count = 0
+        active = True
+        while active:
+            # Create problem based on current state.
+            self.problem = self.initialize_problem()
+            self.set_initial_values(self.problem)
+            self.set_goals(self.problem)
 
             # Plan
-            actions = self.planning.plan_actions()
+            actions = self.solve(self.problem)
             if not actions:
                 print("Execution ended because no plan could be found.")
                 break
@@ -262,33 +114,40 @@ class Demo:
             print("> Plan:")
             up_actions = [up_action for up_action, _ in actions]
             print('\n'.join(map(str, up_actions)))
+            action_names = [
+                f"{action_success_count + index + 1} {self.label(up_action)}"
+                for index, up_action in enumerate(up_actions)
+            ]
             if self.visualization:
-                self.visualization.set_actions(up_actions)
+                self.visualization.set_actions(action_names)
             else:
-                self.visualization = PlanVisualization(up_actions)
+                self.visualization = PlanVisualization(action_names)
             # ... and execute.
             print("> Execution:")
-            for up_action, api_action in actions:
+            for up_action, (method, parameters) in actions:
+                action_name = f"{action_success_count + 1} {self.label(up_action)}"
                 print(up_action)
-                self.visualization.execute(up_action)
-                result = api_action()
+                self.visualization.execute(action_name)
+                if rospy.is_shutdown():
+                    return
+
+                result = method(*parameters)
                 if result is None or result:
-                    self.visualization.succeed(up_action)
+                    self.visualization.succeed(action_name)
+                    action_success_count += 1
                 else:
                     print("-- Action failed! Need to replan.")
-                    self.visualization.fail(up_action)
-                    time.sleep(3.0)
-                    # In this simple demo, failed actions are no longer available for planning and execution.
-                    for action_type in list(self.planning.actions.keys()):
-                        if isinstance(api_action, action_type):
-                            del self.planning.actions[action_type]
+                    self.visualization.fail(action_name)
                     # Abort execution and loop to planning.
                     break
             else:
-                complete = True
+                active = False
                 print("Task complete.")
 
 
 if __name__ == '__main__':
     unified_planning.shortcuts.get_env().credits_stream = None
-    Demo().run()
+    try:
+        PickAndPlace().run()
+    except rospy.ROSInterruptException:
+        pass

@@ -1,39 +1,22 @@
-from typing import Any, Dict, List, Optional, Tuple, Type
+from typing import Callable, Dict, List, Optional, Sequence, Tuple, Type
 from collections import OrderedDict
-from unified_planning.model import Fluent, InstantaneousAction, Object, Parameter, Problem
+from unified_planning.model import Fluent, InstantaneousAction, Object, Parameter
 from unified_planning.plans.plan import ActionInstance
-from unified_planning.shortcuts import BoolType, OneshotPlanner, UserType
+from unified_planning.shortcuts import BoolType, UserType
 
 """Bridge library to map between representations in robotics and planning domains."""
 
 
-class Action:
-    SIGNATURE: Tuple[Type, ...]
-
-    def __init__(self, *args: Any) -> None:
-        self.args = args
-
-    def __call__(self) -> bool:
-        """Execute this action."""
-        raise NotImplementedError(f"{self.__class__.__name__}.__call__() is not implemented!")
-
-    def update_execution(self) -> None:
-        """Update world state on action execution."""
-
-    def update_completion(self) -> None:
-        """Update world state on action completion."""
-
-
-class Planning:
+class Bridge:
     def __init__(self) -> None:
         self.types: Dict[Type, UserType] = {}
         self.fluents: Dict[str, Fluent] = {}
-        self.actions: Dict[Type, InstantaneousAction] = {}
+        self.actions: Dict[str, InstantaneousAction] = {}
+        self.api_actions: Dict[str, Callable[..., object]] = {}
         self.objects: Dict[str, Object] = {}
-        self.api_objects: Dict[Object, object] = {}
-        self.problem = Problem()
+        self.api_objects: Dict[str, object] = {}
 
-    def create_types(self, api_types: List[Type]) -> None:
+    def create_types(self, api_types: Sequence[Type]) -> None:
         """Create UP user types based on api_types."""
         for api_type in api_types:
             assert api_type not in self.types.keys()
@@ -53,48 +36,55 @@ class Planning:
                 return user_type
         raise ValueError(f"No corresponding UserType defined for {api_object}!")
 
-    def create_fluent(self, name: str, api_types: List[Type]) -> Fluent:
-        """Create a UP BoolType() fluent using the UP types corresponding to the api_types given."""
+    def create_fluent(self, name: str, api_types: Sequence[Type], result_type: Optional[Type] = None) -> Fluent:
+        """
+        Create a UP fluent using the UP types corresponding to the api_types given.
+        By default, use BoolType() for the result unless specified otherwise.
+        """
         assert name not in self.fluents.keys()
         self.fluents[name] = fluent = Fluent(
             name,
-            BoolType(),
+            self.get_type(result_type) if result_type else BoolType(),
             OrderedDict([(api_type.__name__.lower(), self.get_type(api_type)) for api_type in api_types]),
         )
         return fluent
 
-    def create_action(self, api_action: Type) -> Tuple[InstantaneousAction, List[Parameter]]:
+    def create_action(
+        self, caller_type: Type, method: Callable[..., object]
+    ) -> Tuple[InstantaneousAction, List[Parameter]]:
         """
-        Create a UP InstantaneousAction by using the execute() method signature of api_action.
-        Return the InstantaneousAction with its parameters for convenient definition of preconditions and effects.
+        Create a UP InstantaneousAction by using caller_type and method's signature.
+        Return the InstantaneousAction with its parameters for convenient definition
+         of preconditions and effects.
         """
-        assert api_action not in self.actions.keys()
-
+        assert method.__name__ not in self.actions.keys()
+        api_types = [caller_type]
+        api_types.extend(method.__annotations__.values())
+        api_types = api_types[:-1]  # without return type
         action = InstantaneousAction(
-            api_action.__name__,
+            method.__name__,
             OrderedDict(
-                [
-                    (f"{index}_{api_type.__name__}", self.get_type(api_type))
-                    for index, api_type in enumerate(api_action.SIGNATURE)
-                ]
+                [(f"{index}_{api_type.__name__}", self.get_type(api_type)) for index, api_type in enumerate(api_types)]
             ),
         )
-        self.actions[api_action] = action
+        self.actions[method.__name__] = action
+        self.api_actions[method.__name__] = method
         return action, action.parameters
 
-    def get_action(self, action: ActionInstance) -> Action:
+    def get_action(self, action: ActionInstance) -> Tuple[Callable[..., object], List[object]]:
         """Return the Robot API action associated with the given action."""
-        for api_action, check_action in self.actions.items():
-            if action.action == check_action:  # Note: Must check for equality, cannot use hash of dict!
-                api_parameters = [self.api_objects[parameter.object()] for parameter in action.actual_parameters]
-                return api_action(*api_parameters)
-        raise ValueError(f"No corresponding robot_api.Action defined for {action}!")
+        if action.action.name not in self.api_actions.keys():
+            raise ValueError(f"No corresponding Action defined for {action}!")
+
+        return self.api_actions[action.action.name], [
+            self.api_objects[parameter.object().name] for parameter in action.actual_parameters
+        ]
 
     def create_object(self, name: str, api_object: object) -> Object:
         """Create UP object based on api_object."""
         assert name not in self.objects.keys()
         self.objects[name] = obj = Object(name, self.get_object_type(api_object))
-        self.api_objects[obj] = api_object
+        self.api_objects[name] = api_object
         return obj
 
     def create_objects(self, api_objects: Optional[Dict[str, object]] = None, **kwargs: object) -> List[Object]:
@@ -104,18 +94,3 @@ class Planning:
         for name, api_object in api_objs.items():
             objs.append(self.create_object(name, api_object))
         return objs
-
-    def init_problem(self) -> Problem:
-        """Return a UP problem with all fluents, actions, and objects for definition of initial values and goals."""
-        self.problem = Problem()
-        for fluent in self.fluents.values():
-            self.problem.add_fluent(fluent, default_initial_value=False)
-        for action in self.actions.values():
-            self.problem.add_action(action)
-        self.problem.add_objects(self.objects.values())
-        return self.problem
-
-    def plan_actions(self) -> Optional[List[Tuple[ActionInstance, Action]]]:
-        """Solve planning problem, then return list of UP and Robot API actions."""
-        result = OneshotPlanner(problem_kind=self.problem.kind).solve(self.problem)
-        return [(action, self.get_action(action)) for action in result.plan.actions] if result.plan else None

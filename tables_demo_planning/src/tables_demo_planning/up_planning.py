@@ -3,7 +3,7 @@ from unified_planning.model import FNode, Fluent, InstantaneousAction, Object, P
 from unified_planning.engines import PlanGenerationResult
 from unified_planning.shortcuts import And, BoolType, Equals, Not, OneshotPlanner, Or, UserType
 
-"""Library script for planning in the demos."""
+"""Library script for planning used during development by the standalone test script."""
 
 
 # Define object types.
