@@ -60,6 +60,7 @@
     <param name="import_class" type="string" value="HandcodedGraspPlanner" />
     <param name="pose_selector_activate_srv_name" type="string" value="/pick_pose_selector_node/pose_selector_activate" />
     <param name="pose_selector_class_query_srv_name" type="string" value="/pick_pose_selector_node/pose_selector_class_query" />
+    <param name="pose_selector_delete_srv_name" type="string" value="/pick_pose_selector_node/pose_selector_delete" />
     <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/pick_params.yaml" command="load" />
     <rosparam file="$(find tables_demo_bringup)/config/tables_planning_scene.yaml" command="load" />
     <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/grasp_planning_core_params.yaml" command="load" />
