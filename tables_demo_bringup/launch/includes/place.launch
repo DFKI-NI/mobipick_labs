@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<launch>
+
+  <arg name="objects_of_interest" default="[relay, screwdriver, multimeter, power_drill_with_grip, klt]"/>
+
+  <!--place object wrapper node-->
+  <node pkg="grasplan" type="place.py" name="place_object_node" output="screen" ns="mobipick" >
+    <param name="pose_selector_activate_srv_name" value="/place_pose_selector_node/pose_selector_activate" />
+    <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/place_params.yaml" command="load" />
+  </node>
+
+  <!-- a second pose selector for storing place poses -->
+  <node pkg="pose_selector" type="pose_selector_node" name="place_pose_selector_node" output="screen" >
+    <param name="debug" value="false" />
+    <param name="global_reference_frame" value="map" />
+    <rosparam param="objects_of_interest" subst_value="True">$(arg objects_of_interest)</rosparam>
+    <remap from="/mobipick/gripper_astra/rgb/logical_image" to="/mobipick/place_object_node/place_poses"/>
+  </node>
+
+  <!-- visualisation of placing poses (they show in magenta color) -->
+  <arg name="object_color_rgba_place" value="[1,0,1,1]"/>
+  <node pkg="grasplan" type="pose_selector_visualiser.py" name="place_pose_selector_visualiser" output="screen">
+    <remap from="pose_selector_objects" to="place_pose_selector_objects"/> <!-- marker array topic name, meshes are published on this topic -->
+    <param name="object_pkg" type="string" value="mobipick_gazebo" />
+    <param name="pose_selector_query_srv_name" value="/place_pose_selector_node/pose_selector_class_query" />
+    <rosparam param="object_color_rgba" subst_value="True">$(arg object_color_rgba_place)</rosparam>
+    <rosparam param="objects_of_interest" subst_value="True">$(arg objects_of_interest)</rosparam>
+  </node>
+
+</launch>
