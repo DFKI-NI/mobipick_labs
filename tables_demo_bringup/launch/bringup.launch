@@ -46,9 +46,7 @@
   </group>
 
   <!-- ::::: Grasp planning ::::: -->
-  <include file="$(find tables_demo_bringup)/launch/includes/grasp_planning.launch">
-    <arg name="objects_of_interest" value="$(arg objects_of_interest)" />
-  </include>
+  <include file="$(find tables_demo_bringup)/launch/includes/grasp_planning.launch"/>
 
   <!-- ::::: Place object ::::: -->
   <include file="$(find tables_demo_bringup)/launch/includes/place.launch">

@@ -49,7 +49,7 @@
   <arg name="object_color_rgba_pick" value="[0,0,0,0]"/>
   <node pkg="grasplan" type="pose_selector_visualiser.py" name="pick_pose_selector_visualiser" output="screen">
     <param name="object_pkg" type="string" value="mobipick_gazebo" />
-    <param name="pose_selector_query_srv_name" value="/pick_pose_selector_node/pose_selector_class_query" />
+    <param name="pose_selector_get_all_poses_srv_name" value="/pick_pose_selector_node/pose_selector_get_all" />
     <rosparam param="object_color_rgba" subst_value="True">$(arg object_color_rgba_pick)</rosparam>
     <rosparam param="objects_of_interest" subst_value="True">$(arg objects_of_interest)</rosparam>
   </node>
