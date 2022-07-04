@@ -61,21 +61,21 @@ class TablesDemoRobot(Robot):
         self.arm.move("transport")
         return True
 
-    def place_klt(self, pose: Pose, location: Location) -> bool:
-        """At pose, place klt down at location."""
+    def place_box(self, pose: Pose, location: Location) -> bool:
+        """At pose, place box down at location."""
         self.arm.move("above")
         self.open_gripper()
         self.item = Item.nothing
-        self.domain.believed_item_locations[Item.klt] = location
+        self.domain.believed_item_locations[Item.box] = location
         self.arm.move("home")
         return True
 
     def store_item(self, pose: Pose, location: Location, item: Item) -> bool:
-        """At pose, store item into klt at location."""
+        """At pose, store item into box at location."""
         self.arm.move("above")
         self.open_gripper()
         self.item = Item.nothing
-        self.domain.believed_item_locations[item] = Location.in_klt
+        self.domain.believed_item_locations[item] = Location.in_box
         self.arm.move("home")
         return True
 
@@ -95,9 +95,9 @@ class TablesDemoRobot(Robot):
         self.domain.item_search = item
         return True
 
-    def search_klt(self) -> bool:
-        """Initiate search for klt."""
-        self.domain.item_search = Item.klt
+    def search_box(self) -> bool:
+        """Initiate search for box."""
+        self.domain.item_search = Item.box
         return True
 
     def conclude_tool_search(self, item: Item) -> bool:
@@ -105,16 +105,16 @@ class TablesDemoRobot(Robot):
         print(f"Search for {item.name} FAILED!")
         return False
 
-    def conclude_klt_search(self) -> bool:
-        """Conclude klt search as failed. Success is determined in search_at()."""
-        print("Search for klt FAILED!")
+    def conclude_box_search(self) -> bool:
+        """Conclude box search as failed. Success is determined in search_at()."""
+        print("Search for box FAILED!")
         return False
 
     def resolve_search_location(self, location: Location) -> Location:
         assert self.domain.search_location in (Location.table_1, Location.table_2, Location.table_3)
         return (
             self.domain.search_location
-            if location in (Location.tool_search_location, Location.klt_search_location)
+            if location in (Location.tool_search_location, Location.box_search_location)
             else location
         )
 
@@ -161,7 +161,7 @@ class TablesDemo(Domain):
         self.pick_item.add_precondition(self.pose_at(pose, location))
         self.pick_item.add_precondition(
             Or(
-                Equals(location, table) for table in [*self.tables, self.tool_search_location, self.klt_search_location]
+                Equals(location, table) for table in [*self.tables, self.tool_search_location, self.box_search_location]
             ),
         )
         self.pick_item.add_precondition(Not(Equals(item, self.nothing)))
@@ -171,24 +171,24 @@ class TablesDemo(Domain):
             self.pick_item.add_effect(self.robot_arm_at(robot, arm_pose), arm_pose == self.arm_pose_transport)
         self.pick_item.add_effect(self.believe_item_at(item, location), False)
         self.pick_item.add_effect(self.believe_item_at(item, self.on_robot), True)
-        self.place_klt, (robot, pose, location) = self.create_action(TablesDemoRobot, TablesDemoRobot.place_klt)
-        self.place_klt.add_precondition(self.robot_at(robot, pose))
-        self.place_klt.add_precondition(self.robot_arm_at(robot, self.arm_pose_transport))
-        self.place_klt.add_precondition(self.robot_has(robot, self.klt))
-        self.place_klt.add_precondition(self.believe_item_at(self.klt, self.on_robot))
-        self.place_klt.add_precondition(self.pose_at(pose, location))
-        self.place_klt.add_effect(self.robot_has(robot, self.klt), False)
-        self.place_klt.add_effect(self.robot_has(robot, self.nothing), True)
-        self.place_klt.add_effect(self.robot_arm_at(robot, self.arm_pose_transport), False)
-        self.place_klt.add_effect(self.robot_arm_at(robot, self.arm_pose_home), True)
-        self.place_klt.add_effect(self.believe_item_at(self.klt, self.on_robot), False)
-        self.place_klt.add_effect(self.believe_item_at(self.klt, location), True)
+        self.place_box, (robot, pose, location) = self.create_action(TablesDemoRobot, TablesDemoRobot.place_box)
+        self.place_box.add_precondition(self.robot_at(robot, pose))
+        self.place_box.add_precondition(self.robot_arm_at(robot, self.arm_pose_transport))
+        self.place_box.add_precondition(self.robot_has(robot, self.box))
+        self.place_box.add_precondition(self.believe_item_at(self.box, self.on_robot))
+        self.place_box.add_precondition(self.pose_at(pose, location))
+        self.place_box.add_effect(self.robot_has(robot, self.box), False)
+        self.place_box.add_effect(self.robot_has(robot, self.nothing), True)
+        self.place_box.add_effect(self.robot_arm_at(robot, self.arm_pose_transport), False)
+        self.place_box.add_effect(self.robot_arm_at(robot, self.arm_pose_home), True)
+        self.place_box.add_effect(self.believe_item_at(self.box, self.on_robot), False)
+        self.place_box.add_effect(self.believe_item_at(self.box, location), True)
         self.store_item, (robot, pose, location, item) = self.create_action(TablesDemoRobot, TablesDemoRobot.store_item)
         self.store_item.add_precondition(self.robot_at(robot, pose))
         self.store_item.add_precondition(self.robot_arm_at(robot, self.arm_pose_transport))
         self.store_item.add_precondition(self.robot_has(robot, item))
         self.store_item.add_precondition(self.believe_item_at(item, self.on_robot))
-        self.store_item.add_precondition(self.believe_item_at(self.klt, location))
+        self.store_item.add_precondition(self.believe_item_at(self.box, location))
         self.store_item.add_precondition(self.pose_at(pose, location))
         self.store_item.add_precondition(Not(Equals(location, self.anywhere)))
         self.store_item.add_effect(self.robot_has(robot, item), False)
@@ -196,7 +196,7 @@ class TablesDemo(Domain):
         self.store_item.add_effect(self.robot_arm_at(robot, self.arm_pose_transport), False)
         self.store_item.add_effect(self.robot_arm_at(robot, self.arm_pose_home), True)
         self.store_item.add_effect(self.believe_item_at(item, self.on_robot), False)
-        self.store_item.add_effect(self.believe_item_at(item, self.in_klt), True)
+        self.store_item.add_effect(self.believe_item_at(item, self.in_box), True)
         self.search_at, (robot, pose, location) = self.create_action(TablesDemoRobot, TablesDemoRobot.search_at)
         self.search_at.add_precondition(self.robot_at(robot, pose))
         self.search_at.add_precondition(
@@ -214,34 +214,36 @@ class TablesDemo(Domain):
         self.search_tool.add_precondition(self.robot_arm_at(robot, self.arm_pose_home))
         self.search_tool.add_precondition(self.robot_has(robot, self.nothing))
         self.search_tool.add_precondition(self.believe_item_at(item, self.anywhere))
-        self.search_tool.add_precondition(Not(Equals(item, self.klt)))
+        self.search_tool.add_precondition(
+            Or(Equals(item, tool) for tool in (self.multimeter, self.relay, self.screwdriver))
+        )
         for pose in self.poses:
             self.search_tool.add_effect(self.robot_at(robot, pose), pose == self.tool_search_pose)
         self.search_tool.add_effect(self.believe_item_at(item, self.anywhere), False)
         self.search_tool.add_effect(self.believe_item_at(item, self.tool_search_location), True)
-        self.search_klt, (robot,) = self.create_action(TablesDemoRobot, TablesDemoRobot.search_klt)
-        self.search_klt.add_precondition(Not(self.robot_at(robot, self.klt_search_pose)))
-        self.search_klt.add_precondition(
+        self.search_box, (robot,) = self.create_action(TablesDemoRobot, TablesDemoRobot.search_box)
+        self.search_box.add_precondition(Not(self.robot_at(robot, self.box_search_pose)))
+        self.search_box.add_precondition(
             Or(self.robot_arm_at(robot, arm_pose) for arm_pose in (self.arm_pose_home, self.arm_pose_transport))
         )
-        self.search_klt.add_precondition(self.believe_item_at(self.klt, self.anywhere))
+        self.search_box.add_precondition(self.believe_item_at(self.box, self.anywhere))
         for pose in self.poses:
-            self.search_klt.add_effect(self.robot_at(robot, pose), pose == self.klt_search_pose)
-        self.search_klt.add_effect(self.believe_item_at(self.klt, self.anywhere), False)
-        self.search_klt.add_effect(self.believe_item_at(self.klt, self.klt_search_location), True)
+            self.search_box.add_effect(self.robot_at(robot, pose), pose == self.box_search_pose)
+        self.search_box.add_effect(self.believe_item_at(self.box, self.anywhere), False)
+        self.search_box.add_effect(self.believe_item_at(self.box, self.box_search_location), True)
         self.conclude_tool_search, (robot, item) = self.create_action(
             TablesDemoRobot, TablesDemoRobot.conclude_tool_search
         )
         self.conclude_tool_search.add_precondition(self.believe_item_at(item, self.anywhere))
         self.conclude_tool_search.add_precondition(And(self.searched_at(table) for table in self.tables))
-        self.conclude_tool_search.add_precondition(Not(Equals(item, self.klt)))
+        self.conclude_tool_search.add_precondition(Not(Equals(item, self.box)))
         self.conclude_tool_search.add_effect(self.believe_item_at(item, self.anywhere), False)
         self.conclude_tool_search.add_effect(self.believe_item_at(item, self.tool_search_location), True)
-        self.conclude_klt_search, (robot,) = self.create_action(TablesDemoRobot, TablesDemoRobot.conclude_klt_search)
-        self.conclude_klt_search.add_precondition(self.believe_item_at(self.klt, self.anywhere))
-        self.conclude_klt_search.add_precondition(And(self.searched_at(table) for table in self.tables))
-        self.conclude_klt_search.add_effect(self.believe_item_at(self.klt, self.anywhere), False)
-        self.conclude_klt_search.add_effect(self.believe_item_at(self.klt, self.klt_search_location), True)
+        self.conclude_box_search, (robot,) = self.create_action(TablesDemoRobot, TablesDemoRobot.conclude_box_search)
+        self.conclude_box_search.add_precondition(self.believe_item_at(self.box, self.anywhere))
+        self.conclude_box_search.add_precondition(And(self.searched_at(table) for table in self.tables))
+        self.conclude_box_search.add_effect(self.believe_item_at(self.box, self.anywhere), False)
+        self.conclude_box_search.add_effect(self.believe_item_at(self.box, self.box_search_location), True)
 
         self.problem = self.define_problem(
             fluents=(self.robot_at, self.robot_arm_at, self.robot_has, self.believe_item_at, self.pose_at),
@@ -250,10 +252,10 @@ class TablesDemo(Domain):
                 self.move_base_with_item,
                 self.move_arm,
                 self.pick_item,
-                self.place_klt,
+                self.place_box,
                 self.store_item,
                 self.search_tool,
-                self.search_klt,
+                self.search_box,
             ),
         )
         self.subproblem = self.define_problem(
@@ -271,20 +273,20 @@ class TablesDemo(Domain):
                 self.move_arm,
                 self.search_at,
                 self.conclude_tool_search,
-                self.conclude_klt_search,
+                self.conclude_box_search,
             ),
         )
 
         self.method_labels.update(
             {
                 self.pick_item: lambda parameters: f"Pick up {parameters[-1]}",
-                self.place_klt: lambda _: "Place box on table",
+                self.place_box: lambda _: "Place box on table",
                 self.store_item: lambda parameters: f"Place {parameters[-1]} into box",
                 self.search_at: lambda parameters: f"Search at {parameters[-1]}",
                 self.search_tool: lambda parameters: f"Search for {parameters[-1]} on any table",
-                self.search_klt: lambda _: "Search for the box on any table",
+                self.search_box: lambda _: "Search for the box on any table",
                 self.conclude_tool_search: lambda parameters: f"Conclude search for {parameters[-1]}",
-                self.conclude_klt_search: lambda _: "Conclude search for the box",
+                self.conclude_box_search: lambda _: "Conclude search for the box",
             }
         )
 
@@ -306,28 +308,28 @@ class TablesDemo(Domain):
     def set_goals(self) -> None:
         """Set the goals for the overall demo."""
         self.problem.clear_goals()
-        self.problem.add_goal(self.believe_item_at(self.multimeter, self.in_klt))
-        self.problem.add_goal(self.believe_item_at(self.relay, self.in_klt))
-        self.problem.add_goal(self.believe_item_at(self.screwdriver, self.in_klt))
-        self.problem.add_goal(self.believe_item_at(self.klt, self.target_table))
+        self.problem.add_goal(self.believe_item_at(self.multimeter, self.in_box))
+        self.problem.add_goal(self.believe_item_at(self.relay, self.in_box))
+        self.problem.add_goal(self.believe_item_at(self.screwdriver, self.in_box))
+        self.problem.add_goal(self.believe_item_at(self.box, self.target_table))
 
     def set_search_goals(self) -> None:
         """Set the goals for the item_search subproblem."""
         assert self.item_search
         self.subproblem.clear_goals()
         self.subproblem.add_goal(
-            self.believe_item_at(self.klt, self.klt_search_location)
-            if self.item_search == Item.klt
+            self.believe_item_at(self.box, self.box_search_location)
+            if self.item_search == Item.box
             else self.believe_item_at(self.objects[self.item_search.name], self.tool_search_location)
         )
 
     def print_believed_item_locations(self) -> None:
         """Print at which locations the items are believed to be."""
-        for item in (Item.klt, Item.multimeter, Item.relay, Item.screwdriver):
+        for item in (Item.box, Item.multimeter, Item.relay, Item.screwdriver):
             print(f"- {item.name}:", self.believed_item_locations.get(item, Location.anywhere).name)
 
     def run(self) -> None:
-        print(f"Scenario: Mobipick shall bring all items inside the klt to {self.target_table}.")
+        print(f"Scenario: Mobipick shall bring all items inside the box to {self.target_table}.")
         print("The believed item locations are:")
 
         visualization = SubPlanVisualization()
