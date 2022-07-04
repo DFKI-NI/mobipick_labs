@@ -21,7 +21,7 @@ repositories:
     version: master
   pose_selector:
     type: git
-    url: https://git.ni.dfki.de/environment_representation/pose_selector.git
+    url: git@git.ni.dfki.de:environment_representation/pose_selector.git
     version: noetic
   robot_api:
     type: git
