@@ -17,7 +17,7 @@
 
   <group if="$(arg simulation)">
     <!-- pose selector: DB to store object poses -->
-    <node pkg="pose_selector" type="pose_selector_node" name="pose_selector_node" output="screen">
+    <node pkg="pose_selector" type="pose_selector_node" name="pick_pose_selector_node" output="screen">
       <param name="debug" value="false" />
       <param name="global_reference_frame" value="map" />
       <rosparam param="objects_of_interest" subst_value="True">$(arg objects_of_interest)</rosparam>
