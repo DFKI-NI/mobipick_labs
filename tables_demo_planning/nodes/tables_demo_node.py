@@ -214,7 +214,9 @@ class TablesDemo(Domain):
         self.search_tool.add_precondition(self.robot_arm_at(robot, self.arm_pose_home))
         self.search_tool.add_precondition(self.robot_has(robot, self.nothing))
         self.search_tool.add_precondition(self.believe_item_at(item, self.anywhere))
-        self.search_tool.add_precondition(Not(Equals(item, self.box)))
+        self.search_tool.add_precondition(
+            Or(Equals(item, tool) for tool in (self.multimeter, self.relay, self.screwdriver))
+        )
         for pose in self.poses:
             self.search_tool.add_effect(self.robot_at(robot, pose), pose == self.tool_search_pose)
         self.search_tool.add_effect(self.believe_item_at(item, self.anywhere), False)
