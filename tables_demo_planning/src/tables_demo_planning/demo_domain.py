@@ -39,7 +39,7 @@ class ArmPose(Enum):
 class Item(Enum):
     nothing = "nothing"
     power_drill = "power_drill_with_grip_1"
-    klt = "klt_1"
+    box = "klt_1"
     multimeter = "multimeter_1"
     relay = "relay_1"
     screwdriver = "screwdriver_1"
@@ -51,10 +51,10 @@ class Location(Enum):
     table_1 = "table_1"
     table_2 = "table_2"
     table_3 = "table_3"
-    in_klt = "klt_1"
+    in_box = "in_box"
     on_robot = "on_robot"
     tool_search_location = "tool_search_location"
-    klt_search_location = "klt_search_location"
+    box_search_location = "box_search_location"
 
 
 class Robot(robot_api.Robot):
@@ -141,8 +141,8 @@ class Domain(Bridge):
         self.base_table_2_pose = self.objects[self.BASE_TABLE_2_POSE]
         self.base_table_3_pose = self.objects[self.BASE_TABLE_3_POSE]
         self.tool_search_pose = self.create_object("tool_search_pose", Pose())
-        self.klt_search_pose = self.create_object("klt_search_pose", Pose())
-        self.poses.extend([self.tool_search_pose, self.klt_search_pose])
+        self.box_search_pose = self.create_object("box_search_pose", Pose())
+        self.poses.extend([self.tool_search_pose, self.box_search_pose])
         self.arm_poses = self.create_objects({pose.name: pose for pose in ArmPose})
         self.arm_pose_home = self.objects[ArmPose.home.name]
         self.arm_pose_observe = self.objects[ArmPose.observe.name]
@@ -151,7 +151,7 @@ class Domain(Bridge):
         self.items = self.create_objects({item.name: item for item in Item})
         self.nothing = self.objects[Item.nothing.name]
         self.power_drill = self.objects[Item.power_drill.name]
-        self.klt = self.objects[Item.klt.name]
+        self.box = self.objects[Item.box.name]
         self.multimeter = self.objects[Item.multimeter.name]
         self.relay = self.objects[Item.relay.name]
         self.screwdriver = self.objects[Item.screwdriver.name]
@@ -161,10 +161,10 @@ class Domain(Bridge):
         self.table_2 = self.objects[Location.table_2.name]
         self.table_3 = self.objects[Location.table_3.name]
         self.tables = (self.table_1, self.table_2, self.table_3)
-        self.in_klt = self.objects[Location.in_klt.name]
+        self.in_box = self.objects[Location.in_box.name]
         self.on_robot = self.objects[Location.on_robot.name]
         self.tool_search_location = self.objects[Location.tool_search_location.name]
-        self.klt_search_location = self.objects[Location.klt_search_location.name]
+        self.box_search_location = self.objects[Location.box_search_location.name]
 
         # Create actions for planning based on class definitions.
         self.move_base, (robot, x, y) = self.create_action(Robot, Robot.move_base)
@@ -186,20 +186,20 @@ class Domain(Bridge):
 
         # Create visualization labels for actions as functions of their parameters.
         self.method_labels: Dict[InstantaneousAction, Callable[[Sequence[str]], str]] = {
-            self.move_base: lambda parameters: f"Move to '{parameters[-1]}' pose",
-            self.move_base_with_item: lambda parameters: f"Transport item to '{parameters[-1]}' pose",
-            self.move_arm: lambda parameters: f"Move arm to its '{parameters[-1]}' pose",
+            self.move_base: lambda parameters: f"Move to {parameters[-1]} pose",
+            self.move_base_with_item: lambda parameters: f"Transport item to {parameters[-1]} pose",
+            self.move_arm: lambda parameters: f"Move arm to its {parameters[-1]} pose",
         }
         self.parameter_labels: Dict[Object, str] = {
             self.base_home_pose: "home",
             self.base_handover_pose: "handover",
             self.base_pick_pose: "pick",
             self.base_place_pose: "place",
-            self.base_table_1_pose: "table 1",
-            self.base_table_2_pose: "table 2",
-            self.base_table_3_pose: "table 3",
+            self.base_table_1_pose: "table_1",
+            self.base_table_2_pose: "table_2",
+            self.base_table_3_pose: "table_3",
             self.tool_search_pose: "from where tool has been found",
-            self.klt_search_pose: "from where box has been found",
+            self.box_search_pose: "from where box has been found",
         }
 
     @staticmethod
@@ -268,7 +268,7 @@ class Domain(Bridge):
             self.base_table_2_pose: self.table_2,
             self.base_table_3_pose: self.table_3,
             self.tool_search_pose: self.tool_search_location,
-            self.klt_search_pose: self.klt_search_location,
+            self.box_search_pose: self.box_search_location,
         }
         if self.pose_at in problem.fluents:
             for pose in self.poses:
