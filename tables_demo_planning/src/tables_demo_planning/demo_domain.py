@@ -243,7 +243,7 @@ class Domain(Bridge):
         """Solve planning problem, then return list of UP and Robot API actions."""
         print("Calculating plan ...")
         start_time = time.time()
-        result = OneshotPlanner(problem_kind=problem.kind).solve(problem)
+        result = OneshotPlanner(problem_kind=problem.kind, optimality_guarantee='SOLVED_OPTIMALLY').solve(problem)
         rospy.loginfo(f"Result received from '{result.engine_name}' planner after {time.time() - start_time} seconds.")
         return [(action, self.get_action(action)) for action in result.plan.actions] if result.plan else None
 
