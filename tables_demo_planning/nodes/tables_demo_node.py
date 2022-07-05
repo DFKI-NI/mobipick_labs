@@ -351,7 +351,7 @@ class TablesDemo(Domain):
         print("The believed item locations are:")
 
         visualization = SubPlanVisualization()
-        successful_actions: Set[str] = set()
+        executed_actions: Set[str] = set()
         # Solve overall problem.
         self.print_believed_item_locations()
         self.set_initial_values(self.problem)
@@ -366,18 +366,19 @@ class TablesDemo(Domain):
             print('\n'.join(map(str, up_actions)))
             visualization.set_actions(
                 [
-                    f"{len(successful_actions) + index + 1} {self.label(up_action)}"
+                    f"{len(executed_actions) + index + 1} {self.label(up_action)}"
                     for index, up_action in enumerate(up_actions)
                 ],
-                successful_actions,
+                preserve_actions=executed_actions,
             )
             print("> Execution:")
             for up_action, (method, parameters) in actions:
-                action_name = f"{len(successful_actions) + 1} {self.label(up_action)}"
+                action_name = f"{len(executed_actions) + 1} {self.label(up_action)}"
                 print(up_action)
                 visualization.execute(action_name)
                 # Execute action.
                 result = method(*parameters)
+                executed_actions.add(action_name)
                 if rospy.is_shutdown():
                     return
 
@@ -404,20 +405,21 @@ class TablesDemo(Domain):
                         print('\n'.join(map(str, up_subactions)))
                         visualization.set_actions(
                             [
-                                f"{len(successful_actions) + 1}{chr(index + 97)} {self.label(up_subaction)}"
+                                f"{len(executed_actions)}{chr(index + 97)} {self.label(up_subaction)}"
                                 for index, up_subaction in enumerate(up_subactions)
                             ],
-                            successful_actions,
-                            action_name,
+                            preserve_actions=executed_actions,
+                            predecessor=action_name,
                         )
                         print("- Search execution:")
-                        subaction_success_count = 0
+                        subaction_execution_count = 0
                         for up_subaction, (submethod, subparameters) in subactions:
-                            subaction_name = f"{len(successful_actions) + 1}{chr(subaction_success_count + 97)} {self.label(up_subaction)}"
+                            subaction_name = f"{len(executed_actions)}{chr(subaction_execution_count + 97)} {self.label(up_subaction)}"
                             print(up_subaction)
                             visualization.execute(subaction_name)
                             # Execute search action.
                             result = submethod(*subparameters)
+                            subaction_execution_count += 1
                             if rospy.is_shutdown():
                                 return
 
@@ -439,7 +441,6 @@ class TablesDemo(Domain):
                                 else:
                                     visualization.fail(subaction_name)
                                     break
-                            subaction_success_count += 1
                         # Note: The conclude action at the end of any search always fails.
                     finally:
                         # Always end the search at this point.
@@ -448,7 +449,6 @@ class TablesDemo(Domain):
                 if result is not None:
                     if result:
                         visualization.succeed(action_name)
-                        successful_actions.add(action_name)
                     else:
                         visualization.fail(action_name)
                         self.print_believed_item_locations()
