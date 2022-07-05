@@ -250,16 +250,24 @@ class Domain(Bridge):
     def set_initial_values(self, problem: Problem) -> None:
         base_pose_name = self.api_robot.base.get_pose_name(xy_tolerance=math.inf, yaw_tolerance=math.pi)
         if self.robot_at in problem.fluents:
-            problem.set_initial_value(self.robot_at(self.robot, self.objects[base_pose_name]), True)
+            for pose in self.poses:
+                problem.set_initial_value(self.robot_at(self.robot, pose), pose == self.objects[base_pose_name])
         if self.robot_arm_at in problem.fluents:
-            problem.set_initial_value(self.robot_arm_at(self.robot, self.objects[self.api_robot.arm_pose.name]), True)
+            for arm_pose in self.arm_poses:
+                problem.set_initial_value(
+                    self.robot_arm_at(self.robot, arm_pose), arm_pose == self.objects[self.api_robot.arm_pose.name]
+                )
         if self.robot_has in problem.fluents:
-            problem.set_initial_value(self.robot_has(self.robot, self.objects[self.api_robot.item.name]), True)
+            for item in self.items:
+                problem.set_initial_value(
+                    self.robot_has(self.robot, item), item == self.objects[self.api_robot.item.name]
+                )
         if self.robot_offered in problem.fluents:
             problem.set_initial_value(self.robot_offered(self.robot), self.api_robot.item_offered)
         if self.believe_item_at in problem.fluents:
             for item in self.items:
-                problem.set_initial_value(self.believe_item_at(item, self.anywhere), True)
+                for location in self.locations:
+                    problem.set_initial_value(self.believe_item_at(item, location), location == self.anywhere)
         if self.searched_at in problem.fluents:
             for location in self.locations:
                 problem.set_initial_value(self.searched_at(location), False)

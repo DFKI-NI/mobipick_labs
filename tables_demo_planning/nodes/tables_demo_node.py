@@ -313,15 +313,15 @@ class TablesDemo(Domain):
         super().set_initial_values(problem)
         if self.believe_item_at in problem.fluents:
             for item in Item:
-                problem.set_initial_value(
-                    self.believe_item_at(
-                        self.objects[item.name],
-                        self.objects[self.believed_item_locations[item].name]
-                        if item in self.believed_item_locations.keys()
-                        else self.anywhere,
-                    ),
-                    True,
-                )
+                for location in Location:
+                    problem.set_initial_value(
+                        self.believe_item_at(
+                            self.objects[item.name],
+                            self.objects[location.name],
+                        ),
+                        location == self.believed_item_locations.get(item, Location.anywhere),
+                    )
+        print(problem)
 
     def set_goals(self) -> None:
         """Set the goals for the overall demo."""
