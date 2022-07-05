@@ -16,6 +16,7 @@
     <param name="pose_selector_class_query_srv_name" type="string" value="/pick_pose_selector_node/pose_selector_class_query" />
     <param name="pose_selector_get_all_poses_srv_name" type="string" value="/pick_pose_selector_node/pose_selector_get_all" />
     <param name="pose_selector_delete_srv_name" type="string" value="/pick_pose_selector_node/pose_selector_delete" />
+    <param name="detach_all_objects" value="true" />
     <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/pick_params.yaml" command="load" />
     <rosparam file="$(find tables_demo_bringup)/config/tables_planning_scene.yaml" command="load" />
     <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/grasp_planning_core_params.yaml" command="load" />
