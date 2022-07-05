@@ -111,6 +111,7 @@ class TablesDemoRobot(Robot):
         return False
 
     def resolve_search_location(self, location: Location) -> Location:
+        """Resolve a location symbol to the actual table where the search succeeded."""
         assert self.domain.search_location in (Location.table_1, Location.table_2, Location.table_3)
         return (
             self.domain.search_location
@@ -119,7 +120,7 @@ class TablesDemoRobot(Robot):
         )
 
     def perceive(self, location: Location) -> Dict[Item, Location]:
-        """Move arm into observation pose and return all perceived items with locations."""
+        """Move arm into observation pose and return all perceived items with their locations."""
         self.arm.move("observe100cm_right")
         self.arm_pose = ArmPose.observe
         rospy.loginfo("Wait for pose selector service ...")
@@ -134,22 +135,36 @@ class TablesDemoRobot(Robot):
         perceived_item_locations: Dict[Item, Location] = {}
         for fact in facts:
             if fact.name == "on":
-                item, table = fact.values
-                rospy.loginfo(f"{item} on {table} returned by pose_selector and fact_generator.")
-                if item in self.enum_values(Item) and table == location.name:
-                    rospy.loginfo(f"{item} is perceived as on {table}.")
-                    perceived_item_locations[Item(item)] = Location(table)
+                item_name, table_name = fact.values
+                rospy.loginfo(f"{item_name} on {table_name} returned by pose_selector and fact_generator.")
+                if item_name in [item.value for item in self.domain.DEMO_ITEMS] and table_name == location.name:
+                    rospy.loginfo(f"{item_name} is perceived as on {table_name}.")
+                    perceived_item_locations[Item(item_name)] = Location(table_name)
+        # Determine newly perceived items and their locations.
+        self.domain.newly_perceived_item_locations.clear()
+        for perceived_item, perceived_location in perceived_item_locations.items():
+            if (
+                perceived_item not in self.domain.believed_item_locations.keys()
+                or self.domain.believed_item_locations[perceived_item] != location
+            ):
+                self.domain.newly_perceived_item_locations[perceived_item] = perceived_location
+        rospy.loginfo(f"Newly perceived items: {self.domain.newly_perceived_item_locations.keys()}")
+        # Remove all previously perceived items at location.
         for check_item, check_location in list(self.domain.believed_item_locations.items()):
             if check_location == location:
                 del self.domain.believed_item_locations[check_item]
+        # Add all currently perceived items at location.
         self.domain.believed_item_locations.update(perceived_item_locations)
         return perceived_item_locations
 
 
 class TablesDemo(Domain):
+    DEMO_ITEMS = (Item.box, Item.multimeter, Item.relay, Item.screwdriver)
+
     def __init__(self) -> None:
         super().__init__(TablesDemoRobot(self))
         self.believed_item_locations: Dict[Item, Location] = {}
+        self.newly_perceived_item_locations: Dict[Item, Location] = {}
         self.item_search: Optional[Item] = None
         self.search_location = Location.anywhere
         self.target_table = self.table_2
@@ -328,7 +343,7 @@ class TablesDemo(Domain):
 
     def print_believed_item_locations(self) -> None:
         """Print at which locations the items are believed to be."""
-        for item in (Item.box, Item.multimeter, Item.relay, Item.screwdriver):
+        for item in self.DEMO_ITEMS:
             print(f"- {item.name}:", self.believed_item_locations.get(item, Location.anywhere).name)
 
     def run(self) -> None:
@@ -369,56 +384,66 @@ class TablesDemo(Domain):
                 # Handle item search as an inner execution loop.
                 # Rationale: It has additional stop criteria, and might continue the outer loop.
                 if self.item_search:
-                    # Check whether an obsolete item search invalidates the previous plan.
-                    if self.believed_item_locations.get(self.item_search, self.anywhere) != self.anywhere:
-                        print(f"Search for {self.item_search.name} OBSOLETE.")
-                        visualization.fail(action_name)
-                        self.item_search = None
-                        self.print_believed_item_locations()
-                        self.set_initial_values(self.problem)
-                        actions = self.solve(self.problem)
-                        break
+                    try:
+                        # Check whether an obsolete item search invalidates the previous plan.
+                        if self.believed_item_locations.get(self.item_search, self.anywhere) != self.anywhere:
+                            print(f"Search for {self.item_search.name} OBSOLETE.")
+                            visualization.fail(action_name)
+                            self.print_believed_item_locations()
+                            self.set_initial_values(self.problem)
+                            actions = self.solve(self.problem)
+                            break
 
-                    # Search for item by creating and executing a subplan.
-                    self.set_initial_values(self.subproblem)
-                    self.set_search_goals()
-                    subactions = self.solve(self.subproblem)
-                    assert subactions, f"No solution for: {self.subproblem}"
-                    print("- Search plan:")
-                    up_subactions = [up_subaction for up_subaction, _ in subactions]
-                    print('\n'.join(map(str, up_subactions)))
-                    visualization.set_actions(
-                        [
-                            f"{len(successful_actions) + 1}{chr(index + 97)} {self.label(up_subaction)}"
-                            for index, up_subaction in enumerate(up_subactions)
-                        ],
-                        successful_actions,
-                        action_name,
-                    )
-                    print("- Search execution:")
-                    subaction_success_count = 0
-                    for up_subaction, (submethod, subparameters) in subactions:
-                        subaction_name = f"{len(successful_actions) + 1}{chr(subaction_success_count + 97)} {self.label(up_subaction)}"
-                        print(up_subaction)
-                        visualization.execute(subaction_name)
-                        # Execute search action.
-                        result = submethod(*subparameters)
-                        if rospy.is_shutdown():
-                            return
+                        # Search for item by creating and executing a subplan.
+                        self.set_initial_values(self.subproblem)
+                        self.set_search_goals()
+                        subactions = self.solve(self.subproblem)
+                        assert subactions, f"No solution for: {self.subproblem}"
+                        print("- Search plan:")
+                        up_subactions = [up_subaction for up_subaction, _ in subactions]
+                        print('\n'.join(map(str, up_subactions)))
+                        visualization.set_actions(
+                            [
+                                f"{len(successful_actions) + 1}{chr(index + 97)} {self.label(up_subaction)}"
+                                for index, up_subaction in enumerate(up_subactions)
+                            ],
+                            successful_actions,
+                            action_name,
+                        )
+                        print("- Search execution:")
+                        subaction_success_count = 0
+                        for up_subaction, (submethod, subparameters) in subactions:
+                            subaction_name = f"{len(successful_actions) + 1}{chr(subaction_success_count + 97)} {self.label(up_subaction)}"
+                            print(up_subaction)
+                            visualization.execute(subaction_name)
+                            # Execute search action.
+                            result = submethod(*subparameters)
+                            if rospy.is_shutdown():
+                                return
 
-                        if result is not None:
-                            if result:
-                                # Note: True result only means any subaction succeeded.
-                                # Check if the search actually succeeded.
-                                if self.item_search is None:
-                                    visualization.succeed(subaction_name)
-                                    print("- Continue with plan.")
+                            if result is not None:
+                                if result:
+                                    # Note: True result only means any subaction succeeded.
+                                    # Check if the search actually succeeded.
+                                    if self.item_search is None:
+                                        print("- Continue with plan.")
+                                        visualization.succeed(subaction_name)
+                                        break
+                                    # Check if the search found another item.
+                                    elif self.newly_perceived_item_locations:
+                                        print("- Found another item, search ABORTED.")
+                                        visualization.fail(subaction_name)
+                                        # Set result to False to trigger replanning.
+                                        result = False
+                                        break
+                                else:
+                                    visualization.fail(subaction_name)
                                     break
-                            else:
-                                visualization.fail(subaction_name)
-                                break
-                        subaction_success_count += 1
-                    self.item_search = None
+                            subaction_success_count += 1
+                        # Note: The conclude action at the end of any search always fails.
+                    finally:
+                        # Always end the search at this point.
+                        self.item_search = None
 
                 if result is not None:
                     if result:
