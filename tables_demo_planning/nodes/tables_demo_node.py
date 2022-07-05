@@ -22,7 +22,7 @@ class TablesDemoRobot(Robot):
     def __init__(self, domain: 'TablesDemo') -> None:
         super().__init__("mobipick")
         self.domain = domain
-        self.activate_pose_selector = rospy.ServiceProxy('/pose_selector_activate', SetBool)
+        self.activate_pose_selector = rospy.ServiceProxy('/pick_pose_selector_node/pose_selector_activate', SetBool)
         self.open_gripper = rospy.ServiceProxy("/mobipick/pose_teacher/open_gripper", Empty)
         self.pick_object_action_client = actionlib.SimpleActionClient('/mobipick/pick_object', PickObjectAction)
         self.pick_object_goal = PickObjectGoal()
@@ -122,10 +122,13 @@ class TablesDemoRobot(Robot):
         """Move arm into observation pose and return all perceived items with locations."""
         self.arm.move("observe100cm_right")
         self.arm_pose = ArmPose.observe
-        rospy.wait_for_service('/pose_selector_activate')
+        rospy.loginfo("Wait for pose selector service ...")
+        rospy.wait_for_service('/pick_pose_selector_node/pose_selector_activate', timeout=rospy.Duration(2.0))
+        rospy.loginfo(f"Clear facts for {location.name}.")
         on_fact_generator.clear_facts_and_poses_for_table(location.name)
         self.activate_pose_selector(True)
         rospy.sleep(5)
+        rospy.loginfo("Get facts from fact generator.")
         facts = on_fact_generator.get_current_facts()
         self.activate_pose_selector(False)
         perceived_item_locations: Dict[Item, Location] = {}
