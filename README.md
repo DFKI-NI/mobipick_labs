@@ -74,7 +74,7 @@ Alternatively, power_drill_with_grip can be replaced with klt (which is also wit
 If you want to grasp the other objects you can use the following robot pose.
 
 ```bash
-roslaunch tables_demo_bringup demo_sim.launch robot_x:=10.375567 robot_y:=2.442948 robot_yaw:=0.0
+roslaunch tables_demo_bringup demo_sim.launch robot_x:=10.46 robot_y:=2.47 robot_yaw:=3.1415
 ```
 
 If you want to grasp another object after picking, you can use the rqt_joint_trajectory_controller to manually open the gripper,
