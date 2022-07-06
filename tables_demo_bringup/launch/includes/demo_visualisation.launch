@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<launch>
+
+  <!-- This launch file is intended to be launched in the secondary laptop that is connected to an external TV -->
+
+  <!-- the ip address where the real demo is running -->
+  <arg name="ROS_MASTER_IP" default="192.168.0.198" />
+
+  <!-- tell ROS that the roscore is running elsewhere -->
+  <env name="ROS_MASTER_URI" value="http://$(arg ROS_MASTER_IP):11311" />
+
+  <!-- use this launch file in the secondary laptop connected to TV to visualise the demo -->
+  <node pkg="rqt_gui" type="rqt_gui" name="rqt_plan_visualisation" output="screen" ns="mobipick"
+        args="--standalone dot_graph_visualization" required="true" />
+
+  <!-- visualisation of demo in rviz -->
+  <node pkg="rviz" type="rviz" name="rviz_demo_visualisation" output="screen" ns="mobipick"
+        args="-d $(find tables_demo_bringup)/config/pick_n_place.rviz" required="true" />
+
+</launch>
