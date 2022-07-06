@@ -112,12 +112,11 @@ class TablesDemoRobot(Robot):
 
     def resolve_search_location(self, location: Location) -> Location:
         """Resolve a location symbol to the actual table where the search succeeded."""
+        if location not in (Location.tool_search_location, Location.box_search_location):
+            return location
+
         assert self.domain.search_location in (Location.table_1, Location.table_2, Location.table_3)
-        return (
-            self.domain.search_location
-            if location in (Location.tool_search_location, Location.box_search_location)
-            else location
-        )
+        return self.domain.search_location
 
     def perceive(self, location: Location) -> Dict[Item, Location]:
         """Move arm into observation pose and return all perceived items with their locations."""
