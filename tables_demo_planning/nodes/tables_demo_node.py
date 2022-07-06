@@ -5,7 +5,7 @@ import rospy
 import actionlib
 from std_srvs.srv import Empty, SetBool
 from geometry_msgs.msg import Pose
-from pbr_msgs.msg import PickObjectAction, PickObjectGoal
+from pbr_msgs.msg import PickObjectAction, PickObjectGoal, PlaceObjectAction, PlaceObjectGoal
 from unified_planning.model.problem import Problem
 from unified_planning.shortcuts import And, Equals, Not, Or
 from symbolic_fact_generation import on_fact_generator
@@ -22,19 +22,21 @@ class TablesDemoRobot(Robot):
     def __init__(self, domain: 'TablesDemo') -> None:
         super().__init__("mobipick")
         self.domain = domain
-        self.activate_pose_selector = rospy.ServiceProxy('/pick_pose_selector_node/pose_selector_activate', SetBool)
+        self.activate_pose_selector = rospy.ServiceProxy("/pick_pose_selector_node/pose_selector_activate", SetBool)
         self.open_gripper = rospy.ServiceProxy("/mobipick/pose_teacher/open_gripper", Empty)
-        self.pick_object_action_client = actionlib.SimpleActionClient('/mobipick/pick_object', PickObjectAction)
+        self.pick_object_action_client = actionlib.SimpleActionClient("/mobipick/pick_object", PickObjectAction)
         self.pick_object_goal = PickObjectGoal()
+        self.place_object_action_client = actionlib.SimpleActionClient("/mobipick/place_object", PlaceObjectAction)
+        self.place_object_goal = PlaceObjectGoal()
 
     def pick_item(self, pose: Pose, location: Location, item: Item) -> bool:
         """At pose, look for item at location, pick it up, then move arm to transport pose."""
-        rospy.loginfo(f"Waiting for pick object action server.")
+        rospy.loginfo("Waiting for pick object action server.")
         if not self.pick_object_action_client.wait_for_server(timeout=rospy.Duration(2.0)):
             rospy.logerr("Pick Object action server not available!")
             return False
 
-        rospy.loginfo(f"Found pick object action server.")
+        rospy.loginfo("Found pick object action server.")
         location = self.domain.resolve_search_location(location)
         perceived_item_locations = self.perceive(location)
         if item not in perceived_item_locations.keys():
@@ -44,7 +46,7 @@ class TablesDemoRobot(Robot):
         rospy.loginfo(f"Sending pick '{item.name}' goal to pick object action server.")
         self.pick_object_goal.object_name = item.name
         self.pick_object_action_client.send_goal(self.pick_object_goal)
-        rospy.loginfo(f'Wait for result from pick object action server.')
+        rospy.loginfo("Wait for result from pick object action server.")
         if not self.pick_object_action_client.wait_for_result(timeout=rospy.Duration(50.0)):
             rospy.logwarn(f"Pick up {item.name} at {location.name} FAILED due to timeout!")
             return False
@@ -63,8 +65,29 @@ class TablesDemoRobot(Robot):
 
     def place_box(self, pose: Pose, location: Location) -> bool:
         """At pose, place box down at location."""
-        self.arm.move("above")
-        self.open_gripper()
+        rospy.loginfo("Waiting for place object action server.")
+        if not self.place_object_action_client.wait_for_server(timeout=rospy.Duration(10.0)):
+            rospy.logerr("Place Object action server not available!")
+            return False
+
+        rospy.loginfo("Found place object action server.")
+        self.perceive(location)
+        rospy.loginfo("Sending place box goal to place object action server.")
+        self.place_object_goal.support_surface_name = location.name
+        self.place_object_goal.observe_before_place = False
+        self.place_object_action_client.send_goal(self.place_object_goal)
+        rospy.loginfo("Wait for result from place object action server.")
+        if not self.place_object_action_client.wait_for_result(timeout=rospy.Duration(50.0)):
+            rospy.logwarn(f"Place box at {location.name} FAILED due to timeout!")
+            return False
+
+        result = self.place_object_action_client.get_result()
+        rospy.loginfo(f"The place object server is done with execution, result was: '{result}'")
+        if not result or not result.success:
+            rospy.logwarn(f"Place box at {location.name} FAILED!")
+            return False
+
+        print(f"Successfully placed box.")
         self.item = Item.nothing
         self.domain.believed_item_locations[Item.box] = location
         self.arm.move("home")
@@ -115,7 +138,7 @@ class TablesDemoRobot(Robot):
         self.arm.move("observe100cm_right")
         self.arm_pose = ArmPose.observe
         rospy.loginfo("Wait for pose selector service ...")
-        rospy.wait_for_service('/pick_pose_selector_node/pose_selector_activate', timeout=rospy.Duration(2.0))
+        rospy.wait_for_service("/pick_pose_selector_node/pose_selector_activate", timeout=rospy.Duration(2.0))
         rospy.loginfo(f"Clear facts for {location.name}.")
         on_fact_generator.clear_facts_and_poses_for_table(location.name)
         self.activate_pose_selector(True)
