@@ -82,6 +82,8 @@ class Robot(robot_api.Robot):
     def move_base(self, _: Pose, pose: Pose) -> bool:
         if self.base.move(pose) != 3:
             rospy.logerr(f"Move base to {pose} FAILED!")
+            # Note: Moving should not fail but if it occurs, it could spam errors, so sleep a bit.
+            time.sleep(3.0)
             return False
 
         self.pose = pose
