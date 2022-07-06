@@ -10,11 +10,11 @@
   <env name="ROS_MASTER_URI" value="http://$(arg ROS_MASTER_IP):11311" />
 
   <!-- use this launch file in the secondary laptop connected to TV to visualise the demo -->
-  <node pkg="rqt_gui" type="rqt_gui" name="rqt_plan_visualisation" output="screen" ns="mobipick"
+  <node pkg="rqt_gui" type="rqt_gui" name="rqt_plan_visualisation_$(anon name)" output="screen" ns="mobipick"
         args="--standalone dot_graph_visualization" required="true" />
 
   <!-- visualisation of demo in rviz -->
-  <node pkg="rviz" type="rviz" name="rviz_demo_visualisation" output="screen" ns="mobipick"
+  <node pkg="rviz" type="rviz" name="rviz_demo_visualisation_$(anon name)" output="screen" ns="mobipick"
         args="-d $(find tables_demo_bringup)/config/pick_n_place.rviz" required="true" />
 
 </launch>
