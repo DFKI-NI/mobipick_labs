@@ -154,6 +154,7 @@ class TablesDemoRobot(Robot):
                 del self.domain.believed_item_locations[check_item]
         # Add all currently perceived items at location.
         self.domain.believed_item_locations.update(perceived_item_locations)
+        self.domain.print_believed_item_locations()
         return perceived_item_locations
 
 
@@ -300,8 +301,8 @@ class TablesDemo(Domain):
                 self.place_box: lambda _: "Place box on table",
                 self.store_item: lambda parameters: f"Place {parameters[-1]} into box",
                 self.search_at: lambda parameters: f"Search at {parameters[-1]}",
-                self.search_tool: lambda parameters: f"Search for {parameters[-1]} on any table",
-                self.search_box: lambda _: "Search for the box on any table",
+                self.search_tool: lambda parameters: f"Search tables for {parameters[-1]}",
+                self.search_box: lambda _: "Search tables for the box",
                 self.conclude_tool_search: lambda parameters: f"Conclude search for {parameters[-1]}",
                 self.conclude_box_search: lambda _: "Conclude search for the box",
             }
@@ -341,12 +342,12 @@ class TablesDemo(Domain):
 
     def print_believed_item_locations(self) -> None:
         """Print at which locations the items are believed to be."""
+        print("The believed item locations are:")
         for item in self.DEMO_ITEMS:
             print(f"- {item.name}:", self.believed_item_locations.get(item, Location.anywhere).name)
 
     def run(self) -> None:
         print(f"Scenario: Mobipick shall bring all items inside the box to {self.target_table}.")
-        print("The believed item locations are:")
 
         visualization = SubPlanVisualization()
         executed_actions: Set[str] = set()

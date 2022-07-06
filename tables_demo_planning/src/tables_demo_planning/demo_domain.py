@@ -199,8 +199,8 @@ class Domain(Bridge):
             self.base_table_1_pose: "table_1",
             self.base_table_2_pose: "table_2",
             self.base_table_3_pose: "table_3",
-            self.tool_search_pose: "from where tool has been found",
-            self.box_search_pose: "from where box has been found",
+            self.tool_search_pose: "where tool has been found",
+            self.box_search_pose: "where box has been found",
         }
 
     @staticmethod
