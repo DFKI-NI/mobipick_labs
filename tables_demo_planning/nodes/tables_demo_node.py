@@ -386,6 +386,7 @@ class TablesDemo(Domain):
 
         visualization = SubPlanVisualization()
         executed_actions: Set[str] = set()
+        retry_on_failure = True
         # Solve overall problem.
         self.print_believed_item_locations()
         self.set_initial_values(self.problem)
@@ -494,12 +495,21 @@ class TablesDemo(Domain):
                 if result is not None:
                     if result:
                         visualization.succeed(action_name)
+                        retry_on_failure = True
                     else:
                         visualization.fail(action_name)
+                        # Note: This will also fail if two different failures occur successively.
+                        if not retry_on_failure:
+                            print("Task could not be completed even after retrying.")
+                            return
+
+                        retry_on_failure = False
                         self.print_believed_item_locations()
                         self.set_initial_values(self.problem)
                         actions = self.solve(self.problem)
                         break
+                else:
+                    rospy.logwarn(f"Executing '{up_action}' did not return a result.")
             else:
                 print("Task complete.")
                 break
