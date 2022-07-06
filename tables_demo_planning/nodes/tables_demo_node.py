@@ -35,7 +35,7 @@ class TablesDemoRobot(Robot):
             return False
 
         rospy.loginfo(f"Found pick object action server.")
-        location = self.resolve_search_location(location)
+        location = self.domain.resolve_search_location(location)
         perceived_item_locations = self.perceive(location)
         if item not in perceived_item_locations.keys():
             rospy.logwarn(f"Cannot find {item.name} at {location.name}. Pick up FAILED!")
@@ -110,14 +110,6 @@ class TablesDemoRobot(Robot):
         print("Search for box FAILED!")
         return False
 
-    def resolve_search_location(self, location: Location) -> Location:
-        """Resolve a location symbol to the actual table where the search succeeded."""
-        if location not in (Location.tool_search_location, Location.box_search_location):
-            return location
-
-        assert self.domain.search_location in (Location.table_1, Location.table_2, Location.table_3)
-        return self.domain.search_location
-
     def perceive(self, location: Location) -> Dict[Item, Location]:
         """Move arm into observation pose and return all perceived items with their locations."""
         self.arm.move("observe100cm_right")
@@ -167,7 +159,8 @@ class TablesDemo(Domain):
         self.newly_perceived_item_locations: Dict[Item, Location] = {}
         self.item_search: Optional[Item] = None
         self.search_location = Location.anywhere
-        self.target_table = self.table_2
+        self.target_location = Location.table_2
+        self.target_table = self.objects[self.target_location.name]
 
         self.pick_item, (robot, pose, location, item) = self.create_action(TablesDemoRobot, TablesDemoRobot.pick_item)
         self.pick_item.add_precondition(self.robot_at(robot, pose))
@@ -340,6 +333,14 @@ class TablesDemo(Domain):
             else self.believe_item_at(self.objects[self.item_search.name], self.tool_search_location)
         )
 
+    def resolve_search_location(self, location: Location) -> Location:
+        """Resolve a location symbol to the actual table where the search succeeded."""
+        if location not in (Location.tool_search_location, Location.box_search_location):
+            return location
+
+        assert self.search_location in (Location.table_1, Location.table_2, Location.table_3)
+        return self.search_location
+
     def print_believed_item_locations(self) -> None:
         """Print at which locations the items are believed to be."""
         print("The believed item locations are:")
@@ -374,6 +375,17 @@ class TablesDemo(Domain):
             for up_action, (method, parameters) in actions:
                 action_name = f"{len(executed_actions) + 1} {self.label(up_action)}"
                 print(up_action)
+                # Explicitly do not pick up box from target_table since planning does not handle it yet.
+                if method == TablesDemoRobot.pick_item and parameters[-1] == Item.box:
+                    location = self.resolve_search_location(parameters[-2])
+                    if location == self.target_location:
+                        print(f"Picking up box OBSOLETE.")
+                        visualization.fail(action_name)
+                        self.print_believed_item_locations()
+                        self.set_initial_values(self.problem)
+                        actions = self.solve(self.problem)
+                        break
+
                 visualization.execute(action_name)
                 # Execute action.
                 result = method(*parameters)
