@@ -321,7 +321,6 @@ class TablesDemo(Domain):
                         ),
                         location == self.believed_item_locations.get(item, Location.anywhere),
                     )
-        print(problem)
 
     def set_goals(self) -> None:
         """Set the goals for the overall demo."""
