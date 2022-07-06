@@ -12,7 +12,7 @@ from unified_planning.model.fluent import Fluent
 from unified_planning.model.object import Object
 from unified_planning.model.problem import Problem
 from unified_planning.plans.plan import ActionInstance
-from unified_planning.shortcuts import Not, OneshotPlanner
+from unified_planning.shortcuts import Equals, Not, OneshotPlanner
 from tables_demo_planning.planning_bridge import Bridge
 from robot_api import TuplePose
 import robot_api
@@ -87,8 +87,8 @@ class Robot(robot_api.Robot):
         self.pose = pose
         return True
 
-    def move_base_with_item(self, _: Pose, pose: Pose) -> bool:
-        # Note: Same action as move_base(), just in transport pose.
+    def move_base_with_item(self, item: Item, _: Pose, pose: Pose) -> bool:
+        # Note: Same action as move_base(), just with item in transport pose.
         return self.move_base(_, pose)
 
     def move_arm(self, _: ArmPose, arm_pose: ArmPose) -> bool:
@@ -173,9 +173,10 @@ class Domain(Bridge):
         self.move_base.add_precondition(self.robot_arm_at(robot, self.arm_pose_home))
         self.move_base.add_effect(self.robot_at(robot, x), False)
         self.move_base.add_effect(self.robot_at(robot, y), True)
-        self.move_base_with_item, (robot, x, y) = self.create_action(Robot, Robot.move_base_with_item)
+        self.move_base_with_item, (robot, item, x, y) = self.create_action(Robot, Robot.move_base_with_item)
         self.move_base_with_item.add_precondition(self.robot_at(robot, x))
-        self.move_base_with_item.add_precondition(Not(self.robot_has(robot, self.nothing)))
+        self.move_base_with_item.add_precondition(self.robot_has(robot, item))
+        self.move_base_with_item.add_precondition(Not(Equals(item, self.nothing)))
         self.move_base_with_item.add_precondition(self.robot_arm_at(robot, self.arm_pose_transport))
         self.move_base_with_item.add_effect(self.robot_at(robot, x), False)
         self.move_base_with_item.add_effect(self.robot_at(robot, y), True)
@@ -187,7 +188,7 @@ class Domain(Bridge):
         # Create visualization labels for actions as functions of their parameters.
         self.method_labels: Dict[InstantaneousAction, Callable[[Sequence[str]], str]] = {
             self.move_base: lambda parameters: f"Move to {parameters[-1]} pose",
-            self.move_base_with_item: lambda parameters: f"Transport item to {parameters[-1]} pose",
+            self.move_base_with_item: lambda parameters: f"Transport {parameters[1]} to {parameters[-1]} pose",
             self.move_arm: lambda parameters: f"Move arm to its {parameters[-1]} pose",
         }
         self.parameter_labels: Dict[Object, str] = {
