@@ -174,7 +174,7 @@ class TablesDemoRobot(Robot):
 
 
 class TablesDemo(Domain):
-    DEMO_ITEMS = (Item.box, Item.multimeter, Item.relay, Item.screwdriver)
+    DEMO_ITEMS = (Item.box, Item.multimeter)
 
     def __init__(self) -> None:
         super().__init__(TablesDemoRobot(self))
