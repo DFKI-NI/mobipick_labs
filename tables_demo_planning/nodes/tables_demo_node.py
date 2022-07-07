@@ -389,7 +389,7 @@ class TablesDemo(Domain):
 
         visualization = SubPlanVisualization()
         executed_actions: Set[str] = set()
-        retry_on_failure = True
+        abort_after_failure_count = 3
         # Solve overall problem.
         self.print_believed_item_locations()
         self.set_initial_values(self.problem)
@@ -500,15 +500,15 @@ class TablesDemo(Domain):
                 if result is not None:
                     if result:
                         visualization.succeed(action_name)
-                        retry_on_failure = True
+                        abort_after_failure_count = 3
                     else:
                         visualization.fail(action_name)
                         # Note: This will also fail if two different failures occur successively.
-                        if not retry_on_failure:
+                        if abort_after_failure_count <= 0:
                             print("Task could not be completed even after retrying.")
                             return
 
-                        retry_on_failure = False
+                        abort_after_failure_count -= 1
                         self.print_believed_item_locations()
                         self.set_initial_values(self.problem)
                         actions = self.solve(self.problem)
