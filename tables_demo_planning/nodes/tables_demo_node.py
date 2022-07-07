@@ -41,21 +41,21 @@ class TablesDemoRobot(Robot):
         location = self.domain.resolve_search_location(location)
         perceived_item_locations = self.perceive(location)
         if item not in perceived_item_locations.keys():
-            rospy.logwarn(f"Cannot find {item.name} at {location.name}. Pick up FAILED!")
+            rospy.logwarn(f"Cannot find {item.value} at {location.name}. Pick up FAILED!")
             return False
 
-        rospy.loginfo(f"Sending pick '{item.name}' goal to pick object action server.")
-        self.pick_object_goal.object_name = item.name
+        rospy.loginfo(f"Sending pick '{item.value}' goal to pick object action server.")
+        self.pick_object_goal.object_name = item.value
         self.pick_object_action_client.send_goal(self.pick_object_goal)
         rospy.loginfo("Wait for result from pick object action server.")
         if not self.pick_object_action_client.wait_for_result(timeout=rospy.Duration(50.0)):
-            rospy.logwarn(f"Pick up {item.name} at {location.name} FAILED due to timeout!")
+            rospy.logwarn(f"Pick up {item.value} at {location.name} FAILED due to timeout!")
             return False
 
         result = self.pick_object_action_client.get_result()
         rospy.loginfo(f"The pick object server is done with execution, resuĺt was: '{result}'")
         if not result or not result.success:
-            rospy.logwarn(f"Pick up {item.name} at {location.name} FAILED!")
+            rospy.logwarn(f"Pick up {item.value} at {location.name} FAILED!")
             return False
 
         print(f"Successfully picked up {item.name}.")
