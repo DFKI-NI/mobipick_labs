@@ -459,8 +459,8 @@ class TablesDemo(Domain):
                                         print("- Found another item, search ABORTED.")
                                         visualization.fail(subaction_name)
                                         self.espeak_pub.publish("Found another item. Replanning.")
-                                        # Set result to False to trigger replanning.
-                                        result = False
+                                        # Set result to None to trigger replanning.
+                                        result = None
                                         break
                                 else:
                                     visualization.fail(subaction_name)
@@ -489,7 +489,11 @@ class TablesDemo(Domain):
                         actions = self.solve(self.problem)
                         break
                 else:
-                    rospy.logwarn(f"Executing '{up_action}' did not return a result.")
+                    retries_before_abortion = self.RETRIES_BEFORE_ABORTION
+                    self.print_believed_item_locations()
+                    self.set_initial_values(self.problem)
+                    actions = self.solve(self.problem)
+                    break
             else:
                 break
 
