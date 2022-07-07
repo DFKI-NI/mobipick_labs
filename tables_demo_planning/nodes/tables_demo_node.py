@@ -350,20 +350,13 @@ class TablesDemo(Domain):
         """Set the goals for the overall demo."""
         self.problem.clear_goals()
         if Item.box in self.DEMO_ITEMS:
-            if Item.multimeter in self.DEMO_ITEMS:
-                self.problem.add_goal(self.believe_item_at(self.multimeter, self.in_box))
-            if Item.relay in self.DEMO_ITEMS:
-                self.problem.add_goal(self.believe_item_at(self.relay, self.in_box))
-            if Item.screwdriver in self.DEMO_ITEMS:
-                self.problem.add_goal(self.believe_item_at(self.screwdriver, self.in_box))
             self.problem.add_goal(self.believe_item_at(self.box, self.target_table))
-        else:
-            if Item.multimeter in self.DEMO_ITEMS:
-                self.problem.add_goal(self.believe_item_at(self.multimeter, self.target_table))
-            if Item.relay in self.DEMO_ITEMS:
-                self.problem.add_goal(self.believe_item_at(self.relay, self.target_table))
-            if Item.screwdriver in self.DEMO_ITEMS:
-                self.problem.add_goal(self.believe_item_at(self.screwdriver, self.target_table))
+        if Item.multimeter in self.DEMO_ITEMS:
+            self.problem.add_goal(self.believe_item_at(self.multimeter, self.target_table))
+        if Item.relay in self.DEMO_ITEMS:
+            self.problem.add_goal(self.believe_item_at(self.relay, self.target_table))
+        if Item.screwdriver in self.DEMO_ITEMS:
+            self.problem.add_goal(self.believe_item_at(self.screwdriver, self.target_table))
 
     def set_search_goals(self) -> None:
         """Set the goals for the item_search subproblem."""
