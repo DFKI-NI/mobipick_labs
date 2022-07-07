@@ -44,8 +44,9 @@ class TablesDemoRobot(Robot):
             rospy.logwarn(f"Cannot find {item.value} at {location.name}. Pick up FAILED!")
             return False
 
-        rospy.loginfo(f"Sending pick '{item.value}' goal to pick object action server.")
         self.pick_object_goal.object_name = item.value
+        self.pick_object_goal.support_surface_name = location.name
+        rospy.loginfo(f"Sending pick '{item.value}' goal to pick object action server: {self.pick_object_goal}")
         self.pick_object_action_client.send_goal(self.pick_object_goal)
         rospy.loginfo("Wait for result from pick object action server.")
         if not self.pick_object_action_client.wait_for_result(timeout=rospy.Duration(50.0)):
