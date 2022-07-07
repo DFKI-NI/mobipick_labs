@@ -35,3 +35,7 @@ repositories:
     type: git
     url: git@git.ni.dfki.de:environment_representation/symbolic_fact_generation.git
     version: tables_demo
+  espeak_ros:
+    type: git
+    url: git@github.com:socrob/espeak_ros.git
+    version: master
