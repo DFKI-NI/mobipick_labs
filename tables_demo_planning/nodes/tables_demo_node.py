@@ -390,7 +390,7 @@ class TablesDemo(Domain):
                     location = self.resolve_search_location(parameters[-2])
                     if location == self.target_location:
                         print(f"Picking up box OBSOLETE.")
-                        visualization.execute(action_name)
+                        visualization.succeed(action_name)
                         self.print_believed_item_locations()
                         self.set_initial_values(self.problem)
                         actions = self.solve(self.problem)
@@ -412,6 +412,7 @@ class TablesDemo(Domain):
                         # Check whether an obsolete item search invalidates the previous plan.
                         if self.believed_item_locations.get(self.item_search, self.anywhere) != self.anywhere:
                             print(f"Search for {self.item_search.name} OBSOLETE.")
+                            visualization.succeed(action_name)
                             self.print_believed_item_locations()
                             self.set_initial_values(self.problem)
                             actions = self.solve(self.problem)
@@ -457,8 +458,8 @@ class TablesDemo(Domain):
                                     # Check if the search found another item.
                                     elif self.newly_perceived_item_locations:
                                         print("- Found another item, search ABORTED.")
-                                        visualization.fail(subaction_name)
-                                        self.espeak_pub.publish("Found another item. Replanning.")
+                                        visualization.succeed(subaction_name)
+                                        self.espeak_pub.publish("Found another item. Replan.")
                                         # Set result to None to trigger replanning.
                                         result = None
                                         break
@@ -489,6 +490,7 @@ class TablesDemo(Domain):
                         actions = self.solve(self.problem)
                         break
                 else:
+                    visualization.succeed(action_name)
                     retries_before_abortion = self.RETRIES_BEFORE_ABORTION
                     self.print_believed_item_locations()
                     self.set_initial_values(self.problem)
