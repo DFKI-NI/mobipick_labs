@@ -390,7 +390,7 @@ class TablesDemo(Domain):
                     location = self.resolve_search_location(parameters[-2])
                     if location == self.target_location:
                         print(f"Picking up box OBSOLETE.")
-                        visualization.fail(action_name)
+                        visualization.execute(action_name)
                         self.print_believed_item_locations()
                         self.set_initial_values(self.problem)
                         actions = self.solve(self.problem)
@@ -412,7 +412,6 @@ class TablesDemo(Domain):
                         # Check whether an obsolete item search invalidates the previous plan.
                         if self.believed_item_locations.get(self.item_search, self.anywhere) != self.anywhere:
                             print(f"Search for {self.item_search.name} OBSOLETE.")
-                            visualization.fail(action_name)
                             self.print_believed_item_locations()
                             self.set_initial_values(self.problem)
                             actions = self.solve(self.problem)
@@ -492,9 +491,10 @@ class TablesDemo(Domain):
                 else:
                     rospy.logwarn(f"Executing '{up_action}' did not return a result.")
             else:
-                print("Demo complete.")
-                self.espeak_pub.publish("Demo complete.")
                 break
+
+        print("Demo complete.")
+        self.espeak_pub.publish("Demo complete.")
 
 
 if __name__ == '__main__':
