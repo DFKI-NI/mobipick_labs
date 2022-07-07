@@ -4,6 +4,7 @@ import unified_planning
 import rospy
 import actionlib
 from std_srvs.srv import Empty, SetBool
+from std_msgs.msg import String
 from geometry_msgs.msg import Pose
 from pbr_msgs.msg import PickObjectAction, PickObjectGoal, PlaceObjectAction, PlaceObjectGoal
 from unified_planning.model.problem import Problem
@@ -324,6 +325,8 @@ class TablesDemo(Domain):
             }
         )
 
+        self.espeak_topic = rospy.Publisher("/espeak_node/speak_line", String, queue_size=1)
+
     def set_initial_values(self, problem: Problem) -> None:
         """Set initial values for UP problem based on the fluents used and the current state."""
         super().set_initial_values(problem)
@@ -422,6 +425,8 @@ class TablesDemo(Domain):
                         break
 
                 visualization.execute(action_name)
+                self.espeak_topic.publish(self.label(up_action))
+
                 # Execute action.
                 result = method(*parameters)
                 executed_actions.add(action_name)
