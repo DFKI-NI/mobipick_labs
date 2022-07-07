@@ -37,5 +37,5 @@ repositories:
     version: tables_demo
   espeak_ros:
     type: git
-    url: git@github.com:socrob/espeak_ros.git
+    url: https://github.com/socrob/espeak_ros.git
     version: master
