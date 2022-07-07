@@ -144,7 +144,8 @@ class Domain(Bridge):
         self.base_table_3_pose = self.objects[self.BASE_TABLE_3_POSE]
         self.tool_search_pose = self.create_object("tool_search_pose", Pose())
         self.box_search_pose = self.create_object("box_search_pose", Pose())
-        self.poses.extend([self.tool_search_pose, self.box_search_pose])
+        self.unknown_pose = self.create_object("unknown_pose", Pose())
+        self.poses.extend([self.tool_search_pose, self.box_search_pose, self.unknown_pose])
         self.arm_poses = self.create_objects({pose.name: pose for pose in ArmPose})
         self.arm_pose_home = self.objects[ArmPose.home.name]
         self.arm_pose_observe = self.objects[ArmPose.observe.name]
@@ -251,10 +252,11 @@ class Domain(Bridge):
         return [(action, self.get_action(action)) for action in result.plan.actions] if result.plan else None
 
     def set_initial_values(self, problem: Problem) -> None:
-        base_pose_name = self.api_robot.base.get_pose_name(xy_tolerance=math.inf, yaw_tolerance=math.pi)
+        base_pose_name = self.api_robot.base.get_pose_name()
+        base_pose = self.objects[base_pose_name] if base_pose_name else self.unknown_pose
         if self.robot_at in problem.fluents:
             for pose in self.poses:
-                problem.set_initial_value(self.robot_at(self.robot, pose), pose == self.objects[base_pose_name])
+                problem.set_initial_value(self.robot_at(self.robot, pose), pose == base_pose)
         if self.robot_arm_at in problem.fluents:
             for arm_pose in self.arm_poses:
                 problem.set_initial_value(
