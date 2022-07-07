@@ -62,6 +62,7 @@ class TablesDemoRobot(Robot):
         self.item = item
         self.domain.believed_item_locations[item] = Location.on_robot
         self.arm.move("transport")
+        self.arm_pose = ArmPose.transport
         return True
 
     def place_box(self, pose: Pose, location: Location) -> bool:
@@ -92,15 +93,18 @@ class TablesDemoRobot(Robot):
         self.item = Item.nothing
         self.domain.believed_item_locations[Item.box] = location
         self.arm.move("home")
+        self.arm_pose = ArmPose.home
         return True
 
     def store_item(self, pose: Pose, location: Location, item: Item) -> bool:
         """At pose, store item into box at location."""
         self.arm.move("above")
+        self.arm_pose = ArmPose.observe
         self.open_gripper()
         self.item = Item.nothing
         self.domain.believed_item_locations[item] = Location.in_box
         self.arm.move("home")
+        self.arm_pose = ArmPose.home
         return True
 
     def search_at(self, pose: Pose, location: Location) -> bool:
