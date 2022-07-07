@@ -17,4 +17,6 @@
   <node pkg="rviz" type="rviz" name="rviz_demo_visualisation_$(anon name)" output="screen" ns="mobipick"
         args="-d $(find tables_demo_bringup)/config/pick_n_place.rviz" required="true" />
 
+  <node pkg="espeak_ros" type="espeak_node" name="espeak_node" output="screen"/>
+
 </launch>
