@@ -72,9 +72,9 @@ class TablesDemoRobot(Robot):
 
         rospy.loginfo("Found place object action server.")
         self.perceive(location)
-        rospy.loginfo("Sending place box goal to place object action server.")
         self.place_object_goal.support_surface_name = location.name
         self.place_object_goal.observe_before_place = False
+        rospy.loginfo(f"Sending place box goal to place object action server: {self.place_object_goal}")
         self.place_object_action_client.send_goal(self.place_object_goal)
         rospy.loginfo("Wait for result from place object action server.")
         if not self.place_object_action_client.wait_for_result(timeout=rospy.Duration(50.0)):
