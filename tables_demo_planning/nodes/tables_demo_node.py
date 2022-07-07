@@ -170,6 +170,7 @@ class TablesDemoRobot(Robot):
 
 class TablesDemo(Domain):
     DEMO_ITEMS = (Item.box, Item.multimeter)
+    RETRIES_BEFORE_ABORTION = 2
 
     def __init__(self) -> None:
         super().__init__(TablesDemoRobot(self))
@@ -360,7 +361,7 @@ class TablesDemo(Domain):
 
         visualization = SubPlanVisualization()
         executed_actions: Set[str] = set()
-        abort_after_failure_count = 3
+        retries_before_abortion = self.RETRIES_BEFORE_ABORTION
         # Solve overall problem.
         self.print_believed_item_locations()
         self.set_initial_values(self.problem)
@@ -473,17 +474,17 @@ class TablesDemo(Domain):
                 if result is not None:
                     if result:
                         visualization.succeed(action_name)
-                        abort_after_failure_count = 3
+                        retries_before_abortion = self.RETRIES_BEFORE_ABORTION
                     else:
                         visualization.fail(action_name)
                         self.espeak_pub.publish("Action failed.")
                         # Note: This will also fail if two different failures occur successively.
-                        if abort_after_failure_count <= 0:
+                        if retries_before_abortion <= 0:
                             print("Task could not be completed even after retrying.")
                             self.espeak_pub.publish("Mission impossible!")
                             return
 
-                        abort_after_failure_count -= 1
+                        retries_before_abortion -= 1
                         self.print_believed_item_locations()
                         self.set_initial_values(self.problem)
                         actions = self.solve(self.problem)
