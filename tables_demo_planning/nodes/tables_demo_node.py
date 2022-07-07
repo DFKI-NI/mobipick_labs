@@ -66,8 +66,8 @@ class TablesDemoRobot(Robot):
         self.arm_pose = ArmPose.transport
         return True
 
-    def place_box(self, pose: Pose, location: Location) -> bool:
-        """At pose, place box down at location."""
+    def place_item(self, pose: Pose, location: Location, item: Item) -> bool:
+        """At pose, place item at location, then move arm to home pose."""
         rospy.loginfo("Waiting for place object action server.")
         if not self.place_object_action_client.wait_for_server(timeout=rospy.Duration(10.0)):
             rospy.logerr("Place Object action server not available!")
@@ -77,22 +77,22 @@ class TablesDemoRobot(Robot):
         self.perceive(location)
         self.place_object_goal.support_surface_name = location.name
         self.place_object_goal.observe_before_place = False
-        rospy.loginfo(f"Sending place box goal to place object action server: {self.place_object_goal}")
+        rospy.loginfo(f"Sending place '{item.value}' goal to place object action server: {self.place_object_goal}")
         self.place_object_action_client.send_goal(self.place_object_goal)
         rospy.loginfo("Wait for result from place object action server.")
         if not self.place_object_action_client.wait_for_result(timeout=rospy.Duration(50.0)):
-            rospy.logwarn(f"Place box at {location.name} FAILED due to timeout!")
+            rospy.logwarn(f"Place {item.value} at {location.name} FAILED due to timeout!")
             return False
 
         result = self.place_object_action_client.get_result()
         rospy.loginfo(f"The place object server is done with execution, result was: '{result}'")
         if not result or not result.success:
-            rospy.logwarn(f"Place box at {location.name} FAILED!")
+            rospy.logwarn(f"Place {item.value} at {location.name} FAILED!")
             return False
 
-        print(f"Successfully placed box.")
+        print(f"Successfully placed {item.value}.")
         self.item = Item.nothing
-        self.domain.believed_item_locations[Item.box] = location
+        self.domain.believed_item_locations[item] = location
         self.arm.move("home")
         self.arm_pose = ArmPose.home
         return True
@@ -211,18 +211,18 @@ class TablesDemo(Domain):
             self.pick_item.add_effect(self.robot_arm_at(robot, arm_pose), arm_pose == self.arm_pose_transport)
         self.pick_item.add_effect(self.believe_item_at(item, location), False)
         self.pick_item.add_effect(self.believe_item_at(item, self.on_robot), True)
-        self.place_box, (robot, pose, location) = self.create_action(TablesDemoRobot, TablesDemoRobot.place_box)
-        self.place_box.add_precondition(self.robot_at(robot, pose))
-        self.place_box.add_precondition(self.robot_arm_at(robot, self.arm_pose_transport))
-        self.place_box.add_precondition(self.robot_has(robot, self.box))
-        self.place_box.add_precondition(self.believe_item_at(self.box, self.on_robot))
-        self.place_box.add_precondition(self.pose_at(pose, location))
-        self.place_box.add_effect(self.robot_has(robot, self.box), False)
-        self.place_box.add_effect(self.robot_has(robot, self.nothing), True)
-        self.place_box.add_effect(self.robot_arm_at(robot, self.arm_pose_transport), False)
-        self.place_box.add_effect(self.robot_arm_at(robot, self.arm_pose_home), True)
-        self.place_box.add_effect(self.believe_item_at(self.box, self.on_robot), False)
-        self.place_box.add_effect(self.believe_item_at(self.box, location), True)
+        self.place_item, (robot, pose, location, item) = self.create_action(TablesDemoRobot, TablesDemoRobot.place_item)
+        self.place_item.add_precondition(self.robot_at(robot, pose))
+        self.place_item.add_precondition(self.robot_arm_at(robot, self.arm_pose_transport))
+        self.place_item.add_precondition(self.robot_has(robot, item))
+        self.place_item.add_precondition(self.believe_item_at(item, self.on_robot))
+        self.place_item.add_precondition(self.pose_at(pose, location))
+        self.place_item.add_effect(self.robot_has(robot, item), False)
+        self.place_item.add_effect(self.robot_has(robot, self.nothing), True)
+        self.place_item.add_effect(self.robot_arm_at(robot, self.arm_pose_transport), False)
+        self.place_item.add_effect(self.robot_arm_at(robot, self.arm_pose_home), True)
+        self.place_item.add_effect(self.believe_item_at(item, self.on_robot), False)
+        self.place_item.add_effect(self.believe_item_at(item, location), True)
         self.store_item, (robot, pose, location, item) = self.create_action(TablesDemoRobot, TablesDemoRobot.store_item)
         self.store_item.add_precondition(self.robot_at(robot, pose))
         self.store_item.add_precondition(self.robot_arm_at(robot, self.arm_pose_transport))
@@ -292,7 +292,7 @@ class TablesDemo(Domain):
                 self.move_base_with_item,
                 self.move_arm,
                 self.pick_item,
-                self.place_box,
+                self.place_item,
                 self.store_item,
                 self.search_tool,
                 self.search_box,
@@ -320,7 +320,7 @@ class TablesDemo(Domain):
         self.method_labels.update(
             {
                 self.pick_item: lambda parameters: f"Pick up {parameters[-1]}",
-                self.place_box: lambda _: "Place box on table",
+                self.place_item: lambda parameters: f"Place {parameters[-1]} onto table",
                 self.store_item: lambda parameters: f"Place {parameters[-1]} into box",
                 self.search_at: lambda parameters: f"Search at {parameters[-1]}",
                 self.search_tool: lambda parameters: f"Search tables for {parameters[-1]}",
@@ -390,7 +390,7 @@ class TablesDemo(Domain):
             print(f"- {item.name}:", self.believed_item_locations.get(item, Location.anywhere).name)
 
     def run(self) -> None:
-        print(f"Scenario: Mobipick shall bring all items inside the box to {self.target_table}.")
+        print(f"Scenario: Mobipick shall bring all items to {self.target_table}.")
 
         visualization = SubPlanVisualization()
         executed_actions: Set[str] = set()
