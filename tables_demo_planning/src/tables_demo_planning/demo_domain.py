@@ -190,8 +190,8 @@ class Domain(Bridge):
 
         # Create visualization labels for actions as functions of their parameters.
         self.method_labels: Dict[InstantaneousAction, Callable[[Sequence[str]], str]] = {
-            self.move_base: lambda parameters: f"Move to {parameters[-1]} pose",
-            self.move_base_with_item: lambda parameters: f"Transport {parameters[1]} to {parameters[-1]} pose",
+            self.move_base: lambda parameters: f"Move to {parameters[-1]}",
+            self.move_base_with_item: lambda parameters: f"Transport {parameters[1]} to {parameters[-1]}",
             self.move_arm: lambda parameters: f"Move arm to its {parameters[-1]} pose",
         }
         self.parameter_labels: Dict[Object, str] = {

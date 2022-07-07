@@ -303,7 +303,7 @@ class TablesDemo(Domain):
             }
         )
 
-        self.espeak_topic = rospy.Publisher("/espeak_node/speak_line", String, queue_size=1)
+        self.espeak_pub = rospy.Publisher("/espeak_node/speak_line", String, queue_size=1)
 
     def set_initial_values(self, problem: Problem) -> None:
         """Set initial values for UP problem based on the fluents used and the current state."""
@@ -396,7 +396,7 @@ class TablesDemo(Domain):
                         break
 
                 visualization.execute(action_name)
-                self.espeak_topic.publish(self.label(up_action))
+                self.espeak_pub.publish(self.label(up_action))
 
                 # Execute action.
                 result = method(*parameters)
@@ -439,6 +439,7 @@ class TablesDemo(Domain):
                             subaction_name = f"{len(executed_actions)}{chr(subaction_execution_count + 97)} {self.label(up_subaction)}"
                             print(up_subaction)
                             visualization.execute(subaction_name)
+                            self.espeak_pub.publish(self.label(up_subaction))
                             # Execute search action.
                             result = submethod(*subparameters)
                             subaction_execution_count += 1
@@ -457,6 +458,7 @@ class TablesDemo(Domain):
                                     elif self.newly_perceived_item_locations:
                                         print("- Found another item, search ABORTED.")
                                         visualization.fail(subaction_name)
+                                        self.espeak_pub.publish("Found another item. Replanning.")
                                         # Set result to False to trigger replanning.
                                         result = False
                                         break
@@ -474,9 +476,11 @@ class TablesDemo(Domain):
                         abort_after_failure_count = 3
                     else:
                         visualization.fail(action_name)
+                        self.espeak_pub.publish("Action failed.")
                         # Note: This will also fail if two different failures occur successively.
                         if abort_after_failure_count <= 0:
                             print("Task could not be completed even after retrying.")
+                            self.espeak_pub.publish("Mission impossible!")
                             return
 
                         abort_after_failure_count -= 1
@@ -487,7 +491,8 @@ class TablesDemo(Domain):
                 else:
                     rospy.logwarn(f"Executing '{up_action}' did not return a result.")
             else:
-                print("Task complete.")
+                print("Demo complete.")
+                self.espeak_pub.publish("Demo complete.")
                 break
 
 
