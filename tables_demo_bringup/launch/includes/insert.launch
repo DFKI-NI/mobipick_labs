@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<launch>
+
+  <node pkg="grasplan" type="insert.py" name="insert_object_node" output="screen" ns="mobipick" >
+    <param name="place_pose_selector_activate_srv_name" type="string" value="/place_pose_selector_node/pose_selector_activate" />
+    <param name="place_pose_selector_clear_srv_name" type="string" value="/place_pose_selector_node/pose_selector_clear" />
+    <param name="pick_pose_selector_activate_srv_name" type="string" value="/pick_pose_selector_node/pose_selector_activate" />
+    <param name="pick_pose_selector_class_query_srv_name" type="string" value="/pick_pose_selector_node/pose_selector_class_query" />
+    <param name="pick_pose_selector_get_all_poses_srv_name" type="string" value="/pick_pose_selector_node/pose_selector_get_all" />
+    <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/insert_params.yaml" command="load" />
+  </node>
+
+</launch>
