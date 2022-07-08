@@ -100,7 +100,6 @@ class TablesDemoRobot(Robot):
     def search_at(self, pose: Pose, location: Location) -> bool:
         """At pose, search for item_search at location."""
         self.domain.search_location = location
-        self.domain.searched_locations.add(location)
         item_locations = self.perceive(location)
         item = self.domain.item_search
         assert item
@@ -172,6 +171,7 @@ class TablesDemoRobot(Robot):
                 del self.domain.believed_item_locations[check_item]
         # Add all currently perceived items at location.
         self.domain.believed_item_locations.update(perceived_item_locations)
+        self.domain.searched_locations.add(location)
         self.domain.print_believed_item_locations()
         return perceived_item_locations
 
