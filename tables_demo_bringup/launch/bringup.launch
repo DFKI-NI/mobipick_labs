@@ -53,4 +53,7 @@
     <arg name="objects_of_interest" value="$(arg objects_of_interest)" />
   </include>
 
+  <!-- ::::: Insert object ::::: -->
+  <include file="$(find tables_demo_bringup)/launch/includes/insert.launch"/>
+
 </launch>
