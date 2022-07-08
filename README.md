@@ -74,6 +74,14 @@ Pick
 rosrun grasplan pick_obj_test_action_client __ns:=mobipick power_drill_with_grip table_1
 ```
 
+Optionally you can specify a list of objects to ignore/delete from planning scene. This will allow e.g. to pick
+a box with objects inside it. To run do:
+
+```bash
+rosrun grasplan pick_obj_test_action_client __ns:=mobipick power_drill_with_grip table_1 object_to_ignore_1 object_to_ignore_2 ...
+rosrun grasplan pick_obj_test_action_client __ns:=mobipick klt table_1 multimeter_1
+```
+
 Place
 ```bash
 rosrun grasplan place_obj_test_action_client __ns:=mobipick table_3 true
