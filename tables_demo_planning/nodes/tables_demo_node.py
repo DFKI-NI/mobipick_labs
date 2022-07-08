@@ -6,7 +6,14 @@ import actionlib
 from std_srvs.srv import Empty, SetBool
 from std_msgs.msg import String
 from geometry_msgs.msg import Pose
-from pbr_msgs.msg import PickObjectAction, PickObjectGoal, PlaceObjectAction, PlaceObjectGoal
+from pbr_msgs.msg import (
+    InsertObjectAction,
+    InsertObjectGoal,
+    PickObjectAction,
+    PickObjectGoal,
+    PlaceObjectAction,
+    PlaceObjectGoal,
+)
 from unified_planning.model.problem import Problem
 from unified_planning.shortcuts import And, Equals, Not, Or
 from symbolic_fact_generation import on_fact_generator
@@ -29,6 +36,8 @@ class TablesDemoRobot(Robot):
         self.pick_object_goal = PickObjectGoal()
         self.place_object_action_client = actionlib.SimpleActionClient("/mobipick/place_object", PlaceObjectAction)
         self.place_object_goal = PlaceObjectGoal()
+        self.insert_object_action_client = actionlib.SimpleActionClient("/mobipick/insert_object", InsertObjectAction)
+        self.insert_object_goal = InsertObjectGoal()
 
     def pick_item(self, pose: Pose, location: Location, item: Item) -> bool:
         """At pose, look for item at location, pick it up, then move arm to transport pose."""
@@ -98,10 +107,30 @@ class TablesDemoRobot(Robot):
         return True
 
     def store_item(self, pose: Pose, location: Location, item: Item) -> bool:
-        """At pose, store item into box at location."""
-        self.arm.move("above")
-        self.arm_pose = ArmPose.observe
-        self.open_gripper()
+        """At pose, store item into box at location, the move arm to home pose."""
+        rospy.loginfo("Waiting for insert object action server.")
+        if not self.insert_object_action_client.wait_for_server(timeout=rospy.Duration(10.0)):
+            rospy.logerr("Insert Object action server not available!")
+            return False
+
+        rospy.loginfo("Found insert object action server.")
+        self.perceive(location)
+        self.insert_object_goal.support_surface_name = Item.box.value
+        self.insert_object_goal.observe_before_insert = True
+        rospy.loginfo(f"Sending insert '{item.value}' goal to insert object action server: {self.insert_object_goal}")
+        self.insert_object_action_client.send_goal(self.insert_object_goal)
+        rospy.loginfo("Wait for result from insert object action server.")
+        if not self.insert_object_action_client.wait_for_result(timeout=rospy.Duration(50.0)):
+            rospy.logwarn(f"Insert {item.value} into box at {location.name} FAILED due to timeout!")
+            return False
+
+        result = self.insert_object_action_client.get_result()
+        rospy.loginfo(f"The insert object server is done with execution, result was: '{result}'")
+        if not result or not result.success:
+            rospy.logwarn(f"Insert {item.value} into box at {location.name} FAILED!")
+            return False
+
+        print(f"Successfully inserted {item.value} into box.")
         self.item = Item.nothing
         self.domain.believed_item_locations[item] = Location.in_box
         self.arm.move("home")
