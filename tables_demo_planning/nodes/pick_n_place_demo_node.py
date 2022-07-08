@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-from typing import Optional
+from typing import Optional, Set
 import rospy
 import unified_planning
 from unified_planning.model.problem import Problem
 from unified_planning.shortcuts import Not
 from tables_demo_planning.demo_domain import ArmPose, Domain, Item, Robot
-from tables_demo_planning.plan_visualization import PlanVisualization
+from tables_demo_planning.subplan_visualization import SubPlanVisualization
 
 """Execution of the pick & place demo."""
 
@@ -48,7 +48,7 @@ class PickAndPlace(Domain):
         super().__init__(PickAndPlaceRobot("mobipick"))
         self.pick, (robot,) = self.create_action(PickAndPlaceRobot, PickAndPlaceRobot.pick_power_drill)
         self.pick.add_precondition(self.robot_has(robot, self.nothing))
-        self.pick.add_precondition(self.robot_at(robot, self.base_pick_pose))
+        self.pick.add_precondition(self.robot_at(robot, self.base_table_2_pose))
         self.pick.add_precondition(self.robot_arm_at(robot, self.arm_pose_home))
         self.pick.add_effect(self.robot_has(robot, self.nothing), False)
         self.pick.add_effect(self.robot_has(robot, self.power_drill), True)
@@ -56,7 +56,7 @@ class PickAndPlace(Domain):
         self.pick.add_effect(self.robot_arm_at(robot, self.arm_pose_interaction), True)
         self.place, (robot,) = self.create_action(PickAndPlaceRobot, PickAndPlaceRobot.place_power_drill)
         self.place.add_precondition(self.robot_has(robot, self.power_drill))
-        self.place.add_precondition(self.robot_at(robot, self.base_place_pose))
+        self.place.add_precondition(self.robot_at(robot, self.base_table_3_pose))
         self.place.add_precondition(self.robot_arm_at(robot, self.arm_pose_transport))
         self.place.add_effect(self.robot_has(robot, self.power_drill), False)
         self.place.add_effect(self.robot_has(robot, self.nothing), True)
@@ -71,7 +71,7 @@ class PickAndPlace(Domain):
         for item in self.items:
             self.hand_over.add_effect(self.robot_has(robot, item), item == self.nothing)
         self.hand_over.add_effect(self.robot_offered(robot), True)
-        self.visualization: Optional[PlanVisualization] = None
+        self.visualization: Optional[SubPlanVisualization] = None
         self.method_labels.update(
             {
                 self.pick: lambda _: "Pick up power drill",
@@ -97,7 +97,8 @@ class PickAndPlace(Domain):
         problem.add_goal(self.robot_at(self.robot, self.base_home_pose))
 
     def run(self) -> None:
-        action_success_count = 0
+        self.visualization = SubPlanVisualization()
+        executed_actions: Set[str] = set()
         active = True
         while active:
             # Create problem based on current state.
@@ -115,26 +116,23 @@ class PickAndPlace(Domain):
             up_actions = [up_action for up_action, _ in actions]
             print('\n'.join(map(str, up_actions)))
             action_names = [
-                f"{action_success_count + index + 1} {self.label(up_action)}"
+                f"{len(executed_actions) + index + 1} {self.label(up_action)}"
                 for index, up_action in enumerate(up_actions)
             ]
-            if self.visualization:
-                self.visualization.set_actions(action_names)
-            else:
-                self.visualization = PlanVisualization(action_names)
+            self.visualization.set_actions(action_names, preserve_actions=executed_actions)
             # ... and execute.
             print("> Execution:")
             for up_action, (method, parameters) in actions:
-                action_name = f"{action_success_count + 1} {self.label(up_action)}"
+                action_name = f"{len(executed_actions) + 1} {self.label(up_action)}"
                 print(up_action)
                 self.visualization.execute(action_name)
                 if rospy.is_shutdown():
                     return
 
                 result = method(*parameters)
+                executed_actions.add(action_name)
                 if result is None or result:
                     self.visualization.succeed(action_name)
-                    action_success_count += 1
                 else:
                     print("-- Action failed! Need to replan.")
                     self.visualization.fail(action_name)
