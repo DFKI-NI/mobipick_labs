@@ -2,6 +2,7 @@
 from typing import Optional, Set
 import rospy
 import unified_planning
+from std_msgs.msg import String
 from unified_planning.model.problem import Problem
 from unified_planning.shortcuts import Not
 from tables_demo_planning.demo_domain import ArmPose, Domain, Item, Robot
@@ -79,6 +80,7 @@ class PickAndPlace(Domain):
                 self.hand_over: lambda _: "Hand over power drill to person",
             }
         )
+        self.espeak_pub = rospy.Publisher("/espeak_node/speak_line", String, queue_size=1)
 
     def initialize_problem(self) -> Problem:
         actions = [self.move_base, self.move_base_with_item, self.move_arm, self.pick, self.place]
@@ -126,16 +128,18 @@ class PickAndPlace(Domain):
                 action_name = f"{len(executed_actions) + 1} {self.label(up_action)}"
                 print(up_action)
                 self.visualization.execute(action_name)
+                self.espeak_pub.publish(self.label(up_action))
+                result = method(*parameters)
+                executed_actions.add(action_name)
                 if rospy.is_shutdown():
                     return
 
-                result = method(*parameters)
-                executed_actions.add(action_name)
                 if result is None or result:
                     self.visualization.succeed(action_name)
                 else:
                     print("-- Action failed! Need to replan.")
                     self.visualization.fail(action_name)
+                    self.espeak_pub.publish("Action failed.")
                     # Abort execution and loop to planning.
                     break
             else:
