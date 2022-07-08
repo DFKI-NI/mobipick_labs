@@ -53,7 +53,7 @@ Optionally for visualization:
 rosrun rviz rviz -d `rospack find tables_demo_bringup`/config/pick_n_place.rviz __ns:=mobipick
 ```
 
-Grasping objects demo (using grasplan)
+Grasping/Placing/Inserting objects demo (using grasplan)
 --------------------------------------
 
 Goal of the robot in this demo is to
@@ -66,10 +66,23 @@ Goal of the robot in this demo is to
 roscore
 roslaunch tables_demo_bringup demo_sim.launch robot_x:=12.43 robot_y:=2.21 robot_yaw:=1.5708
 rosrun rviz rviz -d `rospack find tables_demo_bringup`/config/pick_n_place.rviz __ns:=mobipick
+```
+
+Pick
+
+```bash
 rosrun grasplan pick_obj_test_action_client __ns:=mobipick power_drill_with_grip table_1
 ```
 
-Alternatively, power_drill_with_grip can be replaced with klt (which is also within reach with that pose).
+Place
+```bash
+rosrun grasplan place_obj_test_action_client __ns:=mobipick table_3 true
+```
+
+Insert
+```bash
+rosrun grasplan insert_obj_test_action_client __ns:=mobipick klt_3 true
+```
 
 If you want to grasp the other objects you can use the following robot pose.
 
@@ -77,8 +90,7 @@ If you want to grasp the other objects you can use the following robot pose.
 roslaunch tables_demo_bringup demo_sim.launch robot_x:=10.46 robot_y:=2.47 robot_yaw:=3.1415
 ```
 
-If you want to grasp another object after picking, you can use the rqt_joint_trajectory_controller to manually open the gripper,
-drop the current object and try another one.
+If you want to grasp another object after picking, please place the object first.
 
 
 Pick-and-place demo on the real robot
