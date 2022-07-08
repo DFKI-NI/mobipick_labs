@@ -472,9 +472,10 @@ class TablesDemo(Domain):
                                         break
                                     # Check if the search found another item.
                                     elif self.newly_perceived_item_locations:
+                                        self.newly_perceived_item_locations.clear()
                                         print("- Found another item, search ABORTED.")
                                         visualization.succeed(subaction_name)
-                                        self.espeak_pub.publish("Found another item. Replan.")
+                                        self.espeak_pub.publish("Found another item. Make a new plan.")
                                         # Set result to None to trigger replanning.
                                         result = None
                                         break
