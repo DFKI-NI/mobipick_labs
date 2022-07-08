@@ -100,6 +100,7 @@ class TablesDemoRobot(Robot):
     def search_at(self, pose: Pose, location: Location) -> bool:
         """At pose, search for item_search at location."""
         self.domain.search_location = location
+        self.domain.searched_locations.add(location)
         item_locations = self.perceive(location)
         item = self.domain.item_search
         assert item
@@ -108,14 +109,21 @@ class TablesDemoRobot(Robot):
             self.domain.item_search = None
         return True
 
+    def check_reset_search(self) -> None:
+        """Reset search if all tables have been searched."""
+        if all(table in self.domain.searched_locations for table in self.domain.TABLE_LOCATIONS):
+            self.domain.searched_locations.clear()
+
     def search_tool(self, item: Item) -> bool:
         """Initiate search for item."""
         self.domain.item_search = item
+        self.check_reset_search()
         return True
 
     def search_box(self) -> bool:
         """Initiate search for box."""
         self.domain.item_search = Item.box
+        self.check_reset_search()
         return True
 
     def conclude_tool_search(self, item: Item) -> bool:
@@ -170,6 +178,7 @@ class TablesDemoRobot(Robot):
 
 class TablesDemo(Domain):
     DEMO_ITEMS = (Item.box, Item.multimeter)
+    TABLE_LOCATIONS = (Location.table_1, Location.table_2, Location.table_3)
     RETRIES_BEFORE_ABORTION = 2
 
     def __init__(self) -> None:
@@ -177,6 +186,7 @@ class TablesDemo(Domain):
         self.believed_item_locations: Dict[Item, Location] = {}
         self.newly_perceived_item_locations: Dict[Item, Location] = {}
         self.item_search: Optional[Item] = None
+        self.searched_locations: Set[Location] = set()
         self.search_location = Location.anywhere
         self.target_location = Location.table_2
         self.target_table = self.objects[self.target_location.name]
@@ -319,6 +329,11 @@ class TablesDemo(Domain):
                         ),
                         location == self.believed_item_locations.get(item, Location.anywhere),
                     )
+        if self.searched_at in problem.fluents:
+            for location in Location:
+                problem.set_initial_value(
+                    self.searched_at(self.objects[location.name]), location in self.searched_locations
+                )
 
     def set_goals(self) -> None:
         """Set the goals for the overall demo."""
@@ -347,7 +362,7 @@ class TablesDemo(Domain):
         if location not in (Location.tool_search_location, Location.box_search_location):
             return location
 
-        assert self.search_location in (Location.table_1, Location.table_2, Location.table_3)
+        assert self.search_location in self.TABLE_LOCATIONS
         return self.search_location
 
     def print_believed_item_locations(self) -> None:
