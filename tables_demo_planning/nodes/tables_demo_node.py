@@ -55,6 +55,11 @@ class TablesDemoRobot(Robot):
 
         self.pick_object_goal.object_name = item.value
         self.pick_object_goal.support_surface_name = location.name
+        self.pick_object_goal.ignore_object_list = [
+            item.value
+            for item in self.domain.DEMO_ITEMS
+            if self.domain.believed_item_locations.get(item) == Location.in_box
+        ]
         rospy.loginfo(f"Sending pick '{item.value}' goal to pick object action server: {self.pick_object_goal}")
         self.pick_object_action_client.send_goal(self.pick_object_goal)
         rospy.loginfo("Wait for result from pick object action server.")
@@ -83,9 +88,14 @@ class TablesDemoRobot(Robot):
             return False
 
         rospy.loginfo("Found place object action server.")
-        self.perceive(location)
+        observe_before_place = self.domain.believed_item_locations.get(Item.box) != Location.on_robot or all(
+            self.domain.believed_item_locations.get(check_item) != Location.in_box
+            for check_item in self.domain.DEMO_ITEMS
+        )
+        if observe_before_place:
+            self.perceive(location)
         self.place_object_goal.support_surface_name = location.name
-        self.place_object_goal.observe_before_place = False
+        self.place_object_goal.observe_before_place = observe_before_place
         rospy.loginfo(f"Sending place '{item.value}' goal to place object action server: {self.place_object_goal}")
         self.place_object_action_client.send_goal(self.place_object_goal)
         rospy.loginfo("Wait for result from place object action server.")
@@ -189,13 +199,28 @@ class TablesDemoRobot(Robot):
         facts = on_fact_generator.get_current_facts()
         self.activate_pose_selector(False)
         perceived_item_locations: Dict[Item, Location] = {}
+        # Perceive facts for items on table location.
         for fact in facts:
             if fact.name == "on":
-                item_name, table_name = fact.values
-                rospy.loginfo(f"{item_name} on {table_name} returned by pose_selector and fact_generator.")
-                if item_name in [item.value for item in self.domain.DEMO_ITEMS] and table_name == location.name:
-                    rospy.loginfo(f"{item_name} is perceived as on {table_name}.")
-                    perceived_item_locations[Item(item_name)] = Location(table_name)
+                fact_item_name, fact_location_name = fact.values
+                rospy.loginfo(f"{fact_item_name} on {fact_location_name} returned by pose_selector and fact_generator.")
+                if (
+                    fact_item_name in [item.value for item in self.domain.DEMO_ITEMS]
+                    and fact_location_name == location.name
+                ):
+                    rospy.loginfo(f"{fact_item_name} is perceived as on {fact_location_name}.")
+                    perceived_item_locations[Item(fact_item_name)] = Location(fact_location_name)
+        # Also perceive facts for items in box if it is perceived on table location.
+        for fact in facts:
+            if fact.name == "on":
+                fact_item_name, fact_location_name = fact.values
+                if (
+                    fact_item_name in [item.value for item in self.domain.DEMO_ITEMS]
+                    and fact_location_name == Item.box.value
+                    and perceived_item_locations.get(Item.box) == Location(fact_location_name)
+                ):
+                    rospy.loginfo(f"{fact_item_name} is perceived as on {fact_location_name}.")
+                    perceived_item_locations[Item(fact_item_name)] = Location(fact_location_name)
         # Determine newly perceived items and their locations.
         self.domain.newly_perceived_item_locations.clear()
         for perceived_item, perceived_location in perceived_item_locations.items():
