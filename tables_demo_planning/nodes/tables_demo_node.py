@@ -54,6 +54,10 @@ class TablesDemoRobot(Robot):
             rospy.logwarn(f"Cannot find {item.value} at {location.name}. Pick up FAILED!")
             return False
 
+        if perceived_item_locations[item] != location:
+            rospy.logwarn(f"Found {item.value} but not on {location.name}. Pick up FAILED!")
+            return False
+
         self.pick_object_goal.object_name = item.value
         self.pick_object_goal.support_surface_name = location.name
         self.pick_object_goal.ignore_object_list = [
