@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from typing import Dict, Optional, Set
+from collections import defaultdict
 import unified_planning
 import rospy
 import actionlib
@@ -465,6 +466,7 @@ class TablesDemo(Domain):
         visualization = SubPlanVisualization()
         executed_actions: Set[str] = set()
         retries_before_abortion = self.RETRIES_BEFORE_ABORTION
+        error_counts: Dict[str, int] = defaultdict(int)
         # Solve overall problem.
         self.print_believed_item_locations()
         self.set_initial_values(self.problem)
@@ -582,8 +584,9 @@ class TablesDemo(Domain):
                     else:
                         visualization.fail(action_name)
                         self.espeak_pub.publish("Action failed.")
+                        error_counts[self.label(up_action)] += 1
                         # Note: This will also fail if two different failures occur successively.
-                        if retries_before_abortion <= 0:
+                        if retries_before_abortion <= 0 or any(count >= 3 for count in error_counts.values()):
                             print("Task could not be completed even after retrying.")
                             self.espeak_pub.publish("Mission impossible!")
                             return
