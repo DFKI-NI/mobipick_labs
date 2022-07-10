@@ -6,7 +6,14 @@ import actionlib
 from std_srvs.srv import Empty, SetBool
 from std_msgs.msg import String
 from geometry_msgs.msg import Pose
-from pbr_msgs.msg import PickObjectAction, PickObjectGoal, PlaceObjectAction, PlaceObjectGoal
+from pbr_msgs.msg import (
+    InsertObjectAction,
+    InsertObjectGoal,
+    PickObjectAction,
+    PickObjectGoal,
+    PlaceObjectAction,
+    PlaceObjectGoal,
+)
 from unified_planning.model.problem import Problem
 from unified_planning.shortcuts import And, Equals, Not, Or
 from symbolic_fact_generation import on_fact_generator
@@ -29,6 +36,8 @@ class TablesDemoRobot(Robot):
         self.pick_object_goal = PickObjectGoal()
         self.place_object_action_client = actionlib.SimpleActionClient("/mobipick/place_object", PlaceObjectAction)
         self.place_object_goal = PlaceObjectGoal()
+        self.insert_object_action_client = actionlib.SimpleActionClient("/mobipick/insert_object", InsertObjectAction)
+        self.insert_object_goal = InsertObjectGoal()
 
     def pick_item(self, pose: Pose, location: Location, item: Item) -> bool:
         """At pose, look for item at location, pick it up, then move arm to transport pose."""
@@ -46,6 +55,11 @@ class TablesDemoRobot(Robot):
 
         self.pick_object_goal.object_name = item.value
         self.pick_object_goal.support_surface_name = location.name
+        self.pick_object_goal.ignore_object_list = [
+            item.value
+            for item in self.domain.DEMO_ITEMS
+            if self.domain.believed_item_locations.get(item) == Location.in_box
+        ]
         rospy.loginfo(f"Sending pick '{item.value}' goal to pick object action server: {self.pick_object_goal}")
         self.pick_object_action_client.send_goal(self.pick_object_goal)
         rospy.loginfo("Wait for result from pick object action server.")
@@ -74,9 +88,14 @@ class TablesDemoRobot(Robot):
             return False
 
         rospy.loginfo("Found place object action server.")
-        self.perceive(location)
+        observe_before_place = self.domain.believed_item_locations.get(Item.box) != Location.on_robot or all(
+            self.domain.believed_item_locations.get(check_item) != Location.in_box
+            for check_item in self.domain.DEMO_ITEMS
+        )
+        if observe_before_place:
+            self.perceive(location)
         self.place_object_goal.support_surface_name = location.name
-        self.place_object_goal.observe_before_place = False
+        self.place_object_goal.observe_before_place = observe_before_place
         rospy.loginfo(f"Sending place '{item.value}' goal to place object action server: {self.place_object_goal}")
         self.place_object_action_client.send_goal(self.place_object_goal)
         rospy.loginfo("Wait for result from place object action server.")
@@ -93,6 +112,37 @@ class TablesDemoRobot(Robot):
         print(f"Successfully placed {item.value}.")
         self.item = Item.nothing
         self.domain.believed_item_locations[item] = location
+        self.arm.move("home")
+        self.arm_pose = ArmPose.home
+        return True
+
+    def store_item(self, pose: Pose, location: Location, item: Item) -> bool:
+        """At pose, store item into box at location, the move arm to home pose."""
+        rospy.loginfo("Waiting for insert object action server.")
+        if not self.insert_object_action_client.wait_for_server(timeout=rospy.Duration(10.0)):
+            rospy.logerr("Insert Object action server not available!")
+            return False
+
+        rospy.loginfo("Found insert object action server.")
+        self.perceive(location)
+        self.insert_object_goal.support_surface_name = Item.box.value
+        self.insert_object_goal.observe_before_insert = True
+        rospy.loginfo(f"Sending insert '{item.value}' goal to insert object action server: {self.insert_object_goal}")
+        self.insert_object_action_client.send_goal(self.insert_object_goal)
+        rospy.loginfo("Wait for result from insert object action server.")
+        if not self.insert_object_action_client.wait_for_result(timeout=rospy.Duration(50.0)):
+            rospy.logwarn(f"Insert {item.value} into box at {location.name} FAILED due to timeout!")
+            return False
+
+        result = self.insert_object_action_client.get_result()
+        rospy.loginfo(f"The insert object server is done with execution, result was: '{result}'")
+        if not result or not result.success:
+            rospy.logwarn(f"Insert {item.value} into box at {location.name} FAILED!")
+            return False
+
+        print(f"Successfully inserted {item.value} into box.")
+        self.item = Item.nothing
+        self.domain.believed_item_locations[item] = Location.in_box
         self.arm.move("home")
         self.arm_pose = ArmPose.home
         return True
@@ -149,13 +199,28 @@ class TablesDemoRobot(Robot):
         facts = on_fact_generator.get_current_facts()
         self.activate_pose_selector(False)
         perceived_item_locations: Dict[Item, Location] = {}
+        # Perceive facts for items on table location.
         for fact in facts:
             if fact.name == "on":
-                item_name, table_name = fact.values
-                rospy.loginfo(f"{item_name} on {table_name} returned by pose_selector and fact_generator.")
-                if item_name in [item.value for item in self.domain.DEMO_ITEMS] and table_name == location.name:
-                    rospy.loginfo(f"{item_name} is perceived as on {table_name}.")
-                    perceived_item_locations[Item(item_name)] = Location(table_name)
+                fact_item_name, fact_location_name = fact.values
+                rospy.loginfo(f"{fact_item_name} on {fact_location_name} returned by pose_selector and fact_generator.")
+                if (
+                    fact_item_name in [item.value for item in self.domain.DEMO_ITEMS]
+                    and fact_location_name == location.name
+                ):
+                    rospy.loginfo(f"{fact_item_name} is perceived as on {fact_location_name}.")
+                    perceived_item_locations[Item(fact_item_name)] = Location(fact_location_name)
+        # Also perceive facts for items in box if it is perceived on table location.
+        for fact in facts:
+            if fact.name == "on":
+                fact_item_name, fact_location_name = fact.values
+                if (
+                    fact_item_name in [item.value for item in self.domain.DEMO_ITEMS]
+                    and fact_location_name == Item.box.value
+                    and perceived_item_locations.get(Item.box) == Location(fact_location_name)
+                ):
+                    rospy.loginfo(f"{fact_item_name} is perceived as on {fact_location_name}.")
+                    perceived_item_locations[Item(fact_item_name)] = Location(fact_location_name)
         # Determine newly perceived items and their locations.
         self.domain.newly_perceived_item_locations.clear()
         for perceived_item, perceived_location in perceived_item_locations.items():
@@ -223,6 +288,20 @@ class TablesDemo(Domain):
         self.place_item.add_effect(self.robot_arm_at(robot, self.arm_pose_home), True)
         self.place_item.add_effect(self.believe_item_at(item, self.on_robot), False)
         self.place_item.add_effect(self.believe_item_at(item, location), True)
+        self.store_item, (robot, pose, location, item) = self.create_action(TablesDemoRobot, TablesDemoRobot.store_item)
+        self.store_item.add_precondition(self.robot_at(robot, pose))
+        self.store_item.add_precondition(self.robot_arm_at(robot, self.arm_pose_transport))
+        self.store_item.add_precondition(self.robot_has(robot, item))
+        self.store_item.add_precondition(self.believe_item_at(item, self.on_robot))
+        self.store_item.add_precondition(self.believe_item_at(self.box, location))
+        self.store_item.add_precondition(self.pose_at(pose, location))
+        self.store_item.add_precondition(Not(Equals(location, self.anywhere)))
+        self.store_item.add_effect(self.robot_has(robot, item), False)
+        self.store_item.add_effect(self.robot_has(robot, self.nothing), True)
+        self.store_item.add_effect(self.robot_arm_at(robot, self.arm_pose_transport), False)
+        self.store_item.add_effect(self.robot_arm_at(robot, self.arm_pose_home), True)
+        self.store_item.add_effect(self.believe_item_at(item, self.on_robot), False)
+        self.store_item.add_effect(self.believe_item_at(item, self.in_box), True)
         self.search_at, (robot, pose, location) = self.create_action(TablesDemoRobot, TablesDemoRobot.search_at)
         self.search_at.add_precondition(self.robot_at(robot, pose))
         self.search_at.add_precondition(
@@ -279,6 +358,7 @@ class TablesDemo(Domain):
                 self.move_arm,
                 self.pick_item,
                 self.place_item,
+                self.store_item,
                 self.search_tool,
                 self.search_box,
             ),
@@ -306,6 +386,7 @@ class TablesDemo(Domain):
             {
                 self.pick_item: lambda parameters: f"Pick up {parameters[-1]}",
                 self.place_item: lambda parameters: f"Place {parameters[-1]} onto table",
+                self.store_item: lambda parameters: f"Place {parameters[-1]} into box",
                 self.search_at: lambda parameters: f"Search at {parameters[-1]}",
                 self.search_tool: lambda parameters: f"Search tables for {parameters[-1]}",
                 self.search_box: lambda _: "Search tables for the box",
@@ -339,13 +420,20 @@ class TablesDemo(Domain):
         """Set the goals for the overall demo."""
         self.problem.clear_goals()
         if Item.box in self.DEMO_ITEMS:
+            if Item.multimeter in self.DEMO_ITEMS:
+                self.problem.add_goal(self.believe_item_at(self.multimeter, self.in_box))
+            if Item.relay in self.DEMO_ITEMS:
+                self.problem.add_goal(self.believe_item_at(self.relay, self.in_box))
+            if Item.screwdriver in self.DEMO_ITEMS:
+                self.problem.add_goal(self.believe_item_at(self.screwdriver, self.in_box))
             self.problem.add_goal(self.believe_item_at(self.box, self.target_table))
-        if Item.multimeter in self.DEMO_ITEMS:
-            self.problem.add_goal(self.believe_item_at(self.multimeter, self.target_table))
-        if Item.relay in self.DEMO_ITEMS:
-            self.problem.add_goal(self.believe_item_at(self.relay, self.target_table))
-        if Item.screwdriver in self.DEMO_ITEMS:
-            self.problem.add_goal(self.believe_item_at(self.screwdriver, self.target_table))
+        else:
+            if Item.multimeter in self.DEMO_ITEMS:
+                self.problem.add_goal(self.believe_item_at(self.multimeter, self.target_table))
+            if Item.relay in self.DEMO_ITEMS:
+                self.problem.add_goal(self.believe_item_at(self.relay, self.target_table))
+            if Item.screwdriver in self.DEMO_ITEMS:
+                self.problem.add_goal(self.believe_item_at(self.screwdriver, self.target_table))
 
     def set_search_goals(self) -> None:
         """Set the goals for the item_search subproblem."""
