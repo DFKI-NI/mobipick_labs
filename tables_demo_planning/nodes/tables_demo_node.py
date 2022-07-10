@@ -209,7 +209,7 @@ class TablesDemoRobot(Robot):
                     and fact_location_name == location.name
                 ):
                     rospy.loginfo(f"{fact_item_name} is perceived as on {fact_location_name}.")
-                    perceived_item_locations[Item(fact_item_name)] = Location(fact_location_name)
+                    perceived_item_locations[Item(fact_item_name)] = location
         # Also perceive facts for items in box if it is perceived on table location.
         for fact in facts:
             if fact.name == "on":
@@ -217,10 +217,10 @@ class TablesDemoRobot(Robot):
                 if (
                     fact_item_name in [item.value for item in self.domain.DEMO_ITEMS]
                     and fact_location_name == Item.box.value
-                    and perceived_item_locations.get(Item.box) == Location(fact_location_name)
+                    and perceived_item_locations.get(Item.box) == location
                 ):
                     rospy.loginfo(f"{fact_item_name} is perceived as on {fact_location_name}.")
-                    perceived_item_locations[Item(fact_item_name)] = Location(fact_location_name)
+                    perceived_item_locations[Item(fact_item_name)] = Location.in_box
         # Determine newly perceived items and their locations.
         self.domain.newly_perceived_item_locations.clear()
         for perceived_item, perceived_location in perceived_item_locations.items():
