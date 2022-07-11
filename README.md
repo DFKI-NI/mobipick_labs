@@ -36,8 +36,20 @@ then:
 roslaunch mobipick_bringup mobipick_bringup_both.launch   # already part of the startup instructions
 roslaunch pbr_dope dope.launch
 roslaunch tables_demo_bringup bringup.launch
-rosrun tables_demo_planning tables_demo_node.py
 ```
+
+To start the full tables demo, then run:
+
+```bash
+rosrun tables_demo_planning tables_demo_node.py  # optional: <number of target table>, e.g., "4"; default: 2
+```
+
+To start the power drill pick&place demo, run:
+
+```bash
+rosrun tables_demo_planning pick_n_place_demo_node.py
+```
+
 
 Gazebo demo
 -----------
@@ -83,11 +95,13 @@ rosrun grasplan pick_obj_test_action_client __ns:=mobipick klt table_1 multimete
 ```
 
 Place
+
 ```bash
 rosrun grasplan place_obj_test_action_client __ns:=mobipick table_3 true
 ```
 
 Insert
+
 ```bash
 rosrun grasplan insert_obj_test_action_client __ns:=mobipick klt_3 true
 ```
