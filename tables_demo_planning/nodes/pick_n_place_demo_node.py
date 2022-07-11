@@ -101,6 +101,7 @@ class PickAndPlace(Domain):
     def run(self) -> None:
         self.visualization = SubPlanVisualization()
         executed_actions: Set[str] = set()
+        error_count = 0
         active = True
         while active:
             # Create problem based on current state.
@@ -113,7 +114,7 @@ class PickAndPlace(Domain):
             if not actions:
                 print("Execution ended because no plan could be found.")
                 self.visualization.add_node("Mission impossible", "red")
-                break
+                return
 
             print("> Plan:")
             up_actions = [up_action for up_action, _ in actions]
@@ -139,8 +140,15 @@ class PickAndPlace(Domain):
                     self.visualization.succeed(action_name)
                 else:
                     print("-- Action failed! Need to replan.")
+                    error_count += 1
                     self.visualization.fail(action_name)
                     self.espeak_pub.publish("Action failed.")
+                    if error_count >= 3:
+                        print("Execution ended after too many failures.")
+                        self.espeak_pub.publish("Mission impossible!")
+                        self.visualization.add_node("Mission impossible", "red")
+                        return
+
                     # Abort execution and loop to planning.
                     break
             else:
