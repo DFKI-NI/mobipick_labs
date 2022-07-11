@@ -112,6 +112,7 @@ class PickAndPlace(Domain):
             actions = self.solve(self.problem)
             if not actions:
                 print("Execution ended because no plan could be found.")
+                self.visualization.add_node("Mission impossible", "red")
                 break
 
             print("> Plan:")
@@ -144,7 +145,9 @@ class PickAndPlace(Domain):
                     break
             else:
                 active = False
-                print("Task complete.")
+                print("Demo complete.")
+                self.espeak_pub.publish("Demo complete.")
+                self.visualization.add_node("Demo complete", "green")
 
 
 if __name__ == '__main__':

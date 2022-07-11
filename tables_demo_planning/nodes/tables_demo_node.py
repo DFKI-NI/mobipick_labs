@@ -594,6 +594,7 @@ class TablesDemo(Domain):
                         if retries_before_abortion <= 0 or any(count >= 3 for count in error_counts.values()):
                             print("Task could not be completed even after retrying.")
                             self.espeak_pub.publish("Mission impossible!")
+                            visualization.add_node("Mission impossible", "red")
                             return
 
                         retries_before_abortion -= 1
@@ -613,6 +614,7 @@ class TablesDemo(Domain):
 
         print("Demo complete.")
         self.espeak_pub.publish("Demo complete.")
+        visualization.add_node("Demo complete", "green")
 
 
 if __name__ == '__main__':

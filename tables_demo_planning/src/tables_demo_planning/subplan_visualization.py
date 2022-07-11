@@ -94,3 +94,8 @@ class SubPlanVisualization:
         """Mark action as failed."""
         self.nodes[str(action)].node.set("fillcolor", "red")
         self.update()
+
+    def add_node(self, text: str, fillcolor: str) -> None:
+        node = Node(text, style="filled", fillcolor=fillcolor)
+        self.graph.add_node(node)
+        self.update()
