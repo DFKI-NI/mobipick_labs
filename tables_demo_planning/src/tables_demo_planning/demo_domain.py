@@ -82,8 +82,8 @@ class Robot(robot_api.Robot):
     def move_base(self, _: Pose, pose: Pose) -> bool:
         if self.base.move(pose) != 3:
             rospy.logerr(f"Move base to {pose} FAILED!")
-            # Note: Moving should not fail but if it occurs, it could spam errors, so sleep a bit.
-            time.sleep(3.0)
+            # Move to home pose whenever movement fails. Note: This is a drastic workaround.
+            self.base.move(Domain.BASE_HOME_POSE)
             return False
 
         self.pose = pose
@@ -113,6 +113,7 @@ class Domain(Bridge):
     BASE_TABLE_1_POSE = "base_table_1_pose"
     BASE_TABLE_2_POSE = "base_table_2_pose"
     BASE_TABLE_3_POSE = "base_table_3_pose"
+    BASE_HOME_POSE: Pose
 
     def __init__(self, robot: Robot) -> None:
         super().__init__()
@@ -134,6 +135,7 @@ class Domain(Bridge):
         config_path = f"{rospkg.RosPack().get_path('mobipick_pick_n_place')}/config/"
         filename = "moelk_tables_demo.yaml"
         self.api_poses = self.load_waypoints(os.path.join(config_path, filename))
+        Domain.BASE_HOME_POSE = self.api_poses[self.BASE_HOME_POSE_NAME]
         self.poses = self.create_objects(self.api_poses)
         self.base_home_pose = self.objects[self.BASE_HOME_POSE_NAME]
         self.base_handover_pose = self.objects[self.BASE_HANDOVER_POSE_NAME]
