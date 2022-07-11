@@ -1,0 +1,127 @@
+# a list of boxes to add to the planning scene
+#
+# map
+# +----> y                  +-------+
+# |                         |       |
+# |                         |       |
+# v                         |       |
+# x                         |table_3|
+#                           |       |
+#                           |       |
+#                           |       |
+#                           +-------+
+#
+# +-------+                 +-------+
+# |       |                 |       |
+# |       |                 |       |
+# |       |                 |       |
+# |table_4|                 |table_2|
+# |       |                 |       |
+# |       |                 |       |
+# |       |                 |       |
+# +-------+                 +-------+
+#
+#          +--------------+
+#          |              |
+#          |    table_1   |
+#          |              |
+#          +--------------+
+
+planning_scene_boxes:
+planning_scene_boxes:
+  - scene_name: 'table_1'
+    frame_id: 'map'
+    box_x_dimension: 0.70
+    box_y_dimension: 1.4
+    box_z_dimension: 0.72
+    box_position_x: 5.4
+    box_position_y: 3.2
+    box_position_z: 0.36
+    box_orientation_x: 0.0
+    box_orientation_y: 0.0
+    box_orientation_z: 0.0
+    box_orientation_w: 1.0
+  - scene_name: 'table_2'
+    frame_id: 'map'
+    box_x_dimension: 1.40
+    box_y_dimension: 0.70
+    box_z_dimension: 0.72
+    box_position_x: 4.28
+    box_position_y: 4.62
+    box_position_z: 0.36
+    box_orientation_x: 0.0
+    box_orientation_y: 0.0
+    box_orientation_z: 0.0
+    box_orientation_w: 1.0
+  - scene_name: 'table_3'
+    frame_id: 'map'
+    box_x_dimension: 1.40
+    box_y_dimension: 0.70
+    box_z_dimension: 0.72
+    box_position_x: 2.88
+    box_position_y: 4.62
+    box_position_z: 0.36
+    box_orientation_x: 0.0
+    box_orientation_y: 0.0
+    box_orientation_z: 1.0
+    box_orientation_w: 0.0
+  - scene_name: 'table_4'
+    frame_id: 'map'
+    box_x_dimension: 1.25
+    box_y_dimension: 0.8
+    box_z_dimension: 0.72
+    box_position_x: 4.475
+    box_position_y: 1.42
+    box_position_z: 0.36
+    box_orientation_x: 0.0
+    box_orientation_y: 0.0
+    box_orientation_z: 0.0
+    box_orientation_w: 1.0
+  - scene_name: 'side_wall_3'
+    frame_id: 'map'
+    box_x_dimension: 0.3
+    box_y_dimension: 1.5
+    box_z_dimension: 2.0
+    box_position_x: 2.2
+    box_position_y: 4.0
+    box_position_z: 1.0
+    box_orientation_x: 0.0
+    box_orientation_y: 0.0
+    box_orientation_z: 0.0
+    box_orientation_w: 1.0
+  - scene_name: 'door_left_table_4'
+    frame_id: 'map'
+    box_x_dimension: 0.39
+    box_y_dimension: 1.09
+    box_z_dimension: 2.0
+    box_position_x: 5.2
+    box_position_y: 1.42
+    box_position_z: 1.0
+    box_orientation_x: 0.0
+    box_orientation_y: 0.0
+    box_orientation_z: 0.99802695
+    box_orientation_w: 0.062787
+  - scene_name: 'door_right_table_4'
+    frame_id: 'map'
+    box_x_dimension: 0.3999
+    box_y_dimension: 1.0998
+    box_z_dimension: 2.0
+    box_position_x: 3.6
+    box_position_y: 1.4
+    box_position_z: 1.0
+    box_orientation_x: 0.0
+    box_orientation_y: 0.0
+    box_orientation_z: 0.09410853
+    box_orientation_w: 0.99556194
+  - scene_name: 'diagonal_virtual_wall_operator'
+    frame_id: 'map'
+    box_x_dimension: 0.05
+    box_y_dimension: 2.15
+    box_z_dimension: 2.0
+    box_position_x: 3.0
+    box_position_y: 2.8
+    box_position_z: 1.0
+    box_orientation_x: 0.0
+    box_orientation_y: 0.0
+    box_orientation_z: 0.37555914
+    box_orientation_w: 0.92679843
