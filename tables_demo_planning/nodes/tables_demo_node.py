@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from typing import Dict, Optional, Set
 from collections import defaultdict
+import sys
 import unified_planning
 import rospy
 import actionlib
@@ -251,14 +252,14 @@ class TablesDemo(Domain):
     TABLE_LOCATIONS = (Location.table_1, Location.table_2, Location.table_3)
     RETRIES_BEFORE_ABORTION = 2
 
-    def __init__(self) -> None:
+    def __init__(self, target_location: Location) -> None:
         super().__init__(TablesDemoRobot(self))
         self.believed_item_locations: Dict[Item, Location] = {}
         self.newly_perceived_item_locations: Dict[Item, Location] = {}
         self.item_search: Optional[Item] = None
         self.searched_locations: Set[Location] = set()
         self.search_location = Location.anywhere
-        self.target_location = Location.table_2
+        self.target_location = target_location
         self.target_table = self.objects[self.target_location.name]
 
         self.pick_item, (robot, pose, location, item) = self.create_action(TablesDemoRobot, TablesDemoRobot.pick_item)
@@ -617,6 +618,13 @@ class TablesDemo(Domain):
 if __name__ == '__main__':
     unified_planning.shortcuts.get_env().credits_stream = None
     try:
-        TablesDemo().run()
+        target_location = Location.table_2
+        if len(sys.argv) >= 2:
+            parameter = sys.argv[1]
+            if parameter in ("1", "table1", "table_1"):
+                target_location = Location.table_1
+            elif parameter in ("3", "table3", "table_3"):
+                target_location = Location.table_3
+        TablesDemo(target_location).run()
     except rospy.ROSInterruptException:
         pass
