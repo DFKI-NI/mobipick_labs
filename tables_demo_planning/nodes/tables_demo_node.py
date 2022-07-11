@@ -625,6 +625,8 @@ if __name__ == '__main__':
                 target_location = Location.table_1
             elif parameter in ("3", "table3", "table_3"):
                 target_location = Location.table_3
+            else:
+                rospy.logwarn(f"Unknown parameter '{parameter}', using default table.")
         TablesDemo(target_location).run()
     except rospy.ROSInterruptException:
         pass
