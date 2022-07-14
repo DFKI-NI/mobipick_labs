@@ -1,0 +1,17 @@
+<library path="src">
+  <class name="RqtTablesDemo" type="rqt_tables_demo.rqt_tables_demo.RqtTablesDemo" base_class_type="rqt_gui_py::Plugin">
+    <description>
+      rqt gui to easily control the mobipick tables demo.
+    </description>
+    <qtgui>
+      <group>
+        <label>Robot</label>
+        <icon type="theme">folder</icon>
+        <statustip>status tip text.</statustip>
+      </group>
+      <label>rqt_tables_demo!</label>
+      <icon type="theme">applications-other</icon>
+      <statustip>status tip text 2.</statustip>
+    </qtgui>
+  </class>
+</library>

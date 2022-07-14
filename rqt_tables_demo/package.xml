@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>rqt_tables_demo</name>
+  <version>0.0.1</version>
+  <description>rqt gui to easily control the mobipick tables demo</description>
+
+  <maintainer email="oscar.lima@dfki.de">Oscar Lima</maintainer>
+
+  <license>MIT</license>
+
+  <author email="oscar.lima@dfki.de">Oscar Lima</author> 
+
+  <build_export_depend>rqt_gui</build_export_depend>
+  <build_export_depend>rqt_gui_py</build_export_depend>
+
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>std_srvs</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>tf</exec_depend>
+  <exec_depend>moveit_msgs</exec_depend>
+  <exec_depend>moveit_commander</exec_depend>s
+  <exec_depend>rqt_gui</exec_depend>
+  <exec_depend>rqt_gui_py</exec_depend>
+  <exec_depend>pbr_msgs</exec_depend>
+  <exec_depend>actionlib</exec_depend>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <export>
+    <rqt_gui plugin="${prefix}/plugin.xml"/> 
+  </export>
+
+</package>
