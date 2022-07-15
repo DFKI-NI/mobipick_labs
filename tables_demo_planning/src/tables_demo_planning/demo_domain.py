@@ -172,20 +172,20 @@ class Domain(Bridge):
         self.box_search_location = self.objects[Location.box_search_location.name]
 
         # Create actions for planning based on class definitions.
-        self.move_base, (robot, x, y) = self.create_action(Robot, Robot.move_base)
+        self.move_base, (robot, x, y) = self.create_action(Robot.move_base)
         self.move_base.add_precondition(self.robot_at(robot, x))
         self.move_base.add_precondition(self.robot_has(robot, self.nothing))
         self.move_base.add_precondition(self.robot_arm_at(robot, self.arm_pose_home))
         self.move_base.add_effect(self.robot_at(robot, x), False)
         self.move_base.add_effect(self.robot_at(robot, y), True)
-        self.move_base_with_item, (robot, item, x, y) = self.create_action(Robot, Robot.move_base_with_item)
+        self.move_base_with_item, (robot, item, x, y) = self.create_action(Robot.move_base_with_item)
         self.move_base_with_item.add_precondition(self.robot_at(robot, x))
         self.move_base_with_item.add_precondition(self.robot_has(robot, item))
         self.move_base_with_item.add_precondition(Not(Equals(item, self.nothing)))
         self.move_base_with_item.add_precondition(self.robot_arm_at(robot, self.arm_pose_transport))
         self.move_base_with_item.add_effect(self.robot_at(robot, x), False)
         self.move_base_with_item.add_effect(self.robot_at(robot, y), True)
-        self.move_arm, (robot, x, y) = self.create_action(Robot, Robot.move_arm)
+        self.move_arm, (robot, x, y) = self.create_action(Robot.move_arm)
         self.move_arm.add_precondition(self.robot_arm_at(robot, x))
         self.move_arm.add_effect(self.robot_arm_at(robot, x), False)
         self.move_arm.add_effect(self.robot_arm_at(robot, y), True)
@@ -251,7 +251,7 @@ class Domain(Bridge):
         start_time = time.time()
         result = OneshotPlanner(problem_kind=problem.kind, optimality_guarantee='SOLVED_OPTIMALLY').solve(problem)
         rospy.loginfo(f"Result received from '{result.engine_name}' planner after {time.time() - start_time} seconds.")
-        return [(action, self.get_action(action)) for action in result.plan.actions] if result.plan else None
+        return [(action, self.get_executable_action(action)) for action in result.plan.actions] if result.plan else None
 
     def set_initial_values(self, problem: Problem) -> None:
         base_pose_name = self.api_robot.base.get_pose_name()

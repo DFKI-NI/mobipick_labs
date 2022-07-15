@@ -47,7 +47,7 @@ class PickAndPlaceRobot(Robot):
 class PickAndPlace(Domain):
     def __init__(self) -> None:
         super().__init__(PickAndPlaceRobot("mobipick"))
-        self.pick, (robot,) = self.create_action(PickAndPlaceRobot, PickAndPlaceRobot.pick_power_drill)
+        self.pick, (robot,) = self.create_action(PickAndPlaceRobot.pick_power_drill)
         self.pick.add_precondition(self.robot_has(robot, self.nothing))
         self.pick.add_precondition(self.robot_at(robot, self.base_table_2_pose))
         self.pick.add_precondition(self.robot_arm_at(robot, self.arm_pose_home))
@@ -55,7 +55,7 @@ class PickAndPlace(Domain):
         self.pick.add_effect(self.robot_has(robot, self.power_drill), True)
         self.pick.add_effect(self.robot_arm_at(robot, self.arm_pose_home), False)
         self.pick.add_effect(self.robot_arm_at(robot, self.arm_pose_interaction), True)
-        self.place, (robot,) = self.create_action(PickAndPlaceRobot, PickAndPlaceRobot.place_power_drill)
+        self.place, (robot,) = self.create_action(PickAndPlaceRobot.place_power_drill)
         self.place.add_precondition(self.robot_has(robot, self.power_drill))
         self.place.add_precondition(self.robot_at(robot, self.base_table_3_pose))
         self.place.add_precondition(self.robot_arm_at(robot, self.arm_pose_transport))
@@ -63,7 +63,7 @@ class PickAndPlace(Domain):
         self.place.add_effect(self.robot_has(robot, self.nothing), True)
         self.place.add_effect(self.robot_arm_at(robot, self.arm_pose_transport), False)
         self.place.add_effect(self.robot_arm_at(robot, self.arm_pose_interaction), True)
-        self.hand_over, (robot,) = self.create_action(PickAndPlaceRobot, PickAndPlaceRobot.hand_over)
+        self.hand_over, (robot,) = self.create_action(PickAndPlaceRobot.hand_over)
         self.hand_over.add_precondition(Not(self.robot_has(robot, self.nothing)))
         self.hand_over.add_precondition(self.robot_at(robot, self.base_handover_pose))
         self.hand_over.add_precondition(self.robot_arm_at(robot, self.arm_pose_transport))

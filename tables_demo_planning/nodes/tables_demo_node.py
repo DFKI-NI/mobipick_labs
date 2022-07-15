@@ -262,7 +262,7 @@ class TablesDemo(Domain):
         self.target_location = target_location
         self.target_table = self.objects[self.target_location.name]
 
-        self.pick_item, (robot, pose, location, item) = self.create_action(TablesDemoRobot, TablesDemoRobot.pick_item)
+        self.pick_item, (robot, pose, location, item) = self.create_action(TablesDemoRobot.pick_item)
         self.pick_item.add_precondition(self.robot_at(robot, pose))
         self.pick_item.add_precondition(
             Or(self.robot_arm_at(robot, arm_pose) for arm_pose in (self.arm_pose_home, self.arm_pose_observe))
@@ -282,7 +282,7 @@ class TablesDemo(Domain):
             self.pick_item.add_effect(self.robot_arm_at(robot, arm_pose), arm_pose == self.arm_pose_transport)
         self.pick_item.add_effect(self.believe_item_at(item, location), False)
         self.pick_item.add_effect(self.believe_item_at(item, self.on_robot), True)
-        self.place_item, (robot, pose, location, item) = self.create_action(TablesDemoRobot, TablesDemoRobot.place_item)
+        self.place_item, (robot, pose, location, item) = self.create_action(TablesDemoRobot.place_item)
         self.place_item.add_precondition(self.robot_at(robot, pose))
         self.place_item.add_precondition(self.robot_arm_at(robot, self.arm_pose_transport))
         self.place_item.add_precondition(self.robot_has(robot, item))
@@ -294,7 +294,7 @@ class TablesDemo(Domain):
         self.place_item.add_effect(self.robot_arm_at(robot, self.arm_pose_home), True)
         self.place_item.add_effect(self.believe_item_at(item, self.on_robot), False)
         self.place_item.add_effect(self.believe_item_at(item, location), True)
-        self.store_item, (robot, pose, location, item) = self.create_action(TablesDemoRobot, TablesDemoRobot.store_item)
+        self.store_item, (robot, pose, location, item) = self.create_action(TablesDemoRobot.store_item)
         self.store_item.add_precondition(self.robot_at(robot, pose))
         self.store_item.add_precondition(self.robot_arm_at(robot, self.arm_pose_transport))
         self.store_item.add_precondition(self.robot_has(robot, item))
@@ -308,7 +308,7 @@ class TablesDemo(Domain):
         self.store_item.add_effect(self.robot_arm_at(robot, self.arm_pose_home), True)
         self.store_item.add_effect(self.believe_item_at(item, self.on_robot), False)
         self.store_item.add_effect(self.believe_item_at(item, self.in_box), True)
-        self.search_at, (robot, pose, location) = self.create_action(TablesDemoRobot, TablesDemoRobot.search_at)
+        self.search_at, (robot, pose, location) = self.create_action(TablesDemoRobot.search_at)
         self.search_at.add_precondition(self.robot_at(robot, pose))
         self.search_at.add_precondition(
             Or(
@@ -320,7 +320,7 @@ class TablesDemo(Domain):
         self.search_at.add_precondition(Or(Equals(location, table) for table in self.tables))
         self.search_at.add_precondition(self.pose_at(pose, location))
         self.search_at.add_effect(self.searched_at(location), True)
-        self.search_tool, (robot, item) = self.create_action(TablesDemoRobot, TablesDemoRobot.search_tool)
+        self.search_tool, (robot, item) = self.create_action(TablesDemoRobot.search_tool)
         self.search_tool.add_precondition(Not(self.robot_at(robot, self.tool_search_pose)))
         self.search_tool.add_precondition(self.robot_arm_at(robot, self.arm_pose_home))
         self.search_tool.add_precondition(self.robot_has(robot, self.nothing))
@@ -332,7 +332,7 @@ class TablesDemo(Domain):
             self.search_tool.add_effect(self.robot_at(robot, pose), pose == self.tool_search_pose)
         self.search_tool.add_effect(self.believe_item_at(item, self.anywhere), False)
         self.search_tool.add_effect(self.believe_item_at(item, self.tool_search_location), True)
-        self.search_box, (robot,) = self.create_action(TablesDemoRobot, TablesDemoRobot.search_box)
+        self.search_box, (robot,) = self.create_action(TablesDemoRobot.search_box)
         self.search_box.add_precondition(Not(self.robot_at(robot, self.box_search_pose)))
         self.search_box.add_precondition(
             Or(self.robot_arm_at(robot, arm_pose) for arm_pose in (self.arm_pose_home, self.arm_pose_transport))
@@ -342,15 +342,13 @@ class TablesDemo(Domain):
             self.search_box.add_effect(self.robot_at(robot, pose), pose == self.box_search_pose)
         self.search_box.add_effect(self.believe_item_at(self.box, self.anywhere), False)
         self.search_box.add_effect(self.believe_item_at(self.box, self.box_search_location), True)
-        self.conclude_tool_search, (robot, item) = self.create_action(
-            TablesDemoRobot, TablesDemoRobot.conclude_tool_search
-        )
+        self.conclude_tool_search, (robot, item) = self.create_action(TablesDemoRobot.conclude_tool_search)
         self.conclude_tool_search.add_precondition(self.believe_item_at(item, self.anywhere))
         self.conclude_tool_search.add_precondition(And(self.searched_at(table) for table in self.tables))
         self.conclude_tool_search.add_precondition(Not(Equals(item, self.box)))
         self.conclude_tool_search.add_effect(self.believe_item_at(item, self.anywhere), False)
         self.conclude_tool_search.add_effect(self.believe_item_at(item, self.tool_search_location), True)
-        self.conclude_box_search, (robot,) = self.create_action(TablesDemoRobot, TablesDemoRobot.conclude_box_search)
+        self.conclude_box_search, (robot,) = self.create_action(TablesDemoRobot.conclude_box_search)
         self.conclude_box_search.add_precondition(self.believe_item_at(self.box, self.anywhere))
         self.conclude_box_search.add_precondition(And(self.searched_at(table) for table in self.tables))
         self.conclude_box_search.add_effect(self.believe_item_at(self.box, self.anywhere), False)
