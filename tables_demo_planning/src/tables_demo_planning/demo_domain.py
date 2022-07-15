@@ -1,6 +1,4 @@
-from typing import Callable, Dict, List, Optional, Sequence, Tuple, Type
-from enum import Enum
-import math
+from typing import Callable, Dict, List, Optional, Sequence, Tuple
 import os
 import time
 import yaml
@@ -14,6 +12,7 @@ from unified_planning.model.problem import Problem
 from unified_planning.plans.plan import ActionInstance
 from unified_planning.shortcuts import Equals, Not, OneshotPlanner
 from tables_demo_planning.planning_bridge import Bridge
+from tables_demo_planning.mobipick_components import ArmPose, Item, Location, Robot
 from robot_api import TuplePose
 import robot_api
 
@@ -21,88 +20,6 @@ import robot_api
 Define types, objects, and actions for the mobipick_tables_demo domain,
 both for planning and for execution.
 """
-
-
-# Define state representation classes.
-
-
-class ArmPose(Enum):
-    unknown = "unknown"
-    home = "home"
-    observe = "observe100cm_right"
-    transport = "transport"
-    place = "place_1"
-    tucked = "tucked"
-    interaction = "interaction"  # not a pose in rosparams but used to simplify planning
-
-
-class Item(Enum):
-    nothing = "nothing"
-    power_drill = "power_drill_with_grip_1"
-    box = "klt_1"
-    multimeter = "multimeter_1"
-    relay = "relay_1"
-    screwdriver = "screwdriver_1"
-    something = "something"
-
-
-class Location(Enum):
-    anywhere = "anywhere"
-    table_1 = "table_1"
-    table_2 = "table_2"
-    table_3 = "table_3"
-    in_box = "in_box"
-    on_robot = "on_robot"
-    tool_search_location = "tool_search_location"
-    box_search_location = "box_search_location"
-
-
-class Robot(robot_api.Robot):
-    """Robot representation which maintains the current state and enables action execution via Robot API."""
-
-    def __init__(self, namespace: str) -> None:
-        super().__init__(namespace, True, True)
-        self.pose: Pose = TuplePose.to_pose(self.base.get_pose())
-        self.arm_pose = self.get_arm_pose()
-        self.item = self.get_initial_item()
-        self.item_offered = False
-
-    @staticmethod
-    def enum_values(enum: Type[Enum]) -> Tuple[str, ...]:
-        return tuple(member.value for member in enum)
-
-    def get_arm_pose(self) -> ArmPose:
-        arm_pose_name = self.arm.get_pose_name()
-        return ArmPose(arm_pose_name) if arm_pose_name in self.enum_values(ArmPose) else ArmPose.unknown
-
-    def get_initial_item(self) -> Item:
-        self.arm.execute("HasAttachedObjects")
-        return Item.something if self.arm.get_result().result else Item.nothing
-
-    def move_base(self, _: Pose, pose: Pose) -> bool:
-        if self.base.move(pose) != 3:
-            rospy.logerr(f"Move base to {pose} FAILED!")
-            # Move to home pose whenever movement fails. Note: This is a drastic workaround.
-            self.base.move(Domain.BASE_HOME_POSE)
-            return False
-
-        self.pose = pose
-        return True
-
-    def move_base_with_item(self, item: Item, _: Pose, pose: Pose) -> bool:
-        # Note: Same action as move_base(), just with item in transport pose.
-        return self.move_base(_, pose)
-
-    def move_arm(self, _: ArmPose, arm_pose: ArmPose) -> bool:
-        if not self.arm.move(arm_pose.name):
-            rospy.logerr(f"Move arm to '{arm_pose.name} FAILED!'")
-            return False
-
-        self.arm_pose = arm_pose
-        return True
-
-
-# Define domain for both planning and execution.
 
 
 class Domain(Bridge):
@@ -113,7 +30,6 @@ class Domain(Bridge):
     BASE_TABLE_1_POSE = "base_table_1_pose"
     BASE_TABLE_2_POSE = "base_table_2_pose"
     BASE_TABLE_3_POSE = "base_table_3_pose"
-    BASE_HOME_POSE: Pose
 
     def __init__(self, robot: Robot) -> None:
         super().__init__()
@@ -135,7 +51,7 @@ class Domain(Bridge):
         config_path = f"{rospkg.RosPack().get_path('mobipick_pick_n_place')}/config/"
         filename = "moelk_tables_demo.yaml"
         self.api_poses = self.load_waypoints(os.path.join(config_path, filename))
-        Domain.BASE_HOME_POSE = self.api_poses[self.BASE_HOME_POSE_NAME]
+        robot.set_home_pose(self.api_poses[self.BASE_HOME_POSE_NAME])
         self.poses = self.create_objects(self.api_poses)
         self.base_home_pose = self.objects[self.BASE_HOME_POSE_NAME]
         self.base_handover_pose = self.objects[self.BASE_HANDOVER_POSE_NAME]
