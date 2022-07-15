@@ -232,14 +232,14 @@ class Domain(Bridge):
     ) -> Problem:
         """Define a UP problem by its (potential subsets of) fluents, objects, and actions."""
         problem = Problem()
-        for fluent in self.fluents.values() if fluents is None else fluents:
+        for fluent in self._fluents.values() if fluents is None else fluents:
             problem.add_fluent(fluent, default_initial_value=False)
         problem.add_object(self.robot)
         problem.add_objects(self.poses if poses is None else poses)
         problem.add_objects(self.arm_poses)
         problem.add_objects(self.items if items is None else items)
         problem.add_objects(self.locations if locations is None else locations)
-        for action in self.actions.values() if actions is None else actions:
+        for action in self._actions.values() if actions is None else actions:
             problem.add_action(action)
         return problem
 

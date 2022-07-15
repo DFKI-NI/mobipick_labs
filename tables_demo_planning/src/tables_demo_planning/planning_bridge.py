@@ -12,23 +12,27 @@ from unified_planning.shortcuts import BoolType, IntType, RealType, UserType
 class Bridge:
     def __init__(self) -> None:
         # Note: Map from type instead of str to recognize subclasses.
-        self.types: Dict[type, UserType] = {bool: BoolType(), int: IntType(), float: RealType()}
-        self.fluents: Dict[str, Fluent] = {}
-        self.fluent_functions: Dict[str, Callable[..., object]] = {}
-        self.actions: Dict[str, InstantaneousAction] = {}
-        self.api_actions: Dict[str, Callable[..., object]] = {}
-        self.objects: Dict[str, Object] = {}
-        self.api_objects: Dict[str, object] = {}
+        self._types: Dict[type, UserType] = {bool: BoolType(), int: IntType(), float: RealType()}
+        self._fluents: Dict[str, Fluent] = {}
+        self._fluent_functions: Dict[str, Callable[..., object]] = {}
+        self._actions: Dict[str, InstantaneousAction] = {}
+        self._api_actions: Dict[str, Callable[..., object]] = {}
+        self._objects: Dict[str, Object] = {}
+        self._api_objects: Dict[str, object] = {}
+
+    @property
+    def objects(self) -> Dict[str, Object]:
+        return self._objects
 
     def create_types(self, api_types: Iterable[type]) -> None:
         """Create UP user types based on api_types."""
         for api_type in api_types:
-            assert api_type not in self.types.keys()
-            self.types[api_type] = UserType(api_type.__name__)
+            assert api_type not in self._types.keys()
+            self._types[api_type] = UserType(api_type.__name__)
 
     def get_type(self, api_type: type) -> UserType:
         """Return UP user type corresponding to api_type or its superclasses."""
-        for check_type, user_type in self.types.items():
+        for check_type, user_type in self._types.items():
             if issubclass(api_type, check_type):
                 return user_type
 
@@ -36,7 +40,7 @@ class Bridge:
 
     def get_object_type(self, api_object: object) -> UserType:
         """Return UP user type corresponding to api_object's type."""
-        for api_type, user_type in self.types.items():
+        for api_type, user_type in self._types.items():
             if isinstance(api_object, api_type):
                 return user_type
 
@@ -47,8 +51,8 @@ class Bridge:
         Create a UP fluent using the UP types corresponding to the api_types given.
         By default, use BoolType() for the result unless specified otherwise.
         """
-        assert name not in self.fluents.keys()
-        self.fluents[name] = fluent = Fluent(
+        assert name not in self._fluents.keys()
+        self._fluents[name] = fluent = Fluent(
             name,
             self.get_type(result_type) if result_type else BoolType(),
             OrderedDict([(api_type.__name__.lower(), self.get_type(api_type)) for api_type in api_types]),
@@ -61,7 +65,7 @@ class Bridge:
         Return the InstantaneousAction with its parameters for convenient definition of its
          preconditions and effects.
         """
-        assert function.__name__ not in self.actions.keys()
+        assert function.__name__ not in self._actions.keys()
         parameters: Dict[str, UserType] = OrderedDict()
         if '.' in function.__qualname__:
             # Add defining class of function to parameters.
@@ -79,25 +83,25 @@ class Bridge:
         for parameter_name, api_type in list(function.__annotations__.items())[:-1]:
             parameters[parameter_name] = self.get_type(api_type)
         action = InstantaneousAction(function.__name__, parameters)
-        self.actions[function.__name__] = action
-        self.api_actions[function.__name__] = function
+        self._actions[function.__name__] = action
+        self._api_actions[function.__name__] = function
         return action, action.parameters
 
     def get_executable_action(self, action: ActionInstance) -> Tuple[Callable[..., object], List[object]]:
         """Return API function and parameters corresponding to the given action."""
-        if action.action.name not in self.api_actions.keys():
+        if action.action.name not in self._api_actions.keys():
             raise ValueError(f"No corresponding action defined for {action}!")
 
-        return self.api_actions[action.action.name], [
-            self.api_objects[parameter.object().name] for parameter in action.actual_parameters
+        return self._api_actions[action.action.name], [
+            self._api_objects[parameter.object().name] for parameter in action.actual_parameters
         ]
 
     def create_object(self, name: str, api_object: object) -> Object:
         """Create UP object with name based on api_object."""
-        assert name not in self.objects.keys()
-        self.objects[name] = Object(name, self.get_object_type(api_object))
-        self.api_objects[name] = api_object
-        return self.objects[name]
+        assert name not in self._objects.keys()
+        self._objects[name] = Object(name, self.get_object_type(api_object))
+        self._api_objects[name] = api_object
+        return self._objects[name]
 
     def create_objects(self, api_objects: Optional[Dict[str, object]] = None, **kwargs: object) -> List[Object]:
         """Create UP objects based on api_objects and kwargs."""
