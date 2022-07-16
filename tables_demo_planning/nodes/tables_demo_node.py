@@ -249,7 +249,7 @@ class TablesDemoRobot(Robot):
         return perceived_item_locations
 
 
-class TablesDemoEnv(EnvironmentRepresentation[TablesDemoRobot]):
+class TablesDemoEnv(EnvironmentRepresentation):
     def __init__(self) -> None:
         super().__init__(TablesDemoRobot("mobipick", self))
         self.believed_item_locations: Dict[Item, Location] = {}
@@ -279,14 +279,13 @@ class TablesDemoEnv(EnvironmentRepresentation[TablesDemoRobot]):
             print(f"- {item.name}:", self.believed_item_locations.get(item, Location.anywhere).name)
 
 
-class TablesDemoDomain(Domain):
+class TablesDemoDomain(Domain[TablesDemoEnv]):
     DEMO_ITEMS = (Item.box, Item.multimeter)
     TABLE_LOCATIONS = (Location.table_1, Location.table_2, Location.table_3)
     RETRIES_BEFORE_ABORTION = 2
 
     def __init__(self, target_location: Location) -> None:
-        self.env = TablesDemoEnv()
-        super().__init__(self.env)
+        super().__init__(TablesDemoEnv())
         self.target_location = target_location
         self.target_table = self.objects[self.target_location.name]
         self.pose_locations = {

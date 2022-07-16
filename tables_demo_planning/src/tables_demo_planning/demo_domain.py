@@ -1,4 +1,4 @@
-from typing import Callable, Dict, Iterable, List, Optional, Sequence, TypeVar
+from typing import Callable, Dict, Generic, Iterable, List, Optional, Sequence, TypeVar
 from abc import ABC, abstractmethod
 import itertools
 import os
@@ -22,10 +22,10 @@ import robot_api
 """Concrete Mobipick domain, bridged from its application to its planning representations"""
 
 
-R = TypeVar('R', bound=Robot)
+E = TypeVar('E', bound=EnvironmentRepresentation)
 
 
-class Domain(Bridge, ABC):
+class Domain(Bridge, Generic[E], ABC):
     BASE_HANDOVER_POSE_NAME = "base_handover_pose"
     BASE_HOME_POSE_NAME = "base_home_pose"
     BASE_PICK_POSE_NAME = "base_pick_pose"
@@ -37,8 +37,9 @@ class Domain(Bridge, ABC):
     BOX_SEARCH_POSE_NAME = "box_search_pose"
     UNKNOWN_POSE_NAME = "unknown_pose"
 
-    def __init__(self, env: EnvironmentRepresentation[R]) -> None:
+    def __init__(self, env: E) -> None:
         super().__init__()
+        self.env = env
         # Create types for planning based on class types.
         self.create_types([Robot, Pose, ArmPose, Item, Location])
 

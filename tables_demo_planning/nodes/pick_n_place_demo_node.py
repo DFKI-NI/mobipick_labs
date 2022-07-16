@@ -49,7 +49,7 @@ class PickAndPlaceRobot(Robot):
         return True
 
 
-class PickAndPlaceEnv(EnvironmentRepresentation[PickAndPlaceRobot]):
+class PickAndPlaceEnv(EnvironmentRepresentation):
     def __init__(self) -> None:
         super().__init__(PickAndPlaceRobot("mobipick", self))
         self.item_offered = False
@@ -58,10 +58,9 @@ class PickAndPlaceEnv(EnvironmentRepresentation[PickAndPlaceRobot]):
         return self.item_offered
 
 
-class PickAndPlaceDomain(Domain):
+class PickAndPlaceDomain(Domain[PickAndPlaceEnv]):
     def __init__(self) -> None:
-        self.env = PickAndPlaceEnv()
-        super().__init__(self.env)
+        super().__init__(PickAndPlaceEnv())
         self.item_offered = self.create_fluent(self.env.get_item_offered)
 
         self.pick, (_,) = self.create_action(PickAndPlaceRobot.pick_power_drill)

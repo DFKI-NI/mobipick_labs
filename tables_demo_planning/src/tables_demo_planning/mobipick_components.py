@@ -1,4 +1,4 @@
-from typing import Generic, Tuple, Type, TypeVar
+from typing import Tuple, Type
 from enum import Enum, IntEnum
 from geometry_msgs.msg import Pose
 import rospy
@@ -95,12 +95,9 @@ class Robot(robot_api.Robot):
         return True
 
 
-R = TypeVar('R', bound=Robot)
-
-
-class EnvironmentRepresentation(Generic[R]):
-    def __init__(self, robot: R) -> None:
-        # Note: Instantiate robot as subclass of R in a subclass of this class
+class EnvironmentRepresentation:
+    def __init__(self, robot: Robot) -> None:
+        # Note: Instantiate a subclass of Robot in a subclass of this class
         #  to enable mutual references during their initializations.
         self.robot = robot
 
