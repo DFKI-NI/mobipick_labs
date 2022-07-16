@@ -1,9 +1,8 @@
-#!/usr/bin/env python3
-
 import os
 import rospy
 import rospkg
 import tf
+import actionlib
 
 from qt_gui.plugin import Plugin
 from python_qt_binding import loadUi
@@ -12,13 +11,14 @@ from python_qt_binding.QtWidgets import QWidget, QFileDialog, QMessageBox
 from geometry_msgs.msg import PoseStamped
 from gazebo_msgs.srv import SetModelState
 from gazebo_msgs.msg import ModelState
-from std_srvs.srv import SetBool, Trigger
+from std_srvs.srv import Empty, SetBool, Trigger
 from pose_selector.srv import ClassQuery, PoseDelete, GetPoses
+from pbr_msgs.msg import PickObjectAction, PickObjectGoal
 
 import robot_api
 
-class RqtTablesDemo(Plugin):
 
+class RqtTablesDemo(Plugin):
     def __init__(self, context):
         super(RqtTablesDemo, self).__init__(context)
         rospy.loginfo('Initializing rqt_tables_demo, have a happy pick, place and move and more!')
@@ -45,58 +45,100 @@ class RqtTablesDemo(Plugin):
         self.mobipick = robot_api.Robot("mobipick")
         # a flag to know if pose selector is available or not
         self.is_pose_selector_available = False
+        self.is_gripper_srv_available = False
+
+        # make array of checkboxes that represent objects to ignore from planning scene when picking
+        self.ignore_from_ps_chks = []
+        self.ignore_from_ps_chks.append(self._widget.chkPickIgnore1)
+        self.ignore_from_ps_chks.append(self._widget.chkPickIgnore2)
+        self.ignore_from_ps_chks.append(self._widget.chkPickIgnore3)
+        self.ignore_from_ps_chks.append(self._widget.chkPickIgnore4)
+        self.ignore_from_ps_chks.append(self._widget.chkPickIgnore5)
+        self.ignore_from_ps_chks.append(self._widget.chkPickIgnore6)
+        self.ignore_from_ps_chks.append(self._widget.chkPickIgnore7)
+        self.ignore_from_ps_chks.append(self._widget.chkPickIgnore8)
 
         # ::: parameters
 
-        # navigation and teletransportation in simulation, base waypoints/goals
-        wp_dic = {'table_1' : [12.21, 2.10, 0.0, 0.707, 0.0, 0.0, 0.707],\
-                  'table_2' : [11.85, 2.45, 0.0, 0.0  , 0.0, 0.0, 1.0  ],\
-                  'table_3' : [10.25, 2.45, 0.0, 0.0  , 0.0, 0.0, 1.0  ] }
+        # navigation and teletransportation in simulation, base waypoints/goals, but also define surfaces
+        wp_dic = {
+            'table_1': [12.21, 2.10, 0.0, 0.707, 0.0, 0.0, 0.707],
+            'table_2': [11.85, 2.45, 0.0, 0.0, 0.0, 0.0, 1.0],
+            'table_3': [10.25, 2.45, 0.0, 0.0, 0.0, 0.0, 1.0],
+        }
         self.wp_dic = rospy.get_param('navigation_waypoints', wp_dic)
+        surfaces = []
         for key in self.wp_dic:
-            self._widget.comboNavigationWaypoints.addItems([key])
+            surfaces.append(key)
+        self._widget.comboNavigationWaypoints.addItems(surfaces)
+        self._widget.comboPickSurfaces.addItems(surfaces)
+        self._widget.comboPlaceSurfaces.addItems(surfaces)
 
         # manipulation "predefined arm configurations" or "arm poses"
-        arm_poses = ['home', 'observe100cm_front', 'observe100cm_left', 'observe100cm_right',\
-                     'observe100cm_back', 'transport', 'place_1', 'above', 'tucked', 'ready_for_packing',\
-                     'untangle_cable_guide_1_right', 'untangle_cable_guide_2_right']
+        arm_poses = [
+            'home',
+            'observe100cm_front',
+            'observe100cm_left',
+            'observe100cm_right',
+            'observe100cm_back',
+            'transport',
+            'place_1',
+            'above',
+            'tucked',
+            'ready_for_packing',
+            'untangle_cable_guide_1_right',
+            'untangle_cable_guide_2_right',
+        ]
         arm_poses = rospy.get_param('arm_poses', arm_poses)
         self._widget.comboArmPoses.addItems(arm_poses)
 
         # perception observation poses
-        arm_observation_poses = ['', 'observe100cm_right', 'observe100cm_left', 'observe100cm_front', 'observe100cm_back']
+        arm_observation_poses = [
+            '',
+            'observe100cm_right',
+            'observe100cm_left',
+            'observe100cm_front',
+            'observe100cm_back',
+        ]
         arm_observation_poses = rospy.get_param('arm_observation_poses', arm_observation_poses)
-        self._widget.comboPerceptionObs1.addItems(arm_observation_poses[1:]) # skip first element
+        self._widget.comboPerceptionObs1.addItems(arm_observation_poses[1:])  # skip first element
         self._widget.comboPerceptionObs2.addItems(arm_observation_poses)
         self._widget.comboPerceptionObs3.addItems(arm_observation_poses)
 
         # the amount of time to wait for pose selector services to become available
-        pose_selector_waiting_time = rospy.get_param('pose_selector_waiting_time', 2.0)
+        wait_for_services = rospy.get_param('wait_for_services', 2.0)
 
-        # adding demo objects to pose selector class query
+        # adding demo objects to pose selector class query and others
         objects_of_interest = ['multimeter', 'klt', 'power_drill_with_grip', 'relay', 'screwdriver']
-        objects_of_interest = rospy.get_param('objects_of_interest', objects_of_interest)
-        self._widget.comboPerceptionPSClassQuery.addItems(objects_of_interest)
+        self.objects_of_interest = rospy.get_param('objects_of_interest', objects_of_interest)
+        self._widget.comboPerceptionPSClassQuery.addItems(self.objects_of_interest)
+        self._widget.comboPickObj.addItems(self.objects_of_interest)
 
         # ::: services
 
         # pose selector service clients
-        pose_selector_activate_srv_name = rospy.get_param('~pose_selector_activate_srv_name',\
-                                                          '/pick_pose_selector_node/pose_selector_activate')
-        pose_selector_class_query_srv_name = rospy.get_param('~pose_selector_class_query_srv_name',\
-                                                             '/pick_pose_selector_node/pose_selector_class_query')
-        pose_selector_get_all_poses_srv_name = rospy.get_param('~pose_selector_get_all_poses_srv_name',\
-                                                               '/pick_pose_selector_node/pose_selector_get_all')
-        pose_selector_clear_srv_name = rospy.get_param('~pose_selector_clear_srv_name',\
-                                                       '/pick_pose_selector_node/pose_selector_clear')
-        rospy.loginfo(f'waiting for pose selector services: {pose_selector_activate_srv_name}, {pose_selector_class_query_srv_name},\
-                                                            {pose_selector_get_all_poses_srv_name}, {pose_selector_clear_srv_name}')
+        pose_selector_activate_srv_name = rospy.get_param(
+            '~pose_selector_activate_srv_name', '/pick_pose_selector_node/pose_selector_activate'
+        )
+        pose_selector_class_query_srv_name = rospy.get_param(
+            '~pose_selector_class_query_srv_name', '/pick_pose_selector_node/pose_selector_class_query'
+        )
+        pose_selector_get_all_poses_srv_name = rospy.get_param(
+            '~pose_selector_get_all_poses_srv_name', '/pick_pose_selector_node/pose_selector_get_all'
+        )
+        pose_selector_clear_srv_name = rospy.get_param(
+            '~pose_selector_clear_srv_name', '/pick_pose_selector_node/pose_selector_clear'
+        )
+        rospy.loginfo(
+            f'waiting for pose selector services: {pose_selector_activate_srv_name}, {pose_selector_class_query_srv_name},\
+                                                            {pose_selector_get_all_poses_srv_name}, {pose_selector_clear_srv_name}'
+        )
         # if wait_for_service fails, it will throw a
         # rospy.exceptions.ROSException, and the node will exit (as long as
         # this happens before moveit_commander.roscpp_initialize()).
 
         try:
-            rospy.wait_for_service(pose_selector_activate_srv_name, pose_selector_waiting_time)
+            rospy.wait_for_service(pose_selector_activate_srv_name, wait_for_services)
             rospy.wait_for_service(pose_selector_class_query_srv_name, 0.5)
             rospy.wait_for_service(pose_selector_get_all_poses_srv_name, 0.5)
             rospy.wait_for_service(pose_selector_clear_srv_name, 0.5)
@@ -112,21 +154,74 @@ class RqtTablesDemo(Plugin):
             self._widget.groupPoseSelector.setEnabled(False)
             rospy.logwarn('pose selector not available, this functionality will not be available')
 
+        # services to actuate (open/close) gripper
+        open_gripper_srv_name = rospy.get_param('~open_gripper_srv_name', '/mobipick/pose_teacher/open_gripper')
+        close_gripper_srv_name = rospy.get_param('~close_gripper_srv_name', '/mobipick/pose_teacher/close_gripper')
+        try:
+            rospy.wait_for_service(open_gripper_srv_name, wait_for_services)
+            rospy.wait_for_service(close_gripper_srv_name, 0.5)
+            self.open_gripper_srv = rospy.ServiceProxy(open_gripper_srv_name, Empty)
+            self.close_gripper_srv = rospy.ServiceProxy(close_gripper_srv_name, Empty)
+            self.is_gripper_srv_available = True
+            rospy.loginfo('found gripper open/close services')
+        except:
+            self.is_gripper_srv_available = False
+            self._widget.cmdOpenGripper.setEnabled(False)
+            self._widget.cmdCloseGripper.setEnabled(False)
+            rospy.logwarn('Could not found service to open/close gripper, this functionality will not be available')
+
         # make a connection between the qt objects and this class methods
         self._widget.cmdNavigationGo.clicked.connect(self.navigation_go)
         self._widget.cmdManipulationGo.clicked.connect(self.manipulation_go)
+        self._widget.cmdOpenGripper.clicked.connect(self.open_gripper)
+        self._widget.cmdCloseGripper.clicked.connect(self.close_gripper)
         self._widget.cmdPerceiveObjs.clicked.connect(self.perceive_objs)
         self._widget.cmdPerceptionPSActivate.clicked.connect(self.perception_ps_activate)
         self._widget.cmdPerceptionPSDeActivate.clicked.connect(self.perception_ps_deactivate)
         self._widget.cmdPerceptionPSClear.clicked.connect(self.perception_ps_clear)
         self._widget.cmdPerceptionPSGetAllObjs.clicked.connect(self.perception_ps_get_all_objs)
         self._widget.cmdPerceptionPSClassQuery.clicked.connect(self.perception_ps_class_query)
+        self._widget.cmdPickObj.clicked.connect(self.pick_object)
+        self._widget.cmdManipUpdate.clicked.connect(self.manipulation_update)
+
+        self._widget.chkPickEnableId.stateChanged.connect(self.chk_pick_enable_id_changed)
 
         context.add_widget(self._widget)
         rospy.loginfo('rqt_tables_demo initialization finished')
         # end of constructor
 
     # ::::::::::::::  class methods
+
+    def chk_pick_enable_id_changed(self):
+        self.manipulation_update()
+
+    def manipulation_update(self):
+        # query pose selector, update labels and combo boxes accordingly
+        detected_objects = []
+        resp = self.pose_selector_get_all_poses_srv()
+        for obj in resp.poses.objects:
+            detected_objects.append(obj.class_id + '_' + str(obj.instance_id))
+
+        for ignore_chk in self.ignore_from_ps_chks:
+            ignore_chk.setText('-')
+
+        if not len(detected_objects) > 0:
+            rospy.logwarn('Pose selector is empty')
+            return
+
+        break_count = len(detected_objects)
+        for i, ignore_chk in enumerate(self.ignore_from_ps_chks):
+            ignore_chk.setText(detected_objects[i])
+            if i >= break_count - 1:
+                break
+
+        self._widget.comboPickObj.clear()
+        if self._widget.chkPickEnableId.isChecked():
+            self._widget.comboPickObj.addItems(detected_objects)
+        else:
+            self._widget.comboPickObj.addItems(self.objects_of_interest)
+
+        rospy.loginfo('update succesful!')
 
     def transform_pose(self, input_pose, target_reference_frame):
         if input_pose == None:
@@ -136,13 +231,10 @@ class RqtTablesDemo(Plugin):
         current_reference_frame = input_pose.header.frame_id
         try:
             now = rospy.Time.now()
-            self.tf_listener.waitForTransform(current_reference_frame,
-                            target_reference_frame, now, rospy.Duration(1.0))
-            (trans, rot) = self.tf_listener.lookupTransform(
-                            current_reference_frame, target_reference_frame, now)
+            self.tf_listener.waitForTransform(current_reference_frame, target_reference_frame, now, rospy.Duration(1.0))
+            (trans, rot) = self.tf_listener.lookupTransform(current_reference_frame, target_reference_frame, now)
         except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-            rospy.logwarn(
-                f'failed to lookup transform from {current_reference_frame} to {target_reference_frame}')
+            rospy.logwarn(f'failed to lookup transform from {current_reference_frame} to {target_reference_frame}')
             return None
         return self.tf_listener.transformPose(target_reference_frame, input_pose)
 
@@ -161,15 +253,19 @@ class RqtTablesDemo(Plugin):
             resp1 = set_model_state(request_msg)
             return resp1.success
         except rospy.ServiceException as e:
-            print("Service call failed: %s"%e)
+            print("Service call failed: %s" % e)
 
     def navigation_go(self):
         waypoint_as_text = self._widget.comboNavigationWaypoints.currentText()
         if self._widget.optNavigationNavigate.isChecked():
             rospy.loginfo(f'Navigating robot to waypoint: {waypoint_as_text}')
             # Move the robot's base using move_base.
-            angular_q = [self.wp_dic[waypoint_as_text][6], self.wp_dic[waypoint_as_text][3],\
-                             self.wp_dic[waypoint_as_text][4], self.wp_dic[waypoint_as_text][5]]
+            angular_q = [
+                self.wp_dic[waypoint_as_text][6],
+                self.wp_dic[waypoint_as_text][3],
+                self.wp_dic[waypoint_as_text][4],
+                self.wp_dic[waypoint_as_text][5],
+            ]
             angular_rpy = list(tf.transformations.euler_from_quaternion(angular_q))
             self.mobipick.base.move(self.wp_dic[waypoint_as_text][0], self.wp_dic[waypoint_as_text][1], angular_rpy[2])
         elif self._widget.optNavigationTeletransport.isChecked():
@@ -179,7 +275,7 @@ class RqtTablesDemo(Plugin):
             pose_stamped_msg.pose.position.x = self.wp_dic[waypoint_as_text][0]
             pose_stamped_msg.pose.position.y = self.wp_dic[waypoint_as_text][1]
             pose_stamped_msg.pose.position.z = self.wp_dic[waypoint_as_text][2]
-            pose_stamped_msg.pose.orientation.w = self.wp_dic[waypoint_as_text][3] # WARNING: quaternion order wxyz!
+            pose_stamped_msg.pose.orientation.w = self.wp_dic[waypoint_as_text][3]  # WARNING: quaternion order wxyz!
             pose_stamped_msg.pose.orientation.x = self.wp_dic[waypoint_as_text][4]
             pose_stamped_msg.pose.orientation.y = self.wp_dic[waypoint_as_text][5]
             pose_stamped_msg.pose.orientation.z = self.wp_dic[waypoint_as_text][6]
@@ -266,3 +362,55 @@ class RqtTablesDemo(Plugin):
         else:
             rospy.loginfo(f'found {len(resp.poses)} instances of class {object_class}')
             rospy.loginfo(resp.poses)
+
+    def pick_object(self):
+        object_to_pick = self._widget.comboPickObj.currentText()
+        support_surface_name = self._widget.comboPickSurfaces.currentText()
+        # if self._widget.comboPickId.currentText() != 'any':
+        # TODO: handle object id
+        timeout = float(self._widget.txtPickTimeout.toPlainText())
+        pick_object_server_name = 'pick_object'
+        action_client = actionlib.SimpleActionClient(pick_object_server_name, PickObjectAction)
+        rospy.loginfo(f'waiting for {pick_object_server_name} action server')
+        if action_client.wait_for_server(timeout=rospy.Duration.from_sec(5.0)):
+            rospy.loginfo(f'found {pick_object_server_name} action server')
+            goal = PickObjectGoal()
+            goal.object_name = object_to_pick
+            goal.support_surface_name = support_surface_name
+            goal.ignore_object_list = []
+            rospy.loginfo(
+                f'sending -> pick {object_to_pick} from {support_surface_name} <- goal to {pick_object_server_name} action server'
+            )
+            if len(goal.ignore_object_list) > 0:
+                rospy.logwarn(
+                    f'the following objects: {goal.ignore_object_list} will not be added to the planning scene'
+                )
+            else:
+                rospy.loginfo('all objects are taken into account in planning scene')
+            action_client.send_goal(goal)
+            rospy.loginfo(f'waiting for result from {pick_object_server_name} action server')
+            if action_client.wait_for_result(rospy.Duration.from_sec(timeout)):
+                result = action_client.get_result()
+                rospy.loginfo(f'{pick_object_server_name} is done with execution, resuĺt was = "{result}"')
+                if result.success == True:
+                    rospy.loginfo(f'Succesfully picked {object_to_pick}')
+                else:
+                    rospy.logerr(f'Failed to pick {object_to_pick}')
+            else:
+                rospy.logerr(f'Failed to pick {object_to_pick}, timeout?')
+        else:
+            rospy.logerr(f'action server {pick_object_server_name} not available')
+
+    def open_gripper(self):
+        # rosservice call /mobipick/pose_teacher/open_gripper
+        if self.is_gripper_srv_available:
+            self.open_gripper_srv()
+        else:
+            rospy.logerr('gripper service was not available when node started and therefore is unavailable')
+
+    def close_gripper(self):
+        # rosservice call /mobipick/pose_teacher/close_gripper
+        if self.is_gripper_srv_available:
+            self.close_gripper_srv()
+        else:
+            rospy.logerr('gripper service was not available when node started and therefore is unavailable')
