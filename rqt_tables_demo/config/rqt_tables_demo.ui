@@ -10,7 +10,7 @@
     <x>0</x>
     <y>0</y>
     <width>798</width>
-    <height>858</height>
+    <height>876</height>
    </rect>
   </property>
   <property name="cursor">
@@ -24,12 +24,12 @@
     <rect>
      <x>30</x>
      <y>10</y>
-     <width>311</width>
+     <width>381</width>
      <height>41</height>
     </rect>
    </property>
    <property name="text">
-    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;h2 style=&quot; margin-top:16px; margin-bottom:12px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-size:x-large; font-weight:600; color:#3366ff;&quot;&gt;Simple pick and place demo!&lt;/span&gt;&lt;/h2&gt;&lt;/body&gt;&lt;/html&gt;</string>
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;h2 style=&quot; margin-top:16px; margin-bottom:12px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-size:x-large; font-weight:600; color:#3366ff;&quot;&gt;Simple pick, place and insert demo!&lt;/span&gt;&lt;/h2&gt;&lt;/body&gt;&lt;/html&gt;</string>
    </property>
    <property name="textFormat">
     <enum>Qt::RichText</enum>
@@ -263,7 +263,7 @@
      <x>10</x>
      <y>150</y>
      <width>401</width>
-     <height>681</height>
+     <height>701</height>
     </rect>
    </property>
    <property name="title">
@@ -569,20 +569,20 @@ p, li { white-space: pre-wrap; }
      <rect>
       <x>10</x>
       <y>380</y>
-      <width>261</width>
-      <height>141</height>
+      <width>291</width>
+      <height>151</height>
      </rect>
     </property>
     <property name="title">
      <string>Place object robot is currently holding</string>
     </property>
-    <widget class="QCheckBox" name="checkBox">
+    <widget class="QCheckBox" name="chkPlaceObjObserveBeforePlacing">
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>110</y>
-       <width>181</width>
-       <height>23</height>
+       <y>102</y>
+       <width>191</width>
+       <height>41</height>
       </rect>
      </property>
      <property name="text">
@@ -612,13 +612,13 @@ p, li { white-space: pre-wrap; }
       <string>Surface</string>
      </property>
     </widget>
-    <widget class="QPushButton" name="cmdManipulationGo_3">
+    <widget class="QPushButton" name="cmdPlaceObj">
      <property name="geometry">
       <rect>
-       <x>160</x>
-       <y>40</y>
-       <width>91</width>
-       <height>51</height>
+       <x>200</x>
+       <y>100</y>
+       <width>81</width>
+       <height>41</height>
       </rect>
      </property>
      <property name="text">
@@ -626,39 +626,69 @@ p, li { white-space: pre-wrap; }
 obj</string>
      </property>
     </widget>
+    <widget class="QLabel" name="label_9">
+     <property name="geometry">
+      <rect>
+       <x>200</x>
+       <y>30</y>
+       <width>61</width>
+       <height>17</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Timeout</string>
+     </property>
+    </widget>
+    <widget class="QLabel" name="label_10">
+     <property name="geometry">
+      <rect>
+       <x>260</x>
+       <y>70</y>
+       <width>16</width>
+       <height>17</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>s</string>
+     </property>
+    </widget>
+    <widget class="QTextEdit" name="txtPlaceTimeout">
+     <property name="geometry">
+      <rect>
+       <x>200</x>
+       <y>60</y>
+       <width>51</width>
+       <height>31</height>
+      </rect>
+     </property>
+     <property name="html">
+      <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
+&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
+p, li { white-space: pre-wrap; }
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'Ubuntu'; font-size:11pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;50&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+     </property>
+    </widget>
    </widget>
    <widget class="QGroupBox" name="groupBox_8">
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>530</y>
-      <width>381</width>
-      <height>141</height>
+      <y>540</y>
+      <width>291</width>
+      <height>151</height>
      </rect>
     </property>
     <property name="title">
-     <string>Insert</string>
+     <string>Insert object robot is currently holding</string>
     </property>
-    <widget class="QLabel" name="label_4">
+    <widget class="QPushButton" name="cmdInsertObj">
      <property name="geometry">
       <rect>
-       <x>10</x>
-       <y>30</y>
-       <width>67</width>
-       <height>17</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>Peg</string>
-     </property>
-    </widget>
-    <widget class="QPushButton" name="cmdManipulationGo_4">
-     <property name="geometry">
-      <rect>
-       <x>310</x>
-       <y>40</y>
-       <width>61</width>
-       <height>51</height>
+       <x>200</x>
+       <y>100</y>
+       <width>81</width>
+       <height>41</height>
       </rect>
      </property>
      <property name="text">
@@ -666,50 +696,83 @@ obj</string>
 obj</string>
      </property>
     </widget>
-    <widget class="QComboBox" name="comboArmPoses_5">
-     <property name="geometry">
-      <rect>
-       <x>10</x>
-       <y>60</y>
-       <width>141</width>
-       <height>31</height>
-      </rect>
-     </property>
-    </widget>
     <widget class="QLabel" name="label_5">
      <property name="geometry">
       <rect>
-       <x>160</x>
+       <x>10</x>
        <y>30</y>
-       <width>67</width>
+       <width>141</width>
        <height>17</height>
       </rect>
      </property>
      <property name="text">
-      <string>Hole</string>
+      <string>Container object</string>
      </property>
     </widget>
-    <widget class="QComboBox" name="comboArmPoses_6">
+    <widget class="QComboBox" name="comboInsertHole">
      <property name="geometry">
       <rect>
-       <x>160</x>
+       <x>10</x>
        <y>60</y>
        <width>141</width>
        <height>31</height>
       </rect>
      </property>
     </widget>
-    <widget class="QCheckBox" name="checkBox_2">
+    <widget class="QCheckBox" name="chkObserveBeforeInsert">
      <property name="geometry">
       <rect>
        <x>10</x>
        <y>110</y>
-       <width>201</width>
+       <width>171</width>
        <height>23</height>
       </rect>
      </property>
      <property name="text">
-      <string>observe before inserting</string>
+      <string>observe before insert</string>
+     </property>
+    </widget>
+    <widget class="QLabel" name="label_11">
+     <property name="geometry">
+      <rect>
+       <x>200</x>
+       <y>30</y>
+       <width>71</width>
+       <height>20</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Timeout</string>
+     </property>
+    </widget>
+    <widget class="QTextEdit" name="txtInsertTimeout">
+     <property name="geometry">
+      <rect>
+       <x>200</x>
+       <y>60</y>
+       <width>51</width>
+       <height>31</height>
+      </rect>
+     </property>
+     <property name="html">
+      <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
+&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
+p, li { white-space: pre-wrap; }
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'Ubuntu'; font-size:11pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;50&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+     </property>
+    </widget>
+    <widget class="QLabel" name="label_12">
+     <property name="geometry">
+      <rect>
+       <x>260</x>
+       <y>70</y>
+       <width>16</width>
+       <height>17</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>s</string>
      </property>
     </widget>
    </widget>
@@ -742,10 +805,10 @@ obj</string>
    <widget class="QPushButton" name="cmdManipUpdate">
     <property name="geometry">
      <rect>
-      <x>290</x>
-      <y>400</y>
-      <width>101</width>
-      <height>121</height>
+      <x>310</x>
+      <y>380</y>
+      <width>81</width>
+      <height>311</height>
      </rect>
     </property>
     <property name="text">

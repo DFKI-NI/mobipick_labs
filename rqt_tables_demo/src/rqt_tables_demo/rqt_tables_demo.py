@@ -8,12 +8,14 @@ from qt_gui.plugin import Plugin
 from python_qt_binding import loadUi
 from python_qt_binding.QtWidgets import QWidget, QFileDialog, QMessageBox
 
+from grasplan.common_grasp_tools import objectToPick
 from geometry_msgs.msg import PoseStamped
 from gazebo_msgs.srv import SetModelState
 from gazebo_msgs.msg import ModelState
 from std_srvs.srv import Empty, SetBool, Trigger
 from pose_selector.srv import ClassQuery, PoseDelete, GetPoses
-from pbr_msgs.msg import PickObjectAction, PickObjectGoal
+from pbr_msgs.msg import PickObjectAction, PickObjectGoal, PlaceObjectAction
+from pbr_msgs.msg import PlaceObjectGoal, InsertObjectAction, InsertObjectGoal
 
 import robot_api
 
@@ -106,13 +108,16 @@ class RqtTablesDemo(Plugin):
         self._widget.comboPerceptionObs3.addItems(arm_observation_poses)
 
         # the amount of time to wait for pose selector services to become available
-        wait_for_services = rospy.get_param('wait_for_services', 2.0)
+        self.wait_for_services = rospy.get_param('wait_for_services', 2.0)
 
         # adding demo objects to pose selector class query and others
         objects_of_interest = ['multimeter', 'klt', 'power_drill_with_grip', 'relay', 'screwdriver']
         self.objects_of_interest = rospy.get_param('objects_of_interest', objects_of_interest)
         self._widget.comboPerceptionPSClassQuery.addItems(self.objects_of_interest)
         self._widget.comboPickObj.addItems(self.objects_of_interest)
+
+        # hole_objects: objects where other objects can be inserted, e.g. a box
+        self.hole_objects = rospy.get_param('hole_objects', ['klt'])
 
         # ::: services
 
@@ -138,7 +143,7 @@ class RqtTablesDemo(Plugin):
         # this happens before moveit_commander.roscpp_initialize()).
 
         try:
-            rospy.wait_for_service(pose_selector_activate_srv_name, wait_for_services)
+            rospy.wait_for_service(pose_selector_activate_srv_name, self.wait_for_services)
             rospy.wait_for_service(pose_selector_class_query_srv_name, 0.5)
             rospy.wait_for_service(pose_selector_get_all_poses_srv_name, 0.5)
             rospy.wait_for_service(pose_selector_clear_srv_name, 0.5)
@@ -158,7 +163,7 @@ class RqtTablesDemo(Plugin):
         open_gripper_srv_name = rospy.get_param('~open_gripper_srv_name', '/mobipick/pose_teacher/open_gripper')
         close_gripper_srv_name = rospy.get_param('~close_gripper_srv_name', '/mobipick/pose_teacher/close_gripper')
         try:
-            rospy.wait_for_service(open_gripper_srv_name, wait_for_services)
+            rospy.wait_for_service(open_gripper_srv_name, self.wait_for_services)
             rospy.wait_for_service(close_gripper_srv_name, 0.5)
             self.open_gripper_srv = rospy.ServiceProxy(open_gripper_srv_name, Empty)
             self.close_gripper_srv = rospy.ServiceProxy(close_gripper_srv_name, Empty)
@@ -183,6 +188,8 @@ class RqtTablesDemo(Plugin):
         self._widget.cmdPerceptionPSClassQuery.clicked.connect(self.perception_ps_class_query)
         self._widget.cmdPickObj.clicked.connect(self.pick_object)
         self._widget.cmdManipUpdate.clicked.connect(self.manipulation_update)
+        self._widget.cmdPlaceObj.clicked.connect(self.place_object)
+        self._widget.cmdInsertObj.clicked.connect(self.insert_object)
 
         self._widget.chkPickEnableId.stateChanged.connect(self.chk_pick_enable_id_changed)
 
@@ -197,29 +204,40 @@ class RqtTablesDemo(Plugin):
 
     def manipulation_update(self):
         # query pose selector, update labels and combo boxes accordingly
+        detected_objects_names = []
         detected_objects = []
         resp = self.pose_selector_get_all_poses_srv()
         for obj in resp.poses.objects:
-            detected_objects.append(obj.class_id + '_' + str(obj.instance_id))
+            object_to_pick = objectToPick()
+            object_to_pick.set_object_class(obj.class_id)
+            object_to_pick.set_id(obj.instance_id)
+            detected_objects.append(object_to_pick)
+            detected_objects_names.append(obj.class_id + '_' + str(obj.instance_id))
 
         for ignore_chk in self.ignore_from_ps_chks:
             ignore_chk.setText('-')
 
-        if not len(detected_objects) > 0:
+        if not len(detected_objects_names) > 0:
             rospy.logwarn('Pose selector is empty')
             return
 
-        break_count = len(detected_objects)
+        break_count = len(detected_objects_names)
         for i, ignore_chk in enumerate(self.ignore_from_ps_chks):
-            ignore_chk.setText(detected_objects[i])
+            ignore_chk.setText(detected_objects_names[i])
             if i >= break_count - 1:
                 break
 
         self._widget.comboPickObj.clear()
         if self._widget.chkPickEnableId.isChecked():
-            self._widget.comboPickObj.addItems(detected_objects)
+            self._widget.comboPickObj.addItems(detected_objects_names)
         else:
             self._widget.comboPickObj.addItems(self.objects_of_interest)
+
+        # update insert combo
+        self._widget.comboInsertHole.clear()
+        for obj in detected_objects:
+            if obj.obj_class in self.hole_objects:  # hole_objects: objects where other objects can be inserted
+                self._widget.comboInsertHole.addItems([obj.get_object_class_and_id_as_string()])
 
         rospy.loginfo('update succesful!')
 
@@ -366,18 +384,19 @@ class RqtTablesDemo(Plugin):
     def pick_object(self):
         object_to_pick = self._widget.comboPickObj.currentText()
         support_surface_name = self._widget.comboPickSurfaces.currentText()
-        # if self._widget.comboPickId.currentText() != 'any':
-        # TODO: handle object id
         timeout = float(self._widget.txtPickTimeout.toPlainText())
         pick_object_server_name = 'pick_object'
         action_client = actionlib.SimpleActionClient(pick_object_server_name, PickObjectAction)
         rospy.loginfo(f'waiting for {pick_object_server_name} action server')
-        if action_client.wait_for_server(timeout=rospy.Duration.from_sec(5.0)):
+        if action_client.wait_for_server(timeout=rospy.Duration.from_sec(self.wait_for_services)):
             rospy.loginfo(f'found {pick_object_server_name} action server')
             goal = PickObjectGoal()
             goal.object_name = object_to_pick
             goal.support_surface_name = support_surface_name
-            goal.ignore_object_list = []
+            for chk in self.ignore_from_ps_chks:
+                if chk.isChecked():
+                    if chk.text() != '-':
+                        goal.ignore_object_list.append(chk.text())
             rospy.loginfo(
                 f'sending -> pick {object_to_pick} from {support_surface_name} <- goal to {pick_object_server_name} action server'
             )
@@ -414,3 +433,65 @@ class RqtTablesDemo(Plugin):
             self.close_gripper_srv()
         else:
             rospy.logerr('gripper service was not available when node started and therefore is unavailable')
+
+    def place_object(self):
+        support_surface_name = self._widget.comboPlaceSurfaces.currentText()
+        timeout = float(self._widget.txtPlaceTimeout.toPlainText())
+        place_object_server_name = 'place_object'
+        action_client = actionlib.SimpleActionClient(place_object_server_name, PlaceObjectAction)
+        rospy.loginfo(f'waiting for {place_object_server_name} action server')
+        if action_client.wait_for_server(timeout=rospy.Duration.from_sec(self.wait_for_services)):
+            rospy.loginfo(f'found {place_object_server_name} action server')
+            goal = PlaceObjectGoal()
+            goal.support_surface_name = support_surface_name
+            if self._widget.chkPlaceObjObserveBeforePlacing.isChecked():
+                goal.observe_before_place = True
+            else:
+                goal.observe_before_place = False
+            rospy.loginfo(f'sending place goal to {place_object_server_name} action server')
+            action_client.send_goal(goal)
+            rospy.loginfo(f'waiting for result from {place_object_server_name} action server')
+            if action_client.wait_for_result(rospy.Duration.from_sec(timeout)):
+                result = action_client.get_result()
+                rospy.loginfo(f'{place_object_server_name} is done with execution, resuĺt was = "{result}"')
+                if result.success == True:
+                    rospy.loginfo(f'Succesfully placed object')
+                else:
+                    rospy.logerr(f'Failed to place object')
+            else:
+                rospy.logerr(f'Failed to place object, timeout?')
+        else:
+            rospy.logerr(f'action server {place_object_server_name} not available')
+
+    def insert_object(self):
+        support_surface_name = self._widget.comboInsertHole.currentText()
+        if not self._widget.chkObserveBeforeInsert.isChecked():
+            if support_surface_name == '':
+                rospy.logerr('cannot insert, container object has not being perceived')
+                return
+        timeout = float(self._widget.txtInsertTimeout.toPlainText())
+        insert_object_server_name = 'insert_object'
+        action_client = actionlib.SimpleActionClient(insert_object_server_name, InsertObjectAction)
+        rospy.loginfo(f'waiting for {insert_object_server_name} action server')
+        if action_client.wait_for_server(timeout=rospy.Duration.from_sec(self.wait_for_services)):
+            rospy.loginfo(f'found {insert_object_server_name} action server')
+            goal = InsertObjectGoal()
+            goal.support_surface_name = support_surface_name
+            if self._widget.chkObserveBeforeInsert.isChecked():
+                goal.observe_before_insert = True
+            else:
+                goal.observe_before_insert = False
+            rospy.loginfo(f'sending insert goal to {insert_object_server_name} action server')
+            action_client.send_goal(goal)
+            rospy.loginfo(f'waiting for result from {insert_object_server_name} action server')
+            if action_client.wait_for_result(rospy.Duration.from_sec(timeout)):
+                result = action_client.get_result()
+                rospy.loginfo(f'{insert_object_server_name} is done with execution, resuĺt was = "{result}"')
+                if result.success == True:
+                    rospy.loginfo(f'Succesfully inserted object')
+                else:
+                    rospy.logerr(f'Failed to insert object')
+            else:
+                rospy.logerr(f'Failed to insert object, timeout?')
+        else:
+            rospy.logerr(f'action server {insert_object_server_name} not available')
