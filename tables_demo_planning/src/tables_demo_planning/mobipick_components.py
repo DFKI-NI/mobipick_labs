@@ -53,7 +53,6 @@ class Robot(robot_api.Robot):
         self.home_pose = self.pose
         self.arm_pose = self.get_arm_pose()
         self.item = self.get_item()
-        self.item_offered = False
 
     @staticmethod
     def enum_values(enum: Type[Enum]) -> Tuple[str, ...]:
@@ -102,9 +101,6 @@ R = TypeVar('R', bound=Robot)
 class EnvironmentRepresentation(Generic[R]):
     def __init__(self, robot: R) -> None:
         self.robot = robot
-
-    def get_robot_at(self, pose: Pose) -> bool:
-        return self.robot.pose == pose
 
     def get_robot_arm_at(self, arm_pose: ArmPose) -> bool:
         return self.robot.arm_pose == arm_pose

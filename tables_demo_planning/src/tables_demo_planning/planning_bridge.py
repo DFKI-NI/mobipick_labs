@@ -2,7 +2,7 @@ from typing import Callable, Dict, Iterable, List, Optional, Tuple, Type
 from collections import OrderedDict
 from enum import Enum
 import sys
-from unified_planning.model import Fluent, InstantaneousAction, Object, Parameter
+from unified_planning.model import Fluent, InstantaneousAction, Object, Parameter, Problem
 from unified_planning.plans import ActionInstance
 from unified_planning.shortcuts import BoolType, IntType, RealType, UserType
 
@@ -46,18 +46,38 @@ class Bridge:
 
         raise ValueError(f"No corresponding UserType defined for {api_object}!")
 
-    def create_fluent(self, name: str, api_types: Iterable[Type], result_type: Optional[Type] = None) -> Fluent:
+    def create_fluent(self, function: Callable[..., object]) -> Fluent:
         """
-        Create a UP fluent using the UP types corresponding to the api_types given.
-        By default, use BoolType() for the result unless specified otherwise.
+        Create UP fluent based on function, which provides the fluent's values
+         in the application domain for problem initialization.
+        """
+        name = function.__qualname__.split('.')[-1]
+        assert name not in self._fluents.keys()
+        api_types = list(function.__annotations__.items())
+        _, result_api_type = api_types[-1]
+        self._fluents[name] = Fluent(
+            name,
+            self.get_type(result_api_type),
+            OrderedDict((parameter_name, self.get_type(api_type)) for parameter_name, api_type in api_types[:-1]),
+        )
+        self._fluent_functions[name] = function
+        return self._fluents[name]
+
+    def create_fluent_from_signature(
+        self, name: str, api_types: Iterable[Type], result_api_type: Optional[Type] = None
+    ) -> Fluent:
+        """
+        Create UP fluent using the UP types corresponding to the api_types given.
+        By default, use BoolType() for the result unless specified otherwise through result_api_type.
         """
         assert name not in self._fluents.keys()
-        self._fluents[name] = fluent = Fluent(
+        self._fluents[name] = Fluent(
             name,
-            self.get_type(result_type) if result_type else BoolType(),
+            self.get_type(result_api_type) if result_api_type else BoolType(),
             OrderedDict([(api_type.__name__.lower(), self.get_type(api_type)) for api_type in api_types]),
         )
-        return fluent
+        # Note: When not providing a function for the fluent, you need to set its initial values explicitly during problem definition.
+        return self._fluents[name]
 
     def create_action(self, function: Callable[..., object]) -> Tuple[InstantaneousAction, List[Parameter]]:
         """
@@ -113,3 +133,22 @@ class Bridge:
     def create_enum_objects(self, enum: Type[Enum]) -> List[Object]:
         """Create UP objects based on enum."""
         return [self.create_object(member.name, member) for member in enum]
+
+    def get_object(self, api_object: object) -> Object:
+        """Return UP object corresponding to api_object if it exists, else api_object itself."""
+        name = getattr(api_object, "name") if hasattr(api_object, "name") else str(api_object)
+        return self._objects[name] if name in self._objects.keys() else api_object
+
+    def define_problem(
+        self,
+        fluents: Optional[Iterable[Fluent]] = None,
+        actions: Optional[Iterable[InstantaneousAction]] = None,
+        objects: Optional[Iterable[Object]] = None,
+    ) -> Problem:
+        """Define UP problem by its (potential subsets of) fluents, actions, and objects."""
+        # Note: Reset goals and initial values to reuse this problem.
+        problem = Problem()
+        problem.add_fluents(self._fluents.values() if fluents is None else fluents)
+        problem.add_actions(self._actions.values() if actions is None else actions)
+        problem.add_objects(self._objects.values() if objects is None else objects)
+        return problem
