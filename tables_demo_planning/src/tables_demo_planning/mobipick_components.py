@@ -100,6 +100,8 @@ R = TypeVar('R', bound=Robot)
 
 class EnvironmentRepresentation(Generic[R]):
     def __init__(self, robot: R) -> None:
+        # Note: Instantiate robot as subclass of R in a subclass of this class
+        #  to enable mutual references during their initializations.
         self.robot = robot
 
     def get_robot_arm_at(self, arm_pose: ArmPose) -> bool:

@@ -16,7 +16,7 @@ from pbr_msgs.msg import (
     PlaceObjectAction,
     PlaceObjectGoal,
 )
-from unified_planning.model import Fluent, Problem
+from unified_planning.model import Problem
 from unified_planning.shortcuts import And, Equals, Not, Or
 from symbolic_fact_generation import on_fact_generator
 from tables_demo_planning.mobipick_components import ArmPose, EnvironmentRepresentation, Item, Location, Robot
@@ -30,9 +30,9 @@ Development in progress.
 
 
 class TablesDemoRobot(Robot):
-    def __init__(self, namespace: str, domain: 'TablesDemoDomain') -> None:
+    def __init__(self, namespace: str, env: 'TablesDemoEnv') -> None:
         super().__init__(namespace)
-        self.domain = domain
+        self.env = env
 
         self.activate_pose_selector = rospy.ServiceProxy("/pick_pose_selector_node/pose_selector_activate", SetBool)
         self.open_gripper = rospy.ServiceProxy("/mobipick/pose_teacher/open_gripper", Empty)
@@ -51,7 +51,7 @@ class TablesDemoRobot(Robot):
             return False
 
         rospy.loginfo("Found pick object action server.")
-        location = self.domain.resolve_search_location(location)
+        location = self.env.resolve_search_location(location)
         perceived_item_locations = self.perceive(location)
         if item not in perceived_item_locations.keys():
             rospy.logwarn(f"Cannot find {item.value} at {location.name}. Pick up FAILED!")
@@ -65,8 +65,8 @@ class TablesDemoRobot(Robot):
         self.pick_object_goal.support_surface_name = location.name
         self.pick_object_goal.ignore_object_list = [
             item.value
-            for item in self.domain.DEMO_ITEMS
-            if self.domain.believed_item_locations.get(item) == Location.in_box
+            for item in TablesDemoDomain.DEMO_ITEMS
+            if self.env.believed_item_locations.get(item) == Location.in_box
         ]
         rospy.loginfo(f"Sending pick '{item.value}' goal to pick object action server: {self.pick_object_goal}")
         self.pick_object_action_client.send_goal(self.pick_object_goal)
@@ -83,7 +83,7 @@ class TablesDemoRobot(Robot):
 
         print(f"Successfully picked up {item.name}.")
         self.item = item
-        self.domain.believed_item_locations[item] = Location.on_robot
+        self.env.believed_item_locations[item] = Location.on_robot
         self.arm.move("transport")
         self.arm_pose = ArmPose.transport
         return True
@@ -96,9 +96,9 @@ class TablesDemoRobot(Robot):
             return False
 
         rospy.loginfo("Found place object action server.")
-        observe_before_place = self.domain.believed_item_locations.get(Item.box) != Location.on_robot or all(
-            self.domain.believed_item_locations.get(check_item) != Location.in_box
-            for check_item in self.domain.DEMO_ITEMS
+        observe_before_place = self.env.believed_item_locations.get(Item.box) != Location.on_robot or all(
+            self.env.believed_item_locations.get(check_item) != Location.in_box
+            for check_item in TablesDemoDomain.DEMO_ITEMS
         )
         if observe_before_place:
             self.perceive(location)
@@ -119,7 +119,7 @@ class TablesDemoRobot(Robot):
 
         print(f"Successfully placed {item.value}.")
         self.item = Item.nothing
-        self.domain.believed_item_locations[item] = location
+        self.env.believed_item_locations[item] = location
         self.arm.move("home")
         self.arm_pose = ArmPose.home
         return True
@@ -150,36 +150,36 @@ class TablesDemoRobot(Robot):
 
         print(f"Successfully inserted {item.value} into box.")
         self.item = Item.nothing
-        self.domain.believed_item_locations[item] = Location.in_box
+        self.env.believed_item_locations[item] = Location.in_box
         self.arm.move("home")
         self.arm_pose = ArmPose.home
         return True
 
     def search_at(self, pose: Pose, location: Location) -> bool:
         """At pose, search for item_search at location."""
-        self.domain.search_location = location
+        self.env.search_location = location
         item_locations = self.perceive(location)
-        item = self.domain.item_search
+        item = self.env.item_search
         assert item
         if item in item_locations.keys():
             print(f"Search for {item.name} SUCCESSFUL.")
-            self.domain.item_search = None
+            self.env.item_search = None
         return True
 
     def check_reset_search(self) -> None:
         """Reset search if all tables have been searched."""
-        if all(table in self.domain.searched_locations for table in self.domain.TABLE_LOCATIONS):
-            self.domain.searched_locations.clear()
+        if all(table in self.env.searched_locations for table in TablesDemoDomain.TABLE_LOCATIONS):
+            self.env.searched_locations.clear()
 
     def search_tool(self, item: Item) -> bool:
         """Initiate search for item."""
-        self.domain.item_search = item
+        self.env.item_search = item
         self.check_reset_search()
         return True
 
     def search_box(self) -> bool:
         """Initiate search for box."""
-        self.domain.item_search = Item.box
+        self.env.item_search = Item.box
         self.check_reset_search()
         return True
 
@@ -213,7 +213,7 @@ class TablesDemoRobot(Robot):
                 fact_item_name, fact_location_name = fact.values
                 rospy.loginfo(f"{fact_item_name} on {fact_location_name} returned by pose_selector and fact_generator.")
                 if (
-                    fact_item_name in [item.value for item in self.domain.DEMO_ITEMS]
+                    fact_item_name in [item.value for item in TablesDemoDomain.DEMO_ITEMS]
                     and fact_location_name == location.name
                 ):
                     rospy.loginfo(f"{fact_item_name} is perceived as on {fact_location_name}.")
@@ -223,42 +223,60 @@ class TablesDemoRobot(Robot):
             if fact.name == "on":
                 fact_item_name, fact_location_name = fact.values
                 if (
-                    fact_item_name in [item.value for item in self.domain.DEMO_ITEMS]
+                    fact_item_name in [item.value for item in TablesDemoDomain.DEMO_ITEMS]
                     and fact_location_name == Item.box.value
                     and perceived_item_locations.get(Item.box) == location
                 ):
                     rospy.loginfo(f"{fact_item_name} is perceived as on {fact_location_name}.")
                     perceived_item_locations[Item(fact_item_name)] = Location.in_box
         # Determine newly perceived items and their locations.
-        self.domain.newly_perceived_item_locations.clear()
+        self.env.newly_perceived_item_locations.clear()
         for perceived_item, perceived_location in perceived_item_locations.items():
             if (
-                perceived_item not in self.domain.believed_item_locations.keys()
-                or self.domain.believed_item_locations[perceived_item] != location
+                perceived_item not in self.env.believed_item_locations.keys()
+                or self.env.believed_item_locations[perceived_item] != location
             ):
-                self.domain.newly_perceived_item_locations[perceived_item] = perceived_location
-        rospy.loginfo(f"Newly perceived items: {self.domain.newly_perceived_item_locations.keys()}")
+                self.env.newly_perceived_item_locations[perceived_item] = perceived_location
+        rospy.loginfo(f"Newly perceived items: {self.env.newly_perceived_item_locations.keys()}")
         # Remove all previously perceived items at location.
-        for check_item, check_location in list(self.domain.believed_item_locations.items()):
+        for check_item, check_location in list(self.env.believed_item_locations.items()):
             if check_location == location:
-                del self.domain.believed_item_locations[check_item]
+                del self.env.believed_item_locations[check_item]
         # Add all currently perceived items at location.
-        self.domain.believed_item_locations.update(perceived_item_locations)
-        self.domain.searched_locations.add(location)
-        self.domain.print_believed_item_locations()
+        self.env.believed_item_locations.update(perceived_item_locations)
+        self.env.searched_locations.add(location)
+        self.env.print_believed_item_locations()
         return perceived_item_locations
 
 
 class TablesDemoEnv(EnvironmentRepresentation[TablesDemoRobot]):
-    def __init__(self, domain: 'TablesDemoDomain') -> None:
-        super().__init__(TablesDemoRobot("mobipick", domain))
-        self.domain = domain
+    def __init__(self) -> None:
+        super().__init__(TablesDemoRobot("mobipick", self))
+        self.believed_item_locations: Dict[Item, Location] = {}
+        self.newly_perceived_item_locations: Dict[Item, Location] = {}
+        self.item_search: Optional[Item] = None
+        self.searched_locations: Set[Location] = set()
+        self.search_location = Location.anywhere
 
     def get_believe_item_at(self, item: Item, location: Location) -> bool:
-        return location == self.domain.believed_item_locations.get(item, Location.anywhere)
+        return location == self.believed_item_locations.get(item, Location.anywhere)
 
     def get_searched_at(self, location: Location) -> bool:
-        return location in self.domain.searched_locations
+        return location in self.searched_locations
+
+    def resolve_search_location(self, location: Location) -> Location:
+        """Resolve a location symbol to the actual table where the search succeeded."""
+        if location not in (Location.tool_search_location, Location.box_search_location):
+            return location
+
+        assert self.search_location in TablesDemoDomain.TABLE_LOCATIONS
+        return self.search_location
+
+    def print_believed_item_locations(self) -> None:
+        """Print at which locations the items are believed to be."""
+        print("The believed item locations are:")
+        for item in TablesDemoDomain.DEMO_ITEMS:
+            print(f"- {item.name}:", self.believed_item_locations.get(item, Location.anywhere).name)
 
 
 class TablesDemoDomain(Domain):
@@ -267,13 +285,8 @@ class TablesDemoDomain(Domain):
     RETRIES_BEFORE_ABORTION = 2
 
     def __init__(self, target_location: Location) -> None:
-        env = TablesDemoEnv(self)
-        super().__init__(env)
-        self.believed_item_locations: Dict[Item, Location] = {}
-        self.newly_perceived_item_locations: Dict[Item, Location] = {}
-        self.item_search: Optional[Item] = None
-        self.searched_locations: Set[Location] = set()
-        self.search_location = Location.anywhere
+        self.env = TablesDemoEnv()
+        super().__init__(self.env)
         self.target_location = target_location
         self.target_table = self.objects[self.target_location.name]
         self.pose_locations = {
@@ -284,8 +297,8 @@ class TablesDemoDomain(Domain):
             self.box_search_pose: self.box_search_location,
         }
 
-        self.believe_item_at = self.create_fluent(env.get_believe_item_at)
-        self.searched_at = self.create_fluent(env.get_searched_at)
+        self.believe_item_at = self.create_fluent(self.env.get_believe_item_at)
+        self.searched_at = self.create_fluent(self.env.get_searched_at)
         self.pose_at = self.create_fluent_from_signature("pose_at", [Pose, Location])
 
         self.pick_item, (_, pose, location, item) = self.create_action(TablesDemoRobot.pick_item)
@@ -463,27 +476,13 @@ class TablesDemoDomain(Domain):
 
     def set_search_goals(self) -> None:
         """Set the goals for the item_search subproblem."""
-        assert self.item_search
+        assert self.env.item_search
         self.subproblem.clear_goals()
         self.subproblem.add_goal(
             self.believe_item_at(self.box, self.box_search_location)
-            if self.item_search == Item.box
-            else self.believe_item_at(self.objects[self.item_search.name], self.tool_search_location)
+            if self.env.item_search == Item.box
+            else self.believe_item_at(self.objects[self.env.item_search.name], self.tool_search_location)
         )
-
-    def resolve_search_location(self, location: Location) -> Location:
-        """Resolve a location symbol to the actual table where the search succeeded."""
-        if location not in (Location.tool_search_location, Location.box_search_location):
-            return location
-
-        assert self.search_location in self.TABLE_LOCATIONS
-        return self.search_location
-
-    def print_believed_item_locations(self) -> None:
-        """Print at which locations the items are believed to be."""
-        print("The believed item locations are:")
-        for item in self.DEMO_ITEMS:
-            print(f"- {item.name}:", self.believed_item_locations.get(item, Location.anywhere).name)
 
     def run(self) -> None:
         print(f"Scenario: Mobipick shall bring all items to {self.target_table}.")
@@ -493,7 +492,7 @@ class TablesDemoDomain(Domain):
         retries_before_abortion = self.RETRIES_BEFORE_ABORTION
         error_counts: Dict[str, int] = defaultdict(int)
         # Solve overall problem.
-        self.print_believed_item_locations()
+        self.env.print_believed_item_locations()
         self.set_initial_values(self.problem)
         self.set_goals()
         actions = self.solve(self.problem)
@@ -518,7 +517,7 @@ class TablesDemoDomain(Domain):
                     if location == self.target_location:
                         print(f"Picking up box OBSOLETE.")
                         visualization.succeed(action_name)
-                        self.print_believed_item_locations()
+                        self.env.print_believed_item_locations()
                         self.set_initial_values(self.problem)
                         actions = self.solve(self.problem)
                         break
@@ -534,13 +533,13 @@ class TablesDemoDomain(Domain):
 
                 # Handle item search as an inner execution loop.
                 # Rationale: It has additional stop criteria, and might continue the outer loop.
-                if self.item_search:
+                if self.env.item_search:
                     try:
                         # Check whether an obsolete item search invalidates the previous plan.
-                        if self.believed_item_locations.get(self.item_search, self.anywhere) != self.anywhere:
-                            print(f"Search for {self.item_search.name} OBSOLETE.")
+                        if self.env.believed_item_locations.get(self.env.item_search, self.anywhere) != self.anywhere:
+                            print(f"Search for {self.env.item_search.name} OBSOLETE.")
                             visualization.succeed(action_name)
-                            self.print_believed_item_locations()
+                            self.env.print_believed_item_locations()
                             self.set_initial_values(self.problem)
                             actions = self.solve(self.problem)
                             break
@@ -580,13 +579,13 @@ class TablesDemoDomain(Domain):
                                 if result:
                                     # Note: True result only means any subaction succeeded.
                                     # Check if the search actually succeeded.
-                                    if self.item_search is None:
+                                    if self.env.item_search is None:
                                         print("- Continue with plan.")
                                         visualization.succeed(subaction_name)
                                         break
                                     # Check if the search found another item.
-                                    elif self.newly_perceived_item_locations:
-                                        self.newly_perceived_item_locations.clear()
+                                    elif self.env.newly_perceived_item_locations:
+                                        self.env.newly_perceived_item_locations.clear()
                                         print("- Found another item, search ABORTED.")
                                         visualization.succeed(subaction_name)
                                         self.espeak_pub.publish("Found another item. Make a new plan.")
@@ -617,14 +616,14 @@ class TablesDemoDomain(Domain):
                             return
 
                         retries_before_abortion -= 1
-                        self.print_believed_item_locations()
+                        self.env.print_believed_item_locations()
                         self.set_initial_values(self.problem)
                         actions = self.solve(self.problem)
                         break
                 else:
                     visualization.succeed(action_name)
                     retries_before_abortion = self.RETRIES_BEFORE_ABORTION
-                    self.print_believed_item_locations()
+                    self.env.print_believed_item_locations()
                     self.set_initial_values(self.problem)
                     actions = self.solve(self.problem)
                     break

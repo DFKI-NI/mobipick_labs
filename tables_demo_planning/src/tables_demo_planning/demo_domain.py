@@ -39,8 +39,6 @@ class Domain(Bridge, ABC):
 
     def __init__(self, env: EnvironmentRepresentation[R]) -> None:
         super().__init__()
-        self.env = env
-
         # Create types for planning based on class types.
         self.create_types([Robot, Pose, ArmPose, Item, Location])
 

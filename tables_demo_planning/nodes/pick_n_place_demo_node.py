@@ -51,7 +51,6 @@ class PickAndPlaceRobot(Robot):
 
 class PickAndPlaceEnv(EnvironmentRepresentation[PickAndPlaceRobot]):
     def __init__(self) -> None:
-        # Note: Instantiating the robot from env enables mutual references on initialization.
         super().__init__(PickAndPlaceRobot("mobipick", self))
         self.item_offered = False
 
@@ -60,9 +59,10 @@ class PickAndPlaceEnv(EnvironmentRepresentation[PickAndPlaceRobot]):
 
 
 class PickAndPlaceDomain(Domain):
-    def __init__(self, env: PickAndPlaceEnv) -> None:
-        super().__init__(env)
-        self.item_offered = self.create_fluent(env.get_item_offered)
+    def __init__(self) -> None:
+        self.env = PickAndPlaceEnv()
+        super().__init__(self.env)
+        self.item_offered = self.create_fluent(self.env.get_item_offered)
 
         self.pick, (_,) = self.create_action(PickAndPlaceRobot.pick_power_drill)
         self.pick.add_precondition(self.robot_at(self.base_table_2_pose))
@@ -177,6 +177,6 @@ class PickAndPlaceDomain(Domain):
 if __name__ == '__main__':
     unified_planning.shortcuts.get_env().credits_stream = None
     try:
-        PickAndPlaceDomain(PickAndPlaceEnv()).run()
+        PickAndPlaceDomain().run()
     except rospy.ROSInterruptException:
         pass
