@@ -1,5 +1,4 @@
 from typing import Callable, Dict, Generic, Iterable, List, Optional, Sequence, TypeVar
-from abc import ABC, abstractmethod
 import itertools
 import os
 import time
@@ -25,7 +24,7 @@ import robot_api
 E = TypeVar('E', bound=EnvironmentRepresentation)
 
 
-class Domain(Bridge, Generic[E], ABC):
+class Domain(Bridge, Generic[E]):
     BASE_HANDOVER_POSE_NAME = "base_handover_pose"
     BASE_HOME_POSE_NAME = "base_home_pose"
     BASE_PICK_POSE_NAME = "base_pick_pose"
@@ -54,7 +53,7 @@ class Domain(Bridge, Generic[E], ABC):
         config_path = f"{rospkg.RosPack().get_path('mobipick_pick_n_place')}/config/"
         filename = "moelk_tables_demo.yaml"
         self.api_poses = self.load_waypoints(os.path.join(config_path, filename))
-        env.robot.set_home_pose(self.api_poses[self.BASE_HOME_POSE_NAME])
+        self.api_robot.set_home_pose(self.api_poses[self.BASE_HOME_POSE_NAME])
         self.poses = self.create_objects(self.api_poses)
         self.base_home_pose = self.objects[self.BASE_HOME_POSE_NAME]
         self.base_handover_pose = self.objects[self.BASE_HANDOVER_POSE_NAME]
@@ -172,16 +171,6 @@ class Domain(Bridge, Generic[E], ABC):
         rospy.loginfo(f"Result received from '{result.engine_name}' planner after {time.time() - start_time} seconds.")
         return result.plan.actions if result.plan else None
 
-    @abstractmethod
-    def initialize_problem(self) -> Problem:
-        """Initialize the current UP problem to solve."""
-        pass
-
-    @abstractmethod
-    def set_goals(self, problem: Problem) -> None:
-        """Set goals of UP problem."""
-        pass
-
     def set_initial_values(self, problem: Problem) -> None:
         """Set all initial values using the functions corresponding to this problem's fluents."""
         type_objects: Dict[type, List[Object]] = {}
@@ -207,6 +196,7 @@ class Domain(Bridge, Generic[E], ABC):
                 problem.set_initial_value(self.robot_at(pose), pose == base_pose)
 
     def label(self, action: ActionInstance) -> str:
+        """Return a user-friendly label for visualizing action."""
         parameters = [parameter.object() for parameter in action.actual_parameters]
         parameter_labels = [self.parameter_labels.get(parameter, str(parameter)) for parameter in parameters]
         return self.method_labels[action.action](parameter_labels)

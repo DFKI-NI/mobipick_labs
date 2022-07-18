@@ -96,6 +96,7 @@ class SubPlanVisualization:
         self.update()
 
     def add_node(self, text: str, fillcolor: str) -> None:
+        """Manually add an unconnected node with text and fillcolor into existing graph."""
         if self.graph:
             self.graph.add_node(Node(text, style="filled", fillcolor=fillcolor))
             self.update()

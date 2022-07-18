@@ -54,25 +54,26 @@ class Robot(robot_api.Robot):
         self.arm_pose = self.get_arm_pose()
         self.item = self.get_item()
 
-    @staticmethod
-    def enum_values(enum: Type[Enum]) -> Tuple[str, ...]:
-        return tuple(member.value for member in enum)
-
     def get_pose(self) -> Pose:
+        """Return current base pose."""
         return TuplePose.to_pose(self.base.get_pose())
 
     def get_arm_pose(self) -> ArmPose:
+        """Return current arm pose."""
         arm_pose_name = self.arm.get_pose_name()
-        return ArmPose(arm_pose_name) if arm_pose_name in self.enum_values(ArmPose) else ArmPose.unknown
+        return ArmPose(arm_pose_name) if arm_pose_name in [member.value for member in ArmPose] else ArmPose.unknown
 
     def get_item(self) -> Item:
+        """Return Item.something if robot arm has an object attached, else Item.nothing."""
         self.arm.execute("HasAttachedObjects")
         return Item.something if self.arm.get_result().result else Item.nothing
 
     def set_home_pose(self, pose: Pose) -> None:
+        """Set home pose of robot base."""
         self.home_pose = pose
 
     def move_base(self, _: Pose, pose: Pose) -> bool:
+        """Move base to pose."""
         if self.base.move(pose) != 3:
             rospy.logerr(f"Move base to {pose} FAILED!")
             # Move to home pose whenever movement fails. Note: This is a drastic workaround.
@@ -83,10 +84,12 @@ class Robot(robot_api.Robot):
         return True
 
     def move_base_with_item(self, item: Item, _: Pose, pose: Pose) -> bool:
+        """Move base with item to pose."""
         # Note: Same action as move_base(), just with item in transport pose.
         return self.move_base(_, pose)
 
     def move_arm(self, _: ArmPose, arm_pose: ArmPose) -> bool:
+        """Move arm to arm_pose."""
         if not self.arm.move(arm_pose.name):
             rospy.logerr(f"Move arm to '{arm_pose.name} FAILED!'")
             return False
@@ -101,15 +104,17 @@ class EnvironmentRepresentation:
         #  to enable mutual references during their initializations.
         self.robot = robot
 
-    def get_robot_arm_at(self, arm_pose: ArmPose) -> bool:
-        return self.robot.arm_pose == arm_pose
-
-    def get_robot_has(self, item: Item) -> bool:
-        return self.robot.item == item
-
     def __repr__(self) -> str:
         return (
             f"{self.robot.__class__.__name__} at {self.robot.pose},"
             f" arm at {self.robot.arm_pose}"
             f" with {self.robot.item}"
         )
+
+    def get_robot_arm_at(self, arm_pose: ArmPose) -> bool:
+        """Return fluent value whether robot arm is at arm_pose."""
+        return self.robot.arm_pose == arm_pose
+
+    def get_robot_has(self, item: Item) -> bool:
+        """Return fluent value whether robot has item."""
+        return self.robot.item == item

@@ -23,6 +23,7 @@ class PickAndPlaceRobot(Robot):
         return Item.power_drill if self.arm.get_result().result else Item.nothing
 
     def pick_power_drill(self) -> bool:
+        """Pick up power drill."""
         self.arm.execute("CaptureObject")
         self.arm_pose = self.get_arm_pose()
         self.arm.execute("PickUpObject")
@@ -34,12 +35,14 @@ class PickAndPlaceRobot(Robot):
         return True
 
     def place_power_drill(self) -> bool:
+        """Place power drill onto table."""
         self.arm.execute("PlaceObject")
         self.arm_pose = ArmPose.place
         self.item = Item.nothing
         return True
 
     def hand_over(self) -> bool:
+        """Hand over item and observe force torque feedback."""
         self.arm.execute("MoveArmToHandover")
         self.arm_pose = self.get_arm_pose()
         self.env.item_offered = True
@@ -56,6 +59,7 @@ class PickAndPlaceEnv(EnvironmentRepresentation):
         self.item_offered = False
 
     def get_item_offered(self) -> bool:
+        """Return fluent value whether item has been offered."""
         return self.item_offered
 
 
@@ -100,6 +104,7 @@ class PickAndPlaceDomain(Domain[PickAndPlaceEnv]):
         self.espeak_pub = rospy.Publisher("/espeak_node/speak_line", String, queue_size=1)
 
     def initialize_problem(self) -> Problem:
+        """Initialize current problem."""
         actions = [self.move_base, self.move_base_with_item, self.move_arm, self.pick, self.place]
         if not self.env.item_offered:
             actions.append(self.hand_over)
@@ -111,11 +116,13 @@ class PickAndPlaceDomain(Domain[PickAndPlaceEnv]):
         )
 
     def set_goals(self, problem: Problem) -> None:
+        """Set the goals of the pick and place demo."""
         problem.add_goal(self.robot_at(self.base_home_pose))
         problem.add_goal(self.robot_has(self.nothing))
         problem.add_goal(self.item_offered)
 
     def run(self) -> None:
+        """Run the pick and place demo."""
         self.visualization = SubPlanVisualization()
         executed_actions: Set[str] = set()
         error_count = 0

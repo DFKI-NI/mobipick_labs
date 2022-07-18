@@ -259,9 +259,11 @@ class TablesDemoEnv(EnvironmentRepresentation):
         self.search_location = Location.anywhere
 
     def get_believe_item_at(self, item: Item, location: Location) -> bool:
+        """Return fluent value whether item is believed to be at location."""
         return location == self.believed_item_locations.get(item, Location.anywhere)
 
     def get_searched_at(self, location: Location) -> bool:
+        """Return fluent value whether robot has already searched at location."""
         return location in self.searched_locations
 
     def resolve_search_location(self, location: Location) -> Location:
@@ -451,9 +453,6 @@ class TablesDemoDomain(Domain[TablesDemoEnv]):
                         == (self.pose_locations[pose] if pose in self.pose_locations.keys() else self.anywhere),
                     )
 
-    def initialize_problem(self) -> Problem:
-        return self.define_mobipick_problem()
-
     def set_goals(self) -> None:
         """Set the goals for the overall demo."""
         self.problem.clear_goals()
@@ -474,7 +473,7 @@ class TablesDemoDomain(Domain[TablesDemoEnv]):
                 self.problem.add_goal(self.believe_item_at(self.screwdriver, self.target_table))
 
     def set_search_goals(self) -> None:
-        """Set the goals for the item_search subproblem."""
+        """Set the goals for the current item_search subproblem."""
         assert self.env.item_search
         self.subproblem.clear_goals()
         self.subproblem.add_goal(
@@ -484,6 +483,7 @@ class TablesDemoDomain(Domain[TablesDemoEnv]):
         )
 
     def run(self) -> None:
+        """Run the mobipick tables demo."""
         print(f"Scenario: Mobipick shall bring all items to {self.target_table}.")
 
         visualization = SubPlanVisualization()
