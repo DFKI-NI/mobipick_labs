@@ -17,7 +17,8 @@ class PickAndPlaceRobot(Robot):
         super().__init__(namespace)
         self.env = env
 
-    def get_initial_item(self) -> Item:
+    def get_item(self) -> Item:
+        """Return Item.power_drill if robot arm has an object attached, else Item.nothing."""
         self.arm.execute("HasAttachedObjects")
         return Item.power_drill if self.arm.get_result().result else Item.nothing
 
