@@ -512,7 +512,7 @@ class TablesDemoDomain(Domain[TablesDemoEnv]):
                 print(action)
                 # Explicitly do not pick up box from target_table since planning does not handle it yet.
                 if function == TablesDemoRobot.pick_item and parameters[-1] == Item.box:
-                    location = self.resolve_search_location(parameters[-2])
+                    location = self.env.resolve_search_location(parameters[-2])
                     if location == self.target_location:
                         print(f"Picking up box OBSOLETE.")
                         visualization.succeed(action_name)
