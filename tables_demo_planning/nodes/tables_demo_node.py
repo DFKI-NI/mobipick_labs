@@ -515,7 +515,7 @@ class TablesDemoDomain(Domain[TablesDemoEnv]):
                     location = self.env.resolve_search_location(parameters[-2])
                     if location == self.target_location:
                         print(f"Picking up box OBSOLETE.")
-                        visualization.succeed(action_name)
+                        visualization.cancel(action_name)
                         self.env.print_believed_item_locations()
                         self.set_initial_values(self.problem)
                         actions = self.solve(self.problem)
@@ -537,7 +537,7 @@ class TablesDemoDomain(Domain[TablesDemoEnv]):
                         # Check whether an obsolete item search invalidates the previous plan.
                         if self.env.believed_item_locations.get(self.env.item_search, self.anywhere) != self.anywhere:
                             print(f"Search for {self.env.item_search.name} OBSOLETE.")
-                            visualization.succeed(action_name)
+                            visualization.cancel(action_name)
                             self.env.print_believed_item_locations()
                             self.set_initial_values(self.problem)
                             actions = self.solve(self.problem)
@@ -586,7 +586,7 @@ class TablesDemoDomain(Domain[TablesDemoEnv]):
                                     elif self.env.newly_perceived_item_locations:
                                         self.env.newly_perceived_item_locations.clear()
                                         print("- Found another item, search ABORTED.")
-                                        visualization.succeed(subaction_name)
+                                        visualization.cancel(subaction_name)
                                         self.espeak_pub.publish("Found another item. Make a new plan.")
                                         # Set result to None to trigger replanning.
                                         result = None
@@ -620,7 +620,7 @@ class TablesDemoDomain(Domain[TablesDemoEnv]):
                         actions = self.solve(self.problem)
                         break
                 else:
-                    visualization.succeed(action_name)
+                    visualization.cancel(action_name)
                     retries_before_abortion = self.RETRIES_BEFORE_ABORTION
                     self.env.print_believed_item_locations()
                     self.set_initial_values(self.problem)

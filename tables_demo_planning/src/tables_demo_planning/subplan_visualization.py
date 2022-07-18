@@ -77,23 +77,29 @@ class SubPlanVisualization:
                     self.graph.add_edge(node.edge)
         self.update()
 
+    def update_fillcolor(self, action: object, value: str) -> None:
+        """Set fillcolor of action to value and update visualization."""
+        self.nodes[str(action)].node.set("fillcolor", value)
+        self.update()
+
     def execute(self, action: object) -> None:
         """Mark action as being executed."""
         action_node = self.nodes[str(action)]
-        action_node.node.set("fillcolor", "yellow")
         if action_node.edge:
             action_node.edge.set("color", "green")
-        self.update()
+        self.update_fillcolor(action, "yellow")
 
     def succeed(self, action: object) -> None:
-        """Mark action as successful."""
-        self.nodes[str(action)].node.set("fillcolor", "green")
-        self.update()
+        """Mark action as succeeded."""
+        self.update_fillcolor(action, "green")
 
     def fail(self, action: object) -> None:
         """Mark action as failed."""
-        self.nodes[str(action)].node.set("fillcolor", "red")
-        self.update()
+        self.update_fillcolor(action, "red")
+
+    def cancel(self, action: object) -> None:
+        """Mark cation as canceled."""
+        self.update_fillcolor(action, "gray")
 
     def add_node(self, text: str, fillcolor: str) -> None:
         """Manually add an unconnected node with text and fillcolor into existing graph."""
