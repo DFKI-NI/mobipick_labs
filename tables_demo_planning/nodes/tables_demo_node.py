@@ -597,7 +597,7 @@ class TablesDemoDomain(Domain[TablesDemoEnv]):
                         # Note: The conclude action at the end of any search always fails.
                     finally:
                         # Always end the search at this point.
-                        self.item_search = None
+                        self.env.item_search = None
 
                 if result is not None:
                     if result:
