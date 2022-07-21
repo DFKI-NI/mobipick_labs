@@ -2,9 +2,10 @@ from typing import Callable, Dict, Iterable, List, Optional, Tuple, Type
 from collections import OrderedDict
 from enum import Enum
 import sys
+from unified_planning.engines import OptimalityGuarantee
 from unified_planning.model import Fluent, InstantaneousAction, Object, Parameter, Problem
 from unified_planning.plans import ActionInstance
-from unified_planning.shortcuts import BoolType, IntType, RealType, UserType
+from unified_planning.shortcuts import BoolType, IntType, OneshotPlanner, RealType, UserType
 
 """Generic bridge between application and planning domains"""
 
@@ -152,3 +153,10 @@ class Bridge:
         problem.add_actions(self._actions.values() if actions is None else actions)
         problem.add_objects(self._objects.values() if objects is None else objects)
         return problem
+
+    def solve(self, problem: Problem) -> Optional[List[ActionInstance]]:
+        """Solve planning problem and return list of UP actions."""
+        result = OneshotPlanner(
+            problem_kind=problem.kind, optimality_guarantee=OptimalityGuarantee.SOLVED_OPTIMALLY
+        ).solve(problem)
+        return result.plan.actions if result.plan else None
