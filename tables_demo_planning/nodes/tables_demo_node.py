@@ -497,6 +497,8 @@ class TablesDemoDomain(Domain[TablesDemoEnv]):
         actions = self.solve(self.problem)
         if not actions:
             print("Execution ended because no plan could be found.")
+            return
+
         # Loop action execution as long as there are actions.
         while actions:
             print("> Plan:")
