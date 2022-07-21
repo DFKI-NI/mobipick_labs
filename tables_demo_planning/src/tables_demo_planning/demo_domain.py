@@ -161,16 +161,6 @@ class Domain(Bridge, Generic[E]):
             ),
         )
 
-    def solve(self, problem: Problem) -> Optional[List[ActionInstance]]:
-        """Solve planning problem and return list of UP actions."""
-        print("Calculating plan ...")
-        start_time = time.time()
-        result = OneshotPlanner(
-            problem_kind=problem.kind, optimality_guarantee=OptimalityGuarantee.SOLVED_OPTIMALLY
-        ).solve(problem)
-        rospy.loginfo(f"Result received from '{result.engine_name}' planner after {time.time() - start_time} seconds.")
-        return result.plan.actions if result.plan else None
-
     def set_initial_values(self, problem: Problem) -> None:
         """Set all initial values using the functions corresponding to this problem's fluents."""
         type_objects: Dict[type, List[Object]] = {}
@@ -194,6 +184,16 @@ class Domain(Bridge, Generic[E]):
             base_pose = self.objects[base_pose_name] if base_pose_name else self.unknown_pose
             for pose in self.poses:
                 problem.set_initial_value(self.robot_at(pose), pose == base_pose)
+
+    def solve(self, problem: Problem) -> Optional[List[ActionInstance]]:
+        """Solve planning problem and return list of UP actions."""
+        print("Calculating plan ...")
+        start_time = time.time()
+        result = OneshotPlanner(
+            problem_kind=problem.kind, optimality_guarantee=OptimalityGuarantee.SOLVED_OPTIMALLY
+        ).solve(problem)
+        rospy.loginfo(f"Result received from '{result.engine_name}' planner after {time.time() - start_time} seconds.")
+        return result.plan.actions if result.plan else None
 
     def label(self, action: ActionInstance) -> str:
         """Return a user-friendly label for visualizing action."""
