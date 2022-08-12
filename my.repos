@@ -6,7 +6,7 @@ repositories:
   mobipick:
     type: git
     url: git@git.ni.dfki.de:mobipick/mobipick.git
-    version: tables-demo
+    version: tables-demo-rebased
   object_pose_msgs:
      type: git
      url: https://git.ni.dfki.de/environment_representation/object_pose_msgs.git
