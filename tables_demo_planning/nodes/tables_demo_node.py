@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from typing import Dict, Optional, Set
+from typing import Dict, List, Optional, Set
 from collections import defaultdict
 import sys
 import unified_planning
@@ -17,6 +17,7 @@ from pbr_msgs.msg import (
     PlaceObjectGoal,
 )
 from unified_planning.model import Problem
+from unified_planning.plans.plan import ActionInstance
 from unified_planning.shortcuts import And, Equals, Not, Or
 from symbolic_fact_generation import on_fact_generator
 from tables_demo_planning.mobipick_components import ArmPose, EnvironmentRepresentation, Item, Location, Robot
@@ -482,6 +483,12 @@ class TablesDemoDomain(Domain[TablesDemoEnv]):
             else self.believe_item_at(self.objects[self.env.item_search.name], self.tool_search_location)
         )
 
+    def replan(self) -> Optional[List[ActionInstance]]:
+        """Print believed item locations, initialize UP problem, and solve it."""
+        self.env.print_believed_item_locations()
+        self.set_initial_values(self.problem)
+        return self.solve(self.problem)
+
     def run(self) -> None:
         """Run the mobipick tables demo."""
         print(f"Scenario: Mobipick shall bring all items to {self.target_table}.")
@@ -491,10 +498,8 @@ class TablesDemoDomain(Domain[TablesDemoEnv]):
         retries_before_abortion = self.RETRIES_BEFORE_ABORTION
         error_counts: Dict[str, int] = defaultdict(int)
         # Solve overall problem.
-        self.env.print_believed_item_locations()
-        self.set_initial_values(self.problem)
         self.set_goals()
-        actions = self.solve(self.problem)
+        actions = self.replan()
         if not actions:
             print("Execution ended because no plan could be found.")
             return
@@ -518,9 +523,7 @@ class TablesDemoDomain(Domain[TablesDemoEnv]):
                     if location == self.target_location:
                         print(f"Picking up box OBSOLETE.")
                         visualization.cancel(action_name)
-                        self.env.print_believed_item_locations()
-                        self.set_initial_values(self.problem)
-                        actions = self.solve(self.problem)
+                        actions = self.replan()
                         break
 
                 visualization.execute(action_name)
@@ -540,9 +543,7 @@ class TablesDemoDomain(Domain[TablesDemoEnv]):
                         if self.env.believed_item_locations.get(self.env.item_search, self.anywhere) != self.anywhere:
                             print(f"Search for {self.env.item_search.name} OBSOLETE.")
                             visualization.cancel(action_name)
-                            self.env.print_believed_item_locations()
-                            self.set_initial_values(self.problem)
-                            actions = self.solve(self.problem)
+                            actions = self.replan()
                             break
 
                         # Search for item by creating and executing a subplan.
@@ -617,16 +618,12 @@ class TablesDemoDomain(Domain[TablesDemoEnv]):
                             return
 
                         retries_before_abortion -= 1
-                        self.env.print_believed_item_locations()
-                        self.set_initial_values(self.problem)
-                        actions = self.solve(self.problem)
+                        actions = self.replan()
                         break
                 else:
                     visualization.cancel(action_name)
                     retries_before_abortion = self.RETRIES_BEFORE_ABORTION
-                    self.env.print_believed_item_locations()
-                    self.set_initial_values(self.problem)
-                    actions = self.solve(self.problem)
+                    actions = self.replan()
                     break
             else:
                 break
