@@ -77,7 +77,8 @@ class Bridge:
             self.get_type(result_api_type) if result_api_type else BoolType(),
             OrderedDict([(api_type.__name__.lower(), self.get_type(api_type)) for api_type in api_types]),
         )
-        # Note: When not providing a function for the fluent, you need to set its initial values explicitly during problem definition.
+        # Note: When not providing a function for the fluent, you need to set
+        # its initial values explicitly during problem definition.
         return self._fluents[name]
 
     def create_action(self, function: Callable[..., object]) -> Tuple[InstantaneousAction, List[Parameter]]:

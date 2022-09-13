@@ -6,14 +6,14 @@ import actionlib
 
 from qt_gui.plugin import Plugin
 from python_qt_binding import loadUi
-from python_qt_binding.QtWidgets import QWidget, QFileDialog, QMessageBox
+from python_qt_binding.QtWidgets import QWidget
 
 from grasplan.common_grasp_tools import objectToPick
 from geometry_msgs.msg import PoseStamped
 from gazebo_msgs.srv import SetModelState
 from gazebo_msgs.msg import ModelState
 from std_srvs.srv import Empty, SetBool, Trigger
-from pose_selector.srv import ClassQuery, PoseDelete, GetPoses
+from pose_selector.srv import ClassQuery, GetPoses
 from pbr_msgs.msg import PickObjectAction, PickObjectGoal, PlaceObjectAction
 from pbr_msgs.msg import PlaceObjectGoal, InsertObjectAction, InsertObjectGoal
 
@@ -135,8 +135,10 @@ class RqtTablesDemo(Plugin):
             '~pose_selector_clear_srv_name', '/pick_pose_selector_node/pose_selector_clear'
         )
         rospy.loginfo(
-            f'waiting for pose selector services: {pose_selector_activate_srv_name}, {pose_selector_class_query_srv_name},\
-                                                            {pose_selector_get_all_poses_srv_name}, {pose_selector_clear_srv_name}'
+            f'waiting for pose selector services: {pose_selector_activate_srv_name}, '
+            '{pose_selector_class_query_srv_name}, '
+            '{pose_selector_get_all_poses_srv_name}, '
+            '{pose_selector_clear_srv_name}'
         )
         # if wait_for_service fails, it will throw a
         # rospy.exceptions.ROSException, and the node will exit (as long as
@@ -153,7 +155,7 @@ class RqtTablesDemo(Plugin):
             self.pose_selector_clear_srv = rospy.ServiceProxy(pose_selector_clear_srv_name, Trigger)
             self.is_pose_selector_available = True
             rospy.loginfo('found pose selector services')
-        except:
+        except Exception:
             self.is_pose_selector_available = False
             self._widget.groupMoveAndActivatePS.setEnabled(False)
             self._widget.groupPoseSelector.setEnabled(False)
@@ -169,7 +171,7 @@ class RqtTablesDemo(Plugin):
             self.close_gripper_srv = rospy.ServiceProxy(close_gripper_srv_name, Empty)
             self.is_gripper_srv_available = True
             rospy.loginfo('found gripper open/close services')
-        except:
+        except Exception:
             self.is_gripper_srv_available = False
             self._widget.cmdOpenGripper.setEnabled(False)
             self._widget.cmdCloseGripper.setEnabled(False)
@@ -242,7 +244,7 @@ class RqtTablesDemo(Plugin):
         rospy.loginfo('update succesful!')
 
     def transform_pose(self, input_pose, target_reference_frame):
-        if input_pose == None:
+        if input_pose is None:
             rospy.logerr('failed to transform pose: input pose cannot be None')
             return None
         # transform to target reference frame
@@ -398,7 +400,8 @@ class RqtTablesDemo(Plugin):
                     if chk.text() != '-':
                         goal.ignore_object_list.append(chk.text())
             rospy.loginfo(
-                f'sending -> pick {object_to_pick} from {support_surface_name} <- goal to {pick_object_server_name} action server'
+                f'sending -> pick {object_to_pick} from {support_surface_name} <- '
+                'goal to {pick_object_server_name} action server'
             )
             if len(goal.ignore_object_list) > 0:
                 rospy.logwarn(
@@ -411,7 +414,7 @@ class RqtTablesDemo(Plugin):
             if action_client.wait_for_result(rospy.Duration.from_sec(timeout)):
                 result = action_client.get_result()
                 rospy.loginfo(f'{pick_object_server_name} is done with execution, resuĺt was = "{result}"')
-                if result.success == True:
+                if result.success:
                     rospy.loginfo(f'Succesfully picked {object_to_pick}')
                 else:
                     rospy.logerr(f'Failed to pick {object_to_pick}')
@@ -454,7 +457,7 @@ class RqtTablesDemo(Plugin):
             if action_client.wait_for_result(rospy.Duration.from_sec(timeout)):
                 result = action_client.get_result()
                 rospy.loginfo(f'{place_object_server_name} is done with execution, resuĺt was = "{result}"')
-                if result.success == True:
+                if result.success:
                     rospy.loginfo(f'Succesfully placed object')
                 else:
                     rospy.logerr(f'Failed to place object')
@@ -487,7 +490,7 @@ class RqtTablesDemo(Plugin):
             if action_client.wait_for_result(rospy.Duration.from_sec(timeout)):
                 result = action_client.get_result()
                 rospy.loginfo(f'{insert_object_server_name} is done with execution, resuĺt was = "{result}"')
-                if result.success == True:
+                if result.success:
                     rospy.loginfo(f'Succesfully inserted object')
                 else:
                     rospy.logerr(f'Failed to insert object')

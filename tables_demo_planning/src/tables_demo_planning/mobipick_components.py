@@ -1,4 +1,3 @@
-from typing import Tuple, Type
 from enum import Enum, IntEnum
 from geometry_msgs.msg import Pose
 import rospy
