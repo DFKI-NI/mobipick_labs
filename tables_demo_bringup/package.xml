@@ -9,6 +9,7 @@
   <license>BSD</license>
 
   <author email="oscar.lima@dfki.de">Oscar Lima</author>
+  <author email="martin.guenther@dfki.de">Martin Günther</author>
 
   <buildtool_depend>catkin</buildtool_depend>
   <exec_depend>espeak_ros</exec_depend>
