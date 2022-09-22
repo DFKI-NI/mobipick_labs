@@ -1,12 +1,12 @@
 <?xml version="1.0"?>
 <package format="2">
   <name>rqt_tables_demo</name>
-  <version>0.0.1</version>
+  <version>0.0.0</version>
   <description>rqt gui to easily control the mobipick tables demo</description>
 
   <maintainer email="oscar.lima@dfki.de">Oscar Lima</maintainer>
 
-  <license>MIT</license>
+  <license>BSD</license>
 
   <author email="oscar.lima@dfki.de">Oscar Lima</author>
 
