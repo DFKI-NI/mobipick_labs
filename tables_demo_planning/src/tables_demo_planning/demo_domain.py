@@ -171,12 +171,12 @@ class Domain(Bridge, Generic[E]):
                 if parameter.type not in type_objects.keys():
                     type_objects[parameter.type] = list(problem.objects(parameter.type))
         for fluent in problem.fluents:
-            if fluent.name in self._fluent_functions.keys():
+            if fluent.name in self.fluent_functions.keys():
                 # Loop through all parameter value combinations.
                 for parameters in itertools.product(*[type_objects[parameter.type] for parameter in fluent.signature]):
                     # Use the fluent function to calculate the initial values.
-                    api_parameters = [self._api_objects[parameter.name] for parameter in parameters]
-                    value = self.get_object(self._fluent_functions[fluent.name](*api_parameters))
+                    api_parameters = [self.api_objects[parameter.name] for parameter in parameters]
+                    value = self.get_object(self.fluent_functions[fluent.name](*api_parameters))
                     problem.set_initial_value(fluent(*parameters), value)
         # Explicitly handle fluents without fluent function.
         if self.robot_at in problem.fluents:
