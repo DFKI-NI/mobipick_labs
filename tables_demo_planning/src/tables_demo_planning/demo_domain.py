@@ -34,7 +34,7 @@
 # Authors: Alexander Sung, DFKI
 
 
-from typing import Callable, Dict, Generic, Iterable, List, Optional, Sequence, Tuple, TypeVar
+from typing import Callable, Dict, Generic, Iterable, List, Optional, Sequence, TypeVar
 import itertools
 import os
 import time
@@ -79,7 +79,7 @@ class Domain(Bridge, Generic[E]):
         self.create_types([Robot, Pose, ArmPose, Item, Location])
 
         # Create fluents for planning.
-        self.robot_at = self.create_fluent_from_signature("robot_at", [Pose], self.get_robot_at)
+        self.robot_at = self.create_fluent_from_signature("robot_at", [Pose], function=self.get_robot_at)
         self.robot_arm_at = self.create_fluent(env.get_robot_arm_at)
         self.robot_has = self.create_fluent(env.get_robot_has)
 
@@ -176,10 +176,10 @@ class Domain(Bridge, Generic[E]):
                     robot_api.add_waypoint(pose_name, (position, orientation))
         return poses
 
-    def get_robot_at(self) -> Dict[Tuple[Object, ...], Object]:
+    def get_robot_at(self, pose: Object) -> Object:
         base_pose_name = self.api_robot.base.get_pose_name()
         base_pose = self.objects[base_pose_name] if base_pose_name else self.unknown_pose
-        return {(pose,): pose == base_pose for pose in self.poses}
+        return pose == base_pose
 
     def define_mobipick_problem(
         self,
@@ -219,12 +219,11 @@ class Domain(Bridge, Generic[E]):
                     api_parameters = [self.api_objects[parameter.name] for parameter in parameters]
                     value = self.get_object(self.api_fluent_functions[fluent.name](*api_parameters))
                     problem.set_initial_value(fluent(*parameters), value)
-            elif fluent.name in self.fluent_dict_functions.keys():
-                # Use the fluent function to calculate the initial values.
-                values = self.fluent_dict_functions[fluent.name]()
+            elif fluent.name in self.fluent_functions.keys():
                 # Loop through all parameter value combinations.
                 for parameters in itertools.product(*[type_objects[parameter.type] for parameter in fluent.signature]):
-                    value = values[tuple(parameters)]
+                    # Use the fluent function to calculate the initial values.
+                    value = self.fluent_functions[fluent.name](*parameters)
                     problem.set_initial_value(fluent(*parameters), value)
 
     def solve(self, problem: Problem) -> Optional[List[ActionInstance]]:

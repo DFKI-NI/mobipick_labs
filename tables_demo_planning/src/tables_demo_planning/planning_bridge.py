@@ -52,8 +52,8 @@ class Bridge:
         # Note: Map from type instead of str to recognize subclasses.
         self.types: Dict[type, Type] = {bool: BoolType(), int: IntType(), float: RealType()}
         self.fluents: Dict[str, Fluent] = {}
+        self.fluent_functions: Dict[str, Callable[..., Object]] = {}
         self.api_fluent_functions: Dict[str, Callable[..., object]] = {}
-        self.fluent_dict_functions: Dict[str, Callable[[], Dict[Tuple[Object, ...], Object]]] = {}
         self.actions: Dict[str, InstantaneousAction] = {}
         self.api_actions: Dict[str, Callable[..., object]] = {}
         self.objects: Dict[str, Object] = {}
@@ -102,12 +102,12 @@ class Bridge:
         self,
         name: str,
         api_types: Iterable[type],
-        function: Optional[Callable[[], Dict[Tuple[Object, ...], Object]]] = None,
         result_api_type: Optional[type] = None,
+        function: Optional[Callable[..., Object]] = None,
     ) -> Fluent:
         """
         Create UP fluent using the UP types corresponding to the api_types given.
-        Optionally provide a function which maps UP parameters to the fluent's result values.
+        Optionally provide a function which provides the UP fluent's values.
         By default, use BoolType() for the result unless specified otherwise through result_api_type.
         """
         assert name not in self.fluents.keys()
@@ -119,7 +119,7 @@ class Bridge:
         # Note: When not providing a function for the fluent, you need to set
         # its initial values explicitly during problem definition.
         if function:
-            self.fluent_dict_functions[name] = function
+            self.fluent_functions[name] = function
         return self.fluents[name]
 
     def create_action(self, function: Callable[..., object]) -> Tuple[InstantaneousAction, List[Parameter]]:
