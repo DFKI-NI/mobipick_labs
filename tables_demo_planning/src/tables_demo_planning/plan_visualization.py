@@ -31,7 +31,7 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 #
 #
-# Authors: Alexander Sung
+# Authors: Alexander Sung, DFKI
 
 
 from typing import List, Sequence
