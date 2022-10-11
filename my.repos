@@ -25,7 +25,7 @@ repositories:
     version: noetic
   robot_api:
     type: git
-    url: git@git.ni.dfki.de:acting/robot_api.git
+    url: https://github.com/DFKI-NI/robot_api.git
     version: release-1.4
   grasplan:
     type: git
