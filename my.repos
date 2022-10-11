@@ -1,7 +1,7 @@
 repositories:
   dot_graph_visualization:
     type: git
-    url: git@git.ni.dfki.de:acting/dot_graph_visualization.git
+    url: git@github.com:DFKI-NI/dot_graph_visualization.git
     version: main
   mobipick:
     type: git
