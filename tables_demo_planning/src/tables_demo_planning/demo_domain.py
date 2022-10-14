@@ -75,7 +75,7 @@ class Domain(Bridge, Generic[E]):
         self.create_types([Robot, Pose, ArmPose, Item, Location])
 
         # Create fluents for planning.
-        self.robot_at = self.create_fluent_from_signature("robot_at", [Pose], function=self.get_robot_at)
+        self.robot_at = self.create_fluent_from_signature(self.get_robot_at, [Pose])
         self.robot_arm_at = self.create_fluent(env.get_robot_arm_at)
         self.robot_has = self.create_fluent(env.get_robot_has)
 

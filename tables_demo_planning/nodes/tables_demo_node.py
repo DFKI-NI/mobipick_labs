@@ -339,7 +339,7 @@ class TablesDemoDomain(Domain[TablesDemoEnv]):
 
         self.believe_item_at = self.create_fluent(self.env.get_believe_item_at)
         self.searched_at = self.create_fluent(self.env.get_searched_at)
-        self.pose_at = self.create_fluent_from_signature("pose_at", [Pose, Location], function=self.get_pose_at)
+        self.pose_at = self.create_fluent_from_signature(self.get_pose_at, [Pose, Location])
 
         self.pick_item, (_, pose, location, item) = self.create_action(TablesDemoRobot.pick_item)
         self.pick_item.add_precondition(self.robot_at(pose))

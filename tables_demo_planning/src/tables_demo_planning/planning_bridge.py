@@ -102,26 +102,23 @@ class Bridge:
 
     def create_fluent_from_signature(
         self,
-        name: str,
+        function: Callable[[Iterable[Object]], Object],
         api_types: Iterable[type],
         result_api_type: Optional[type] = None,
-        function: Optional[Callable[[Iterable[Object]], Object]] = None,
     ) -> Fluent:
         """
         Create UP fluent using the UP types corresponding to the api_types given.
-        Optionally provide a function which provides the UP fluent's values.
         By default, use BoolType() for the result unless specified otherwise through result_api_type.
+        Use function which provides the fluent's values in the UP domain for problem initialization.
         """
+        name = function.__qualname__.split('.')[-1]
         assert name not in self.fluents.keys()
         self.fluents[name] = Fluent(
             name,
             self.get_type(result_api_type) if result_api_type else BoolType(),
             OrderedDict([(api_type.__name__.lower(), self.get_type(api_type)) for api_type in api_types]),
         )
-        # Note: When not providing a function for the fluent, you need to set
-        # its initial values explicitly during problem definition.
-        if function:
-            self.fluent_functions[name] = function
+        self.fluent_functions[name] = function
         return self.fluents[name]
 
     def create_action(self, function: Callable[..., object]) -> Tuple[InstantaneousAction, List[Parameter]]:
@@ -208,12 +205,11 @@ class Bridge:
                 if parameter.type not in type_objects.keys():
                     type_objects[parameter.type] = list(problem.objects(parameter.type))
         for fluent in problem.fluents:
-            if fluent.name in self.fluent_functions.keys():
-                # Loop through all parameter value combinations.
-                for parameters in itertools.product(*[type_objects[parameter.type] for parameter in fluent.signature]):
-                    # Use the fluent function to calculate the initial values.
-                    value = self.fluent_functions[fluent.name](*parameters)
-                    problem.set_initial_value(fluent(*parameters), value)
+            # Loop through all parameter value combinations.
+            for parameters in itertools.product(*[type_objects[parameter.type] for parameter in fluent.signature]):
+                # Use the fluent function to calculate the initial values.
+                value = self.fluent_functions[fluent.name](*parameters)
+                problem.set_initial_value(fluent(*parameters), value)
 
     def solve(self, problem: Problem) -> Optional[List[ActionInstance]]:
         """Solve planning problem and return list of UP actions."""
