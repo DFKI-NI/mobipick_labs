@@ -35,7 +35,6 @@
 
 
 from typing import Callable, Dict, Generic, Iterable, List, Optional, Sequence, TypeVar
-import itertools
 import os
 import time
 import yaml
@@ -176,7 +175,7 @@ class Domain(Bridge, Generic[E]):
                     robot_api.add_waypoint(pose_name, (position, orientation))
         return poses
 
-    def get_robot_at(self, pose: Object) -> Object:
+    def get_robot_at(self, pose: Object) -> bool:
         base_pose_name = self.api_robot.base.get_pose_name()
         base_pose = self.objects[base_pose_name] if base_pose_name else self.unknown_pose
         return pose == base_pose
@@ -201,30 +200,6 @@ class Domain(Bridge, Generic[E]):
                 + (self.locations if locations is None else list(locations))
             ),
         )
-
-    def set_initial_values(self, problem: Problem) -> None:
-        """Set all initial values using the functions corresponding to this problem's fluents."""
-        type_objects: Dict[type, List[Object]] = {}
-        # Collect objects in problem for all parameters of all fluents.
-        for fluent in problem.fluents:
-            for parameter in fluent.signature:
-                # Avoid redundancy.
-                if parameter.type not in type_objects.keys():
-                    type_objects[parameter.type] = list(problem.objects(parameter.type))
-        for fluent in problem.fluents:
-            if fluent.name in self.api_fluent_functions.keys():
-                # Loop through all parameter value combinations.
-                for parameters in itertools.product(*[type_objects[parameter.type] for parameter in fluent.signature]):
-                    # Use the fluent function to calculate the initial values.
-                    api_parameters = [self.api_objects[parameter.name] for parameter in parameters]
-                    value = self.get_object(self.api_fluent_functions[fluent.name](*api_parameters))
-                    problem.set_initial_value(fluent(*parameters), value)
-            elif fluent.name in self.fluent_functions.keys():
-                # Loop through all parameter value combinations.
-                for parameters in itertools.product(*[type_objects[parameter.type] for parameter in fluent.signature]):
-                    # Use the fluent function to calculate the initial values.
-                    value = self.fluent_functions[fluent.name](*parameters)
-                    problem.set_initial_value(fluent(*parameters), value)
 
     def solve(self, problem: Problem) -> Optional[List[ActionInstance]]:
         """Solve planning problem and return list of UP actions."""

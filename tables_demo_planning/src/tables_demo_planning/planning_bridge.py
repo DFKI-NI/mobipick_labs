@@ -38,6 +38,7 @@ from typing import Callable, Dict, Iterable, List, Optional, Tuple
 import typing
 from collections import OrderedDict
 from enum import Enum
+import itertools
 import sys
 from unified_planning.engines import OptimalityGuarantee
 from unified_planning.model import Fluent, InstantaneousAction, Object, Parameter, Problem, Type
@@ -195,6 +196,30 @@ class Bridge:
         problem.add_actions(self.actions.values() if actions is None else actions)
         problem.add_objects(self.objects.values() if objects is None else objects)
         return problem
+
+    def set_initial_values(self, problem: Problem) -> None:
+        """Set all initial values using the functions corresponding to this problem's fluents."""
+        type_objects: Dict[type, List[Object]] = {}
+        # Collect objects in problem for all parameters of all fluents.
+        for fluent in problem.fluents:
+            for parameter in fluent.signature:
+                # Avoid redundancy.
+                if parameter.type not in type_objects.keys():
+                    type_objects[parameter.type] = list(problem.objects(parameter.type))
+        for fluent in problem.fluents:
+            if fluent.name in self.api_fluent_functions.keys():
+                # Loop through all parameter value combinations.
+                for parameters in itertools.product(*[type_objects[parameter.type] for parameter in fluent.signature]):
+                    # Use the fluent function to calculate the initial values.
+                    api_parameters = [self.api_objects[parameter.name] for parameter in parameters]
+                    value = self.get_object(self.api_fluent_functions[fluent.name](*api_parameters))
+                    problem.set_initial_value(fluent(*parameters), value)
+            elif fluent.name in self.fluent_functions.keys():
+                # Loop through all parameter value combinations.
+                for parameters in itertools.product(*[type_objects[parameter.type] for parameter in fluent.signature]):
+                    # Use the fluent function to calculate the initial values.
+                    value = self.fluent_functions[fluent.name](*parameters)
+                    problem.set_initial_value(fluent(*parameters), value)
 
     def solve(self, problem: Problem) -> Optional[List[ActionInstance]]:
         """Solve planning problem and return list of UP actions."""

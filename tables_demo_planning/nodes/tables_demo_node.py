@@ -54,7 +54,7 @@ from pbr_msgs.msg import (
     PlaceObjectAction,
     PlaceObjectGoal,
 )
-from unified_planning.model import Problem
+from unified_planning.model import Object
 from unified_planning.plans.plan import ActionInstance
 from unified_planning.shortcuts import And, Equals, Not, Or
 from symbolic_fact_generation import on_fact_generator
@@ -339,7 +339,7 @@ class TablesDemoDomain(Domain[TablesDemoEnv]):
 
         self.believe_item_at = self.create_fluent(self.env.get_believe_item_at)
         self.searched_at = self.create_fluent(self.env.get_searched_at)
-        self.pose_at = self.create_fluent_from_signature("pose_at", [Pose, Location])
+        self.pose_at = self.create_fluent_from_signature("pose_at", [Pose, Location], function=self.get_pose_at)
 
         self.pick_item, (_, pose, location, item) = self.create_action(TablesDemoRobot.pick_item)
         self.pick_item.add_precondition(self.robot_at(pose))
@@ -480,17 +480,8 @@ class TablesDemoDomain(Domain[TablesDemoEnv]):
 
         self.espeak_pub = rospy.Publisher("/espeak_node/speak_line", String, queue_size=1)
 
-    def set_initial_values(self, problem: Problem) -> None:
-        """Set initial values for UP problem based on the fluents used and the current state."""
-        super().set_initial_values(problem)
-        if self.pose_at in problem.fluents:
-            for pose in self.poses:
-                for location in self.locations:
-                    problem.set_initial_value(
-                        self.pose_at(pose, location),
-                        location
-                        == (self.pose_locations[pose] if pose in self.pose_locations.keys() else self.anywhere),
-                    )
+    def get_pose_at(self, pose: Object, location: Object) -> bool:
+        return location == (self.pose_locations[pose] if pose in self.pose_locations.keys() else self.anywhere)
 
     def set_goals(self) -> None:
         """Set the goals for the overall demo."""
