@@ -53,8 +53,7 @@ class Bridge:
         # Note: Map from type instead of str to recognize subclasses.
         self.types: Dict[type, Type] = {bool: BoolType(), int: IntType(), float: RealType()}
         self.fluents: Dict[str, Fluent] = {}
-        self.fluent_functions: Dict[str, Callable[..., Object]] = {}
-        self.api_fluent_functions: Dict[str, Callable[..., object]] = {}
+        self.fluent_functions: Dict[str, Callable[[Iterable[Object]], Object]] = {}
         self.actions: Dict[str, InstantaneousAction] = {}
         self.api_actions: Dict[str, Callable[..., object]] = {}
         self.objects: Dict[str, Object] = {}
@@ -96,7 +95,9 @@ class Bridge:
             self.get_type(result_api_type),
             OrderedDict((parameter_name, self.get_type(api_type)) for parameter_name, api_type in api_types[:-1]),
         )
-        self.api_fluent_functions[name] = function
+        self.fluent_functions[name] = lambda *args: self.get_object(
+            function(*[self.api_objects[arg.name] for arg in args])
+        )
         return self.fluents[name]
 
     def create_fluent_from_signature(
@@ -104,7 +105,7 @@ class Bridge:
         name: str,
         api_types: Iterable[type],
         result_api_type: Optional[type] = None,
-        function: Optional[Callable[..., Object]] = None,
+        function: Optional[Callable[[Iterable[Object]], Object]] = None,
     ) -> Fluent:
         """
         Create UP fluent using the UP types corresponding to the api_types given.
@@ -207,14 +208,7 @@ class Bridge:
                 if parameter.type not in type_objects.keys():
                     type_objects[parameter.type] = list(problem.objects(parameter.type))
         for fluent in problem.fluents:
-            if fluent.name in self.api_fluent_functions.keys():
-                # Loop through all parameter value combinations.
-                for parameters in itertools.product(*[type_objects[parameter.type] for parameter in fluent.signature]):
-                    # Use the fluent function to calculate the initial values.
-                    api_parameters = [self.api_objects[parameter.name] for parameter in parameters]
-                    value = self.get_object(self.api_fluent_functions[fluent.name](*api_parameters))
-                    problem.set_initial_value(fluent(*parameters), value)
-            elif fluent.name in self.fluent_functions.keys():
+            if fluent.name in self.fluent_functions.keys():
                 # Loop through all parameter value combinations.
                 for parameters in itertools.product(*[type_objects[parameter.type] for parameter in fluent.signature]):
                     # Use the fluent function to calculate the initial values.
