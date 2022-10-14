@@ -55,7 +55,7 @@ from pbr_msgs.msg import (
     PlaceObjectGoal,
 )
 from unified_planning.model import Object
-from unified_planning.plans.plan import ActionInstance
+from unified_planning.plans import ActionInstance
 from unified_planning.shortcuts import And, Equals, Not, Or
 from symbolic_fact_generation import on_fact_generator
 from tables_demo_planning.mobipick_components import ArmPose, EnvironmentRepresentation, Item, Location, Robot

@@ -2,7 +2,7 @@ import time
 import rospy
 from random import randrange
 from unified_planning.model import FNode, Fluent, InstantaneousAction, Object, Problem
-from unified_planning.plans.plan import Plan
+from unified_planning.plans import Plan
 from unified_planning.shortcuts import And, BoolType, Equals, Not, OneshotPlanner, UserType
 from tables_demo_planning.plan_visualization import PlanVisualization
 

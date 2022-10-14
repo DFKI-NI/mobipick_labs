@@ -42,11 +42,8 @@ import rospy
 import rospkg
 from geometry_msgs.msg import Pose
 from unified_planning.engines import OptimalityGuarantee
-from unified_planning.model.action import InstantaneousAction
-from unified_planning.model.fluent import Fluent
-from unified_planning.model.object import Object
-from unified_planning.model.problem import Problem
-from unified_planning.plans.plan import ActionInstance
+from unified_planning.model import Fluent, InstantaneousAction, Object, Problem
+from unified_planning.plans import ActionInstance
 from unified_planning.shortcuts import Equals, Not, OneshotPlanner
 from tables_demo_planning.planning_bridge import Bridge
 from tables_demo_planning.mobipick_components import ArmPose, EnvironmentRepresentation, Item, Location, Robot

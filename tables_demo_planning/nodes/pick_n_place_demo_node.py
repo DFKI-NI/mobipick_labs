@@ -41,7 +41,7 @@ from typing import Optional, Set
 import rospy
 import unified_planning
 from std_msgs.msg import String
-from unified_planning.model.problem import Problem
+from unified_planning.model import Problem
 from unified_planning.shortcuts import Not
 from tables_demo_planning.mobipick_components import ArmPose, EnvironmentRepresentation, Item, Robot
 from tables_demo_planning.demo_domain import Domain
