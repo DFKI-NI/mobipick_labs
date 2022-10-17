@@ -121,18 +121,19 @@ class Bridge:
         self.fluent_functions[name] = function
         return self.fluents[name]
 
-    def create_action(self, function: Callable[..., object]) -> Tuple[InstantaneousAction, List[Parameter]]:
+    def create_action(self, callable: Callable[..., object]) -> Tuple[InstantaneousAction, List[Parameter]]:
         """
         Create UP InstantaneousAction based on the function's signature.
         Return the InstantaneousAction with its parameters for convenient definition of its
          preconditions and effects.
         """
-        assert function.__name__ not in self.actions.keys()
+        action_name = callable.__name__ if hasattr(callable, '__name__') else callable.__class__.__name__
+        assert action_name not in self.actions.keys()
         parameters: Dict[str, Type] = OrderedDict()
-        if '.' in function.__qualname__:
-            # Add defining class of function to parameters.
-            namespace = sys.modules[function.__module__]
-            for name in function.__qualname__.split('.')[:-1]:
+        if hasattr(callable, '__qualname__') and '.' in callable.__qualname__:
+            # Add defining class of callable to parameters.
+            namespace = sys.modules[callable.__module__]
+            for name in callable.__qualname__.split('.')[:-1]:
                 # Note: Use "context" to resolve potential relay to Python source file.
                 namespace = (
                     namespace.__dict__["context"][name]
@@ -140,17 +141,20 @@ class Bridge:
                     else namespace.__dict__[name]
                 )
             assert isinstance(namespace, type)
-            parameters[function.__qualname__.rsplit('.', maxsplit=1)[0]] = self.get_type(namespace)
-        # Add function's parameter types, without its return type.
-        for parameter_name, api_type in list(function.__annotations__.items())[:-1]:
+            parameters[callable.__qualname__.rsplit('.', maxsplit=1)[0]] = self.get_type(namespace)
+        # Add callable's parameter types, without its return type.
+        annotations = (
+            callable.__annotations__ if hasattr(callable, '__annotations__') else callable.__call__.__annotations__
+        )  # type: ignore
+        for parameter_name, api_type in list(annotations.items())[:-1]:
             parameters[parameter_name] = self.get_type(api_type)
-        action = InstantaneousAction(function.__name__, parameters)
-        self.actions[function.__name__] = action
-        self.api_actions[function.__name__] = function
+        action = InstantaneousAction(action_name, parameters)
+        self.actions[action_name] = action
+        self.api_actions[action_name] = callable
         return action, action.parameters
 
     def get_executable_action(self, action: ActionInstance) -> Tuple[Callable[..., object], List[object]]:
-        """Return API function and parameters corresponding to the given action."""
+        """Return API callable and parameters corresponding to the given action."""
         if action.action.name not in self.api_actions.keys():
             raise ValueError(f"No corresponding action defined for {action}!")
 
