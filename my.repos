@@ -33,8 +33,8 @@ repositories:
     version: noetic
   symbolic_fact_generation:
     type: git
-    url: git@git.ni.dfki.de:environment_representation/symbolic_fact_generation.git
-    version: tables_demo
+    url: git@github.com:DFKI-NI/symbolic_fact_generation.git
+    version: main
   pbr_objects:
     type: git
     url: git@git.ni.dfki.de:perception/pbr_objects.git
