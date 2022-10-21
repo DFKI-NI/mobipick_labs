@@ -116,7 +116,12 @@ class Bridge:
         self.fluents[name] = Fluent(
             name,
             self.get_type(result_api_type) if result_api_type else BoolType(),
-            OrderedDict([(api_type.__name__.lower(), self.get_type(api_type)) for api_type in api_types]),
+            OrderedDict(
+                [
+                    (f"{number}_{api_type.__name__.lower()}", self.get_type(api_type))
+                    for number, api_type in enumerate(api_types, start=1)
+                ]
+            ),
         )
         self.fluent_functions[name] = function
         return self.fluents[name]
