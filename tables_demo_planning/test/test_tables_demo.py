@@ -48,7 +48,10 @@ def get_plan(
     assert result.plan
     if visualization:
         visualization.set_actions(
-            [f"{index + len(env.successful_actions) + 1} {action}" for index, action in enumerate(result.plan.actions)],
+            [
+                f"{number + len(env.successful_actions)} {action}"
+                for number, action in enumerate(result.plan.actions, start=1)
+            ],
             env.successful_actions,
         )
         time.sleep(2.0)
@@ -68,8 +71,8 @@ def get_search_plan(
     if visualization:
         visualization.set_actions(
             [
-                f"{len(env.successful_actions) + 1}{chr(index + 97)} {action}"
-                for index, action in enumerate(result.plan.actions)
+                f"{len(env.successful_actions) + 1}{chr(number)} {action}"
+                for number, action in enumerate(result.plan.actions, start=97)
             ],
             env.successful_actions,
             action_name,

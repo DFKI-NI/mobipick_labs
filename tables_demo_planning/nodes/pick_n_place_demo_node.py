@@ -181,7 +181,8 @@ class PickAndPlaceDomain(Domain[PickAndPlaceEnv]):
             print("> Plan:")
             print('\n'.join(map(str, actions)))
             action_names = [
-                f"{len(executed_actions) + index + 1} {self.label(action)}" for index, action in enumerate(actions)
+                f"{len(executed_actions) + number} {self.label(action)}"
+                for number, action in enumerate(actions, start=1)
             ]
             self.visualization.set_actions(action_names, preserve_actions=executed_actions)
             # ... and execute.

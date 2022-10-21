@@ -538,7 +538,10 @@ class TablesDemoDomain(Domain[TablesDemoEnv]):
             print("> Plan:")
             print('\n'.join(map(str, actions)))
             visualization.set_actions(
-                [f"{len(executed_actions) + index + 1} {self.label(action)}" for index, action in enumerate(actions)],
+                [
+                    f"{number + len(executed_actions)} {self.label(action)}"
+                    for number, action in enumerate(actions, start=1)
+                ],
                 preserve_actions=executed_actions,
             )
             print("> Execution:")
@@ -584,8 +587,8 @@ class TablesDemoDomain(Domain[TablesDemoEnv]):
                         print('\n'.join(map(str, subactions)))
                         visualization.set_actions(
                             [
-                                f"{len(executed_actions)}{chr(index + 97)} {self.label(subaction)}"
-                                for index, subaction in enumerate(subactions)
+                                f"{len(executed_actions)}{chr(number)} {self.label(subaction)}"
+                                for number, subaction in enumerate(subactions, start=97)
                             ],
                             preserve_actions=executed_actions,
                             predecessor=action_name,

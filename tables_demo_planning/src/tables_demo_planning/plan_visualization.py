@@ -65,7 +65,7 @@ class PlanVisualization:
         self.nodes = [Node(str(action), style="filled", fillcolor="white") for action in actions]
         for node in self.nodes:
             self.graph.add_node(node)
-        self.edges = [Edge(node, self.nodes[index + 1]) for index, node in enumerate(self.nodes[:-1])]
+        self.edges = [Edge(node, self.nodes[number]) for number, node in enumerate(self.nodes[:-1], start=1)]
         for edge in self.edges:
             self.graph.add_edge(edge)
         self.visualize()
