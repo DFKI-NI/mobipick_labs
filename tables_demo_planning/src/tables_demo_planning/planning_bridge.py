@@ -144,8 +144,10 @@ class Bridge:
             parameters[callable.__qualname__.rsplit('.', maxsplit=1)[0]] = self.get_type(namespace)
         # Add callable's parameter types, without its return type.
         annotations = (
-            callable.__annotations__ if hasattr(callable, '__annotations__') else callable.__call__.__annotations__
-        )  # type: ignore
+            callable.__annotations__
+            if hasattr(callable, '__annotations__')
+            else callable.__call__.__annotations__  # type: ignore
+        )
         for parameter_name, api_type in list(annotations.items())[:-1]:
             parameters[parameter_name] = self.get_type(api_type)
         action = InstantaneousAction(action_name, parameters)
