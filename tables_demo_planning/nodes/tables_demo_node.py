@@ -58,7 +58,7 @@ from unified_planning.model import Object
 from unified_planning.plans import ActionInstance
 from unified_planning.shortcuts import And, Equals, Not, Or
 from symbolic_fact_generation import on_fact_generator
-from tables_demo_planning.mobipick_components import ArmPose, EnvironmentRepresentation, Item, Location, Robot
+from tables_demo_planning.mobipick_components import APIRobot, ArmPose, EnvironmentRepresentation, Item, Location
 from tables_demo_planning.demo_domain import Domain
 from tables_demo_planning.subplan_visualization import SubPlanVisualization
 
@@ -68,7 +68,7 @@ Development in progress.
 """
 
 
-class TablesDemoRobot(Robot):
+class TablesDemoRobot(APIRobot):
     def __init__(self, namespace: str, env: 'TablesDemoEnv') -> None:
         super().__init__(namespace)
         self.env = env
@@ -337,11 +337,13 @@ class TablesDemoDomain(Domain[TablesDemoEnv]):
             self.box_search_pose: self.box_search_location,
         }
 
-        self.believe_item_at = self.create_fluent(self.env.get_believe_item_at)
-        self.searched_at = self.create_fluent(self.env.get_searched_at)
-        self.pose_at = self.create_fluent_from_signature(self.get_pose_at, [Pose, Location])
+        self.set_fluent_functions((self.get_robot_at, self.get_pose_at))
+        self.believe_item_at = self.create_fluent_from_function(self.env.get_believe_item_at)
+        self.searched_at = self.create_fluent_from_function(self.env.get_searched_at)
+        self.pose_at = self.create_fluent("get_pose_at", pose=Pose, location=Location)
 
-        self.pick_item, (_, pose, location, item) = self.create_action(TablesDemoRobot.pick_item)
+        self.set_api_actions((TablesDemoRobot.move_base, TablesDemoRobot.move_base_with_item, TablesDemoRobot.move_arm))
+        self.pick_item, (_, pose, location, item) = self.create_action_from_function(TablesDemoRobot.pick_item)
         self.pick_item.add_precondition(self.robot_at(pose))
         self.pick_item.add_precondition(
             Or(self.robot_arm_at(arm_pose) for arm_pose in (self.arm_pose_home, self.arm_pose_observe))
@@ -361,7 +363,7 @@ class TablesDemoDomain(Domain[TablesDemoEnv]):
             self.pick_item.add_effect(self.robot_arm_at(arm_pose), arm_pose == self.arm_pose_transport)
         self.pick_item.add_effect(self.believe_item_at(item, location), False)
         self.pick_item.add_effect(self.believe_item_at(item, self.on_robot), True)
-        self.place_item, (_, pose, location, item) = self.create_action(TablesDemoRobot.place_item)
+        self.place_item, (_, pose, location, item) = self.create_action_from_function(TablesDemoRobot.place_item)
         self.place_item.add_precondition(self.robot_at(pose))
         self.place_item.add_precondition(self.robot_arm_at(self.arm_pose_transport))
         self.place_item.add_precondition(self.robot_has(item))
@@ -373,7 +375,7 @@ class TablesDemoDomain(Domain[TablesDemoEnv]):
         self.place_item.add_effect(self.robot_arm_at(self.arm_pose_home), True)
         self.place_item.add_effect(self.believe_item_at(item, self.on_robot), False)
         self.place_item.add_effect(self.believe_item_at(item, location), True)
-        self.store_item, (_, pose, location, item) = self.create_action(TablesDemoRobot.store_item)
+        self.store_item, (_, pose, location, item) = self.create_action_from_function(TablesDemoRobot.store_item)
         self.store_item.add_precondition(self.robot_at(pose))
         self.store_item.add_precondition(self.robot_arm_at(self.arm_pose_transport))
         self.store_item.add_precondition(self.robot_has(item))
@@ -387,7 +389,7 @@ class TablesDemoDomain(Domain[TablesDemoEnv]):
         self.store_item.add_effect(self.robot_arm_at(self.arm_pose_home), True)
         self.store_item.add_effect(self.believe_item_at(item, self.on_robot), False)
         self.store_item.add_effect(self.believe_item_at(item, self.in_box), True)
-        self.search_at, (_, pose, location) = self.create_action(TablesDemoRobot.search_at)
+        self.search_at, (_, pose, location) = self.create_action_from_function(TablesDemoRobot.search_at)
         self.search_at.add_precondition(self.robot_at(pose))
         self.search_at.add_precondition(
             Or(
@@ -399,7 +401,7 @@ class TablesDemoDomain(Domain[TablesDemoEnv]):
         self.search_at.add_precondition(Or(Equals(location, table) for table in self.tables))
         self.search_at.add_precondition(self.pose_at(pose, location))
         self.search_at.add_effect(self.searched_at(location), True)
-        self.search_tool, (_, item) = self.create_action(TablesDemoRobot.search_tool)
+        self.search_tool, (_, item) = self.create_action_from_function(TablesDemoRobot.search_tool)
         self.search_tool.add_precondition(Not(self.robot_at(self.tool_search_pose)))
         self.search_tool.add_precondition(self.robot_arm_at(self.arm_pose_home))
         self.search_tool.add_precondition(self.robot_has(self.nothing))
@@ -411,7 +413,7 @@ class TablesDemoDomain(Domain[TablesDemoEnv]):
             self.search_tool.add_effect(self.robot_at(pose), pose == self.tool_search_pose)
         self.search_tool.add_effect(self.believe_item_at(item, self.anywhere), False)
         self.search_tool.add_effect(self.believe_item_at(item, self.tool_search_location), True)
-        self.search_box, (_,) = self.create_action(TablesDemoRobot.search_box)
+        self.search_box, (_,) = self.create_action_from_function(TablesDemoRobot.search_box)
         self.search_box.add_precondition(Not(self.robot_at(self.box_search_pose)))
         self.search_box.add_precondition(
             Or(self.robot_arm_at(arm_pose) for arm_pose in (self.arm_pose_home, self.arm_pose_transport))
@@ -421,13 +423,13 @@ class TablesDemoDomain(Domain[TablesDemoEnv]):
             self.search_box.add_effect(self.robot_at(pose), pose == self.box_search_pose)
         self.search_box.add_effect(self.believe_item_at(self.box, self.anywhere), False)
         self.search_box.add_effect(self.believe_item_at(self.box, self.box_search_location), True)
-        self.conclude_tool_search, (_, item) = self.create_action(TablesDemoRobot.conclude_tool_search)
+        self.conclude_tool_search, (_, item) = self.create_action_from_function(TablesDemoRobot.conclude_tool_search)
         self.conclude_tool_search.add_precondition(self.believe_item_at(item, self.anywhere))
         self.conclude_tool_search.add_precondition(And(self.searched_at(table) for table in self.tables))
         self.conclude_tool_search.add_precondition(Not(Equals(item, self.box)))
         self.conclude_tool_search.add_effect(self.believe_item_at(item, self.anywhere), False)
         self.conclude_tool_search.add_effect(self.believe_item_at(item, self.tool_search_location), True)
-        self.conclude_box_search, (_,) = self.create_action(TablesDemoRobot.conclude_box_search)
+        self.conclude_box_search, (_,) = self.create_action_from_function(TablesDemoRobot.conclude_box_search)
         self.conclude_box_search.add_precondition(self.believe_item_at(self.box, self.anywhere))
         self.conclude_box_search.add_precondition(And(self.searched_at(table) for table in self.tables))
         self.conclude_box_search.add_effect(self.believe_item_at(self.box, self.anywhere), False)
@@ -479,6 +481,11 @@ class TablesDemoDomain(Domain[TablesDemoEnv]):
         )
 
         self.espeak_pub = rospy.Publisher("/espeak_node/speak_line", String, queue_size=1)
+
+    def get_robot_at(self, pose: Object) -> bool:
+        base_pose_name = self.api_robot.base.get_pose_name()
+        base_pose = self.objects[base_pose_name] if base_pose_name else self.unknown_pose
+        return pose == base_pose
 
     def get_pose_at(self, pose: Object, location: Object) -> bool:
         return location == (self.pose_locations[pose] if pose in self.pose_locations.keys() else self.anywhere)

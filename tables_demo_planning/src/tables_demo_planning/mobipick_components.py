@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 from enum import Enum, IntEnum
 from geometry_msgs.msg import Pose
 import rospy
@@ -43,29 +44,26 @@ class Location(Enum):
     box_search_location = "box_search_location"
 
 
-class Robot(robot_api.Robot):
-    """Robot representation which maintains the current state and enables action execution via Robot API."""
+class Robot(ABC):
+    """Robot representation which maintains the current state."""
 
-    def __init__(self, namespace: str) -> None:
-        super().__init__(namespace, True, True)
+    def __init__(self) -> None:
         self.pose = self.get_pose()
         self.home_pose = self.pose
         self.arm_pose = self.get_arm_pose()
         self.item = self.get_item()
 
+    @abstractmethod
     def get_pose(self) -> Pose:
         """Return current base pose."""
-        return TuplePose.to_pose(self.base.get_pose())
 
+    @abstractmethod
     def get_arm_pose(self) -> ArmPose:
         """Return current arm pose."""
-        arm_pose_name = self.arm.get_pose_name()
-        return ArmPose(arm_pose_name) if arm_pose_name in [member.value for member in ArmPose] else ArmPose.unknown
 
+    @abstractmethod
     def get_item(self) -> Item:
         """Return Item.something if robot arm has an object attached, else Item.nothing."""
-        self.arm.execute("HasAttachedObjects")
-        return Item.something if self.arm.get_result().result else Item.nothing
 
     def set_home_pose(self, pose: Pose) -> None:
         """Set home pose of robot base."""
@@ -73,12 +71,6 @@ class Robot(robot_api.Robot):
 
     def move_base(self, _: Pose, pose: Pose) -> bool:
         """Move base to pose."""
-        if self.base.move(pose) != 3:
-            rospy.logerr(f"Move base to {pose} FAILED!")
-            # Move to home pose whenever movement fails. Note: This is a drastic workaround.
-            self.base.move(self.home_pose)
-            return False
-
         self.pose = pose
         return True
 
@@ -89,12 +81,43 @@ class Robot(robot_api.Robot):
 
     def move_arm(self, _: ArmPose, arm_pose: ArmPose) -> bool:
         """Move arm to arm_pose."""
+        self.arm_pose = arm_pose
+        return True
+
+
+class APIRobot(Robot, robot_api.Robot):
+    """Robot which enables action execution via Robot API."""
+
+    def __init__(self, namespace: str) -> None:
+        robot_api.Robot.__init__(self, namespace, True, True)
+        super().__init__()
+
+    def get_pose(self) -> Pose:
+        return TuplePose.to_pose(self.base.get_pose())
+
+    def get_arm_pose(self) -> ArmPose:
+        arm_pose_name = self.arm.get_pose_name()
+        return ArmPose(arm_pose_name) if arm_pose_name in [member.value for member in ArmPose] else ArmPose.unknown
+
+    def get_item(self) -> Item:
+        self.arm.execute("HasAttachedObjects")
+        return Item.something if self.arm.get_result().result else Item.nothing
+
+    def move_base(self, _: Pose, pose: Pose) -> bool:
+        if self.base.move(pose) != 3:
+            rospy.logerr(f"Move base to {pose} FAILED!")
+            # Move to home pose whenever movement fails. Note: This is a drastic workaround.
+            self.base.move(self.home_pose)
+            return False
+
+        return super().move_base(_, pose)
+
+    def move_arm(self, _: ArmPose, arm_pose: ArmPose) -> bool:
         if not self.arm.move(arm_pose.name):
             rospy.logerr(f"Move arm to '{arm_pose.name} FAILED!'")
             return False
 
-        self.arm_pose = arm_pose
-        return True
+        return super().move_arm(_, arm_pose)
 
 
 class EnvironmentRepresentation:

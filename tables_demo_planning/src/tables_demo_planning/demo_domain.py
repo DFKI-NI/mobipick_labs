@@ -75,9 +75,9 @@ class Domain(Bridge, Generic[E]):
         self.create_types([Robot, Pose, ArmPose, Item, Location])
 
         # Create fluents for planning.
-        self.robot_at = self.create_fluent_from_signature(self.get_robot_at, [Pose])
-        self.robot_arm_at = self.create_fluent(env.get_robot_arm_at)
-        self.robot_has = self.create_fluent(env.get_robot_has)
+        self.robot_at = self.create_fluent("get_robot_at", pose=Pose)
+        self.robot_arm_at = self.create_fluent_from_function(env.get_robot_arm_at)
+        self.robot_has = self.create_fluent_from_function(env.get_robot_has)
 
         # Create objects for both planning and execution.
         self.api_robot = env.robot
@@ -122,20 +122,22 @@ class Domain(Bridge, Generic[E]):
         self.box_search_location = self.objects[Location.box_search_location.name]
 
         # Create actions for planning based on class definitions.
-        self.move_base, (_, x, y) = self.create_action(Robot.move_base)
+        self.move_base, (_, x, y) = self.create_action(*self.get_action_parameters(Robot.move_base))
         self.move_base.add_precondition(self.robot_at(x))
         self.move_base.add_precondition(self.robot_has(self.nothing))
         self.move_base.add_precondition(self.robot_arm_at(self.arm_pose_home))
         self.move_base.add_effect(self.robot_at(x), False)
         self.move_base.add_effect(self.robot_at(y), True)
-        self.move_base_with_item, (_, item, x, y) = self.create_action(Robot.move_base_with_item)
+        self.move_base_with_item, (_, item, x, y) = self.create_action(
+            *self.get_action_parameters(Robot.move_base_with_item)
+        )
         self.move_base_with_item.add_precondition(self.robot_at(x))
         self.move_base_with_item.add_precondition(self.robot_has(item))
         self.move_base_with_item.add_precondition(Not(Equals(item, self.nothing)))
         self.move_base_with_item.add_precondition(self.robot_arm_at(self.arm_pose_transport))
         self.move_base_with_item.add_effect(self.robot_at(x), False)
         self.move_base_with_item.add_effect(self.robot_at(y), True)
-        self.move_arm, (_, x, y) = self.create_action(Robot.move_arm)
+        self.move_arm, (_, x, y) = self.create_action(*self.get_action_parameters(Robot.move_arm))
         self.move_arm.add_precondition(self.robot_arm_at(x))
         self.move_arm.add_effect(self.robot_arm_at(x), False)
         self.move_arm.add_effect(self.robot_arm_at(y), True)
@@ -171,11 +173,6 @@ class Domain(Bridge, Generic[E]):
                     poses[pose_name] = TuplePose.to_pose((position, orientation))
                     robot_api.add_waypoint(pose_name, (position, orientation))
         return poses
-
-    def get_robot_at(self, pose: Object) -> bool:
-        base_pose_name = self.api_robot.base.get_pose_name()
-        base_pose = self.objects[base_pose_name] if base_pose_name else self.unknown_pose
-        return pose == base_pose
 
     def define_mobipick_problem(
         self,

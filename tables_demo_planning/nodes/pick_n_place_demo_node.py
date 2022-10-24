@@ -41,16 +41,16 @@ from typing import Optional, Set
 import rospy
 import unified_planning
 from std_msgs.msg import String
-from unified_planning.model import Problem
+from unified_planning.model import Object, Problem
 from unified_planning.shortcuts import Not
-from tables_demo_planning.mobipick_components import ArmPose, EnvironmentRepresentation, Item, Robot
+from tables_demo_planning.mobipick_components import APIRobot, ArmPose, EnvironmentRepresentation, Item
 from tables_demo_planning.demo_domain import Domain
 from tables_demo_planning.subplan_visualization import SubPlanVisualization
 
 """Pick and Place application in the Mobipick domain"""
 
 
-class PickAndPlaceRobot(Robot):
+class PickAndPlaceRobot(APIRobot):
     def __init__(self, namespace: str, env: 'PickAndPlaceEnv') -> None:
         super().__init__(namespace)
         self.env = env
@@ -104,9 +104,13 @@ class PickAndPlaceEnv(EnvironmentRepresentation):
 class PickAndPlaceDomain(Domain[PickAndPlaceEnv]):
     def __init__(self) -> None:
         super().__init__(PickAndPlaceEnv())
-        self.item_offered = self.create_fluent(self.env.get_item_offered)
+        self.set_fluent_functions([self.get_robot_at])
+        self.item_offered = self.create_fluent_from_function(self.env.get_item_offered)
 
-        self.pick, (_,) = self.create_action(PickAndPlaceRobot.pick_power_drill)
+        self.set_api_actions(
+            (PickAndPlaceRobot.move_base, PickAndPlaceRobot.move_base_with_item, PickAndPlaceRobot.move_arm)
+        )
+        self.pick, (_,) = self.create_action_from_function(PickAndPlaceRobot.pick_power_drill)
         self.pick.add_precondition(self.robot_at(self.base_table_2_pose))
         self.pick.add_precondition(self.robot_arm_at(self.arm_pose_home))
         self.pick.add_precondition(self.robot_has(self.nothing))
@@ -114,7 +118,7 @@ class PickAndPlaceDomain(Domain[PickAndPlaceEnv]):
         self.pick.add_effect(self.robot_arm_at(self.arm_pose_interaction), True)
         self.pick.add_effect(self.robot_has(self.nothing), False)
         self.pick.add_effect(self.robot_has(self.power_drill), True)
-        self.place, (_,) = self.create_action(PickAndPlaceRobot.place_power_drill)
+        self.place, (_,) = self.create_action_from_function(PickAndPlaceRobot.place_power_drill)
         self.place.add_precondition(self.robot_at(self.base_table_3_pose))
         self.place.add_precondition(self.robot_arm_at(self.arm_pose_transport))
         self.place.add_precondition(self.robot_has(self.power_drill))
@@ -122,7 +126,7 @@ class PickAndPlaceDomain(Domain[PickAndPlaceEnv]):
         self.place.add_effect(self.robot_arm_at(self.arm_pose_interaction), True)
         self.place.add_effect(self.robot_has(self.power_drill), False)
         self.place.add_effect(self.robot_has(self.nothing), True)
-        self.hand_over, (_,) = self.create_action(PickAndPlaceRobot.hand_over)
+        self.hand_over, (_,) = self.create_action_from_function(PickAndPlaceRobot.hand_over)
         self.hand_over.add_precondition(self.robot_at(self.base_handover_pose))
         self.hand_over.add_precondition(self.robot_arm_at(self.arm_pose_transport))
         self.hand_over.add_precondition(Not(self.robot_has(self.nothing)))
@@ -140,6 +144,11 @@ class PickAndPlaceDomain(Domain[PickAndPlaceEnv]):
             }
         )
         self.espeak_pub = rospy.Publisher("/espeak_node/speak_line", String, queue_size=1)
+
+    def get_robot_at(self, pose: Object) -> bool:
+        base_pose_name = self.api_robot.base.get_pose_name()
+        base_pose = self.objects[base_pose_name] if base_pose_name else self.unknown_pose
+        return pose == base_pose
 
     def initialize_problem(self) -> Problem:
         """Initialize current problem."""
