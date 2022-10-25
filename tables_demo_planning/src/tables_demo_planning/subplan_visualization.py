@@ -34,7 +34,7 @@
 # Authors: Alexander Sung, DFKI
 
 
-from typing import Dict, List, Optional, Sequence, Set, Tuple
+from typing import Collection, Dict, List, Optional, Sequence, Tuple
 from dataclasses import dataclass
 from pydot import Dot, Edge, Node
 from std_msgs.msg import String
@@ -66,7 +66,7 @@ class SubPlanVisualization:
     def set_actions(
         self,
         actions: Sequence[object],
-        preserve_actions: Optional[Set[object]] = None,
+        preserve_actions: Optional[Collection[object]] = None,
         predecessor: Optional[object] = None,
     ) -> None:
         """Update graph with actions by adding them to predecessor, or creating a new one."""
