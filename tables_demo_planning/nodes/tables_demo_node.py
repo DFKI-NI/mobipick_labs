@@ -288,7 +288,7 @@ class TablesDemoRobot(APIRobot):
         return perceived_item_locations
 
 
-class TablesDemoEnv(EnvironmentRepresentation):
+class TablesDemoEnv(EnvironmentRepresentation[TablesDemoRobot]):
     def __init__(self) -> None:
         super().__init__(TablesDemoRobot("mobipick", self))
         self.believed_item_locations: Dict[Item, Location] = {}
@@ -327,6 +327,7 @@ class TablesDemoDomain(Domain[TablesDemoEnv]):
 
     def __init__(self, target_location: Location) -> None:
         super().__init__(TablesDemoEnv())
+        self.env.robot.add_waypoints(self.api_poses)
         self.target_location = target_location
         self.target_table = self.objects[self.target_location.name]
         self.pose_locations = {
@@ -483,7 +484,7 @@ class TablesDemoDomain(Domain[TablesDemoEnv]):
         self.espeak_pub = rospy.Publisher("/espeak_node/speak_line", String, queue_size=1)
 
     def get_robot_at(self, pose: Object) -> bool:
-        base_pose_name = self.api_robot.base.get_pose_name()
+        base_pose_name = self.env.robot.base.get_pose_name()
         base_pose = self.objects[base_pose_name] if base_pose_name else self.unknown_pose
         return pose == base_pose
 

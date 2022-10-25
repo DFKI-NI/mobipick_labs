@@ -1,3 +1,4 @@
+from typing import Dict, Generic, TypeVar
 from abc import ABC, abstractmethod
 from enum import Enum, IntEnum
 from geometry_msgs.msg import Pose
@@ -92,6 +93,12 @@ class APIRobot(Robot, robot_api.Robot):
         robot_api.Robot.__init__(self, namespace, True, True)
         super().__init__()
 
+    @staticmethod
+    def add_waypoints(poses: Dict[str, Pose]) -> None:
+        for pose_name, pose in poses.items():
+            position, orientation = TuplePose.from_pose(pose)
+            robot_api.add_waypoint(pose_name, (position, orientation))
+
     def get_pose(self) -> Pose:
         return TuplePose.to_pose(self.base.get_pose())
 
@@ -120,8 +127,11 @@ class APIRobot(Robot, robot_api.Robot):
         return super().move_arm(_, arm_pose)
 
 
-class EnvironmentRepresentation:
-    def __init__(self, robot: Robot) -> None:
+R = TypeVar('R', bound=Robot)
+
+
+class EnvironmentRepresentation(Generic[R]):
+    def __init__(self, robot: R) -> None:
         # Note: Instantiate a subclass of Robot in a subclass of this class
         #  to enable mutual references during their initializations.
         self.robot = robot

@@ -91,7 +91,7 @@ class PickAndPlaceRobot(APIRobot):
         return True
 
 
-class PickAndPlaceEnv(EnvironmentRepresentation):
+class PickAndPlaceEnv(EnvironmentRepresentation[PickAndPlaceRobot]):
     def __init__(self) -> None:
         super().__init__(PickAndPlaceRobot("mobipick", self))
         self.item_offered = False
@@ -146,7 +146,7 @@ class PickAndPlaceDomain(Domain[PickAndPlaceEnv]):
         self.espeak_pub = rospy.Publisher("/espeak_node/speak_line", String, queue_size=1)
 
     def get_robot_at(self, pose: Object) -> bool:
-        base_pose_name = self.api_robot.base.get_pose_name()
+        base_pose_name = self.env.robot.base.get_pose_name()
         base_pose = self.objects[base_pose_name] if base_pose_name else self.unknown_pose
         return pose == base_pose
 
