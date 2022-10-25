@@ -53,7 +53,7 @@ class Bridge:
         # Note: Map from type instead of str to recognize subclasses.
         self.types: Dict[type, Type] = {bool: BoolType(), int: IntType(), float: RealType()}
         self.fluents: Dict[str, Fluent] = {}
-        self.fluent_functions: Dict[str, Callable[[Iterable[Object]], Object]] = {}
+        self.fluent_functions: Dict[str, Callable[..., Object]] = {}
         self.actions: Dict[str, InstantaneousAction] = {}
         self.api_actions: Dict[str, Callable[..., object]] = {}
         self.objects: Dict[str, Object] = {}
@@ -124,7 +124,7 @@ class Bridge:
             callable=function,
         )
 
-    def set_fluent_functions(self, functions: Iterable[Callable[[Iterable[Object]], Object]]) -> None:
+    def set_fluent_functions(self, functions: Iterable[Callable[..., Object]]) -> None:
         """Set UP functions as fluent functions. Their __name__ must match with fluent creation."""
         for function in functions:
             name = function.__name__
