@@ -52,7 +52,7 @@ from tables_demo_planning.subplan_visualization import SubPlanVisualization
 
 class PickAndPlaceRobot(APIRobot):
     def __init__(self, namespace: str, env: 'PickAndPlaceEnv') -> None:
-        super().__init__(namespace)
+        APIRobot.__init__(self, namespace)
         self.env = env
 
     def get_item(self) -> Item:
@@ -93,7 +93,7 @@ class PickAndPlaceRobot(APIRobot):
 
 class PickAndPlaceEnv(EnvironmentRepresentation[PickAndPlaceRobot]):
     def __init__(self) -> None:
-        super().__init__(PickAndPlaceRobot("mobipick", self))
+        EnvironmentRepresentation.__init__(self, PickAndPlaceRobot("mobipick", self))
         self.item_offered = False
 
     def get_item_offered(self) -> bool:
@@ -102,8 +102,19 @@ class PickAndPlaceEnv(EnvironmentRepresentation[PickAndPlaceRobot]):
 
 
 class PickAndPlaceDomain(Domain[PickAndPlaceEnv]):
+    SCENARIO_POSE_NAMES = (
+        Domain.BASE_HANDOVER_POSE_NAME,
+        Domain.BASE_HOME_POSE_NAME,
+        Domain.BASE_TABLE_2_POSE_NAME,
+        Domain.BASE_TABLE_3_POSE_NAME,
+    )
+
     def __init__(self) -> None:
-        super().__init__(PickAndPlaceEnv())
+        Domain.__init__(self, PickAndPlaceEnv())
+        self.env.robot.add_waypoints(
+            {pose_name: pose for pose_name, pose in self.api_poses.items() if pose_name in self.SCENARIO_POSE_NAMES}
+        )
+        self.env.robot.initialize(self.api_poses[self.BASE_HOME_POSE_NAME], *self.env.robot.get())
         self.set_fluent_functions([self.get_robot_at])
         self.item_offered = self.create_fluent_from_function(self.env.get_item_offered)
 
@@ -147,7 +158,7 @@ class PickAndPlaceDomain(Domain[PickAndPlaceEnv]):
 
     def get_robot_at(self, pose: Object) -> bool:
         base_pose_name = self.env.robot.base.get_pose_name()
-        base_pose = self.objects[base_pose_name] if base_pose_name else self.unknown_pose
+        base_pose = self.objects.get(base_pose_name, self.unknown_pose)
         return pose == base_pose
 
     def initialize_problem(self) -> Problem:
@@ -157,7 +168,7 @@ class PickAndPlaceDomain(Domain[PickAndPlaceEnv]):
             actions.append(self.hand_over)
         return self.define_mobipick_problem(
             actions=actions,
-            poses=[self.base_handover_pose, self.base_home_pose, self.base_table_2_pose, self.base_table_3_pose],
+            poses=[self.objects[pose_name] for pose_name in self.SCENARIO_POSE_NAMES],
             items=[self.power_drill],
             locations=[],
         )
