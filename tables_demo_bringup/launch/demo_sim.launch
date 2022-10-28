@@ -2,8 +2,8 @@
 <launch>
 
   <!-- the pose where to spawn the robot in simulation -->
-  <arg name="robot_x"   default="10.50" />
-  <arg name="robot_y"   default="2.30" />
+  <arg name="robot_x"   default="10.30" />
+  <arg name="robot_y"   default="2.40" />
   <arg name="robot_yaw" default="3.1415" />
 
   <!-- tables demo gazebo simulation -->
