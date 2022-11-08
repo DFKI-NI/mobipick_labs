@@ -1,7 +1,7 @@
 repositories:
   dot_graph_visualization:
     type: git
-    url: git@github.com:DFKI-NI/dot_graph_visualization.git
+    url: https://github.com/DFKI-NI/dot_graph_visualization.git
     version: main
   mobipick:
     type: git
@@ -29,7 +29,7 @@ repositories:
     version: noetic
   symbolic_fact_generation:
     type: git
-    url: git@github.com:DFKI-NI/symbolic_fact_generation.git
+    url: https://github.com/DFKI-NI/symbolic_fact_generation.git
     version: main
   pbr_objects:
     type: git
