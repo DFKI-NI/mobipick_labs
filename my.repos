@@ -25,8 +25,8 @@ repositories:
     version: release-1.4
   grasplan:
     type: git
-    url: git@git.ni.dfki.de:acting/grasplan.git
-    version: noetic
+    url: https://github.com/aprilprojecteu/grasplan.git
+    version: tables-demo
   symbolic_fact_generation:
     type: git
     url: https://github.com/DFKI-NI/symbolic_fact_generation.git
