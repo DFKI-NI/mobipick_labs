@@ -46,7 +46,7 @@ import actionlib
 from std_srvs.srv import Empty, SetBool
 from std_msgs.msg import String
 from geometry_msgs.msg import Pose
-from pbr_msgs.msg import (
+from grasplan.msg import (
     InsertObjectAction,
     InsertObjectGoal,
     PickObjectAction,

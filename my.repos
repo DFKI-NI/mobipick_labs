@@ -15,10 +15,6 @@ repositories:
     type: git
     url: git@git.ni.dfki.de:perception/pbr_dope.git
     version: master
-  pbr_msgs:
-    type: git
-    url: git@git.ni.dfki.de:pbr_misc/pbr_msgs.git
-    version: master
   pose_selector:
     type: git
     url: git@git.ni.dfki.de:environment_representation/pose_selector.git

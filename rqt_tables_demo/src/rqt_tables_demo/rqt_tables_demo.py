@@ -14,8 +14,8 @@ from gazebo_msgs.srv import SetModelState
 from gazebo_msgs.msg import ModelState
 from std_srvs.srv import Empty, SetBool, Trigger
 from pose_selector.srv import ClassQuery, GetPoses
-from pbr_msgs.msg import PickObjectAction, PickObjectGoal, PlaceObjectAction
-from pbr_msgs.msg import PlaceObjectGoal, InsertObjectAction, InsertObjectGoal
+from grasplan.msg import PickObjectAction, PickObjectGoal, PlaceObjectAction
+from grasplan.msg import PlaceObjectGoal, InsertObjectAction, InsertObjectGoal
 
 import robot_api
 

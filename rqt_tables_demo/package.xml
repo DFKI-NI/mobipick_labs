@@ -24,7 +24,6 @@
   <exec_depend>moveit_commander</exec_depend>s
   <exec_depend>rqt_gui</exec_depend>
   <exec_depend>rqt_gui_py</exec_depend>
-  <exec_depend>pbr_msgs</exec_depend>
   <exec_depend>actionlib</exec_depend>
   <exec_depend>grasplan</exec_depend>
 
