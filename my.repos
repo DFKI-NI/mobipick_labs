@@ -11,10 +11,6 @@ repositories:
      type: git
      url: https://git.ni.dfki.de/environment_representation/object_pose_msgs.git
      version: main
-  pbr_dope:
-    type: git
-    url: git@git.ni.dfki.de:perception/pbr_dope.git
-    version: master
   pose_selector:
     type: git
     url: git@git.ni.dfki.de:environment_representation/pose_selector.git

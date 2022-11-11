@@ -19,9 +19,9 @@
   <exec_depend>mobipick_gazebo</exec_depend>
   <exec_depend>mobipick_moveit_config</exec_depend>
   <exec_depend>mobipick_pick_n_place</exec_depend>
-  <exec_depend>pbr_dope</exec_depend>
   <exec_depend>pbr_gazebo</exec_depend>
   <exec_depend>pbr_maps</exec_depend>
+  <exec_depend>pbr_objects</exec_depend>
   <exec_depend>pose_selector</exec_depend>
   <exec_depend>robot_api</exec_depend>
   <exec_depend>rqt_gui</exec_depend>
