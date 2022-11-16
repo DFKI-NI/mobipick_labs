@@ -45,10 +45,10 @@ from unified_planning.model import Fluent, InstantaneousAction, Object, Paramete
 from unified_planning.plans import ActionInstance
 from unified_planning.shortcuts import BoolType, IntType, OneshotPlanner, RealType, UserType
 
-"""Generic bridge between application and planning domains"""
-
 
 class Bridge:
+    """Generic bridge between application and planning domains"""
+
     def __init__(self) -> None:
         # Note: Map from type instead of str to recognize subclasses.
         self.types: Dict[type, Type] = {bool: BoolType(), int: IntType(), float: RealType()}
@@ -81,6 +81,28 @@ class Bridge:
 
         raise ValueError(f"No corresponding UserType defined for {api_object}!")
 
+    def get_name_and_signature(self, method: Callable[..., object]) -> Tuple[str, Dict[str, type]]:
+        """
+        Return name and API signature from class method. Implicitly return its defining class as
+         first parameter if it exists.
+        """
+        signature: Dict[str, Type] = OrderedDict()
+        if hasattr(method, '__qualname__') and '.' in method.__qualname__:
+            # Add defining class of method to parameters.
+            namespace = sys.modules[method.__module__]
+            for name in method.__qualname__.split('.')[:-1]:
+                # Note: Use "context" to resolve potential relay to Python source file.
+                namespace = (
+                    namespace.__dict__["context"][name]
+                    if "context" in namespace.__dict__.keys()
+                    else namespace.__dict__[name]
+                )
+            assert isinstance(namespace, type)
+            signature[method.__qualname__.rsplit('.', maxsplit=1)[0]] = namespace
+        for parameter_name, api_type in method.__annotations__.items():
+            signature[parameter_name] = api_type
+        return method.__name__, signature
+
     def create_fluent(
         self,
         name: str,
@@ -102,6 +124,7 @@ class Bridge:
             OrderedDict(
                 (parameter_name, self.get_type(api_type))
                 for parameter_name, api_type in (dict(signature, **kwargs) if signature else kwargs).items()
+                if parameter_name != 'return'
             ),
         )
         if callable:
@@ -116,16 +139,8 @@ class Bridge:
         Create UP fluent based on function, which calculates the fluent's values
          in the application domain for problem initialization.
         """
-        annotations = function.__annotations__
         return self.create_fluent(
-            function.__name__,
-            annotations['return'],
-            OrderedDict(
-                (parameter_name, api_type)
-                for parameter_name, api_type in list(annotations.items())
-                if parameter_name != 'return'
-            ),
-            callable=function,
+            function.__name__, function.__annotations__['return'], function.__annotations__, callable=function
         )
 
     def set_fluent_functions(self, functions: Iterable[Callable[..., Object]]) -> None:
@@ -154,7 +169,7 @@ class Bridge:
             # Use signature's types, without its return type.
             OrderedDict(
                 (parameter_name, self.get_type(api_type))
-                for parameter_name, api_type in list((dict(signature, **kwargs) if signature else kwargs).items())
+                for parameter_name, api_type in (dict(signature, **kwargs) if signature else kwargs).items()
                 if parameter_name != 'return'
             ),
         )
@@ -164,41 +179,27 @@ class Bridge:
         return action, action.parameters
 
     def create_action_from_function(
-        self, function: Callable[..., object]
+        self, function: Callable[..., object], set_callable: bool = True
     ) -> Tuple[InstantaneousAction, List[Parameter]]:
         """
-        Create UP InstantaneousAction based on function.
+        Create UP InstantaneousAction based on function. If set_callable is True, also set function
+         as the executable action's callable.
         Return the InstantaneousAction with its parameters for convenient definition of its
          preconditions and effects.
         """
-        return self.create_action(*self.get_action_parameters(function), callable=function)
+        return self.create_action(function.__name__, function.__annotations__, function if set_callable else None)
 
-    def get_action_parameters(
-        self, callable: Callable[..., object], function: Optional[Callable[..., object]] = None
-    ) -> Tuple[str, Dict[str, type]]:
+    def create_action_from_method(
+        self, method: Callable[..., object], set_callable: bool = True
+    ) -> Tuple[InstantaneousAction, List[Parameter]]:
         """
-        Return name from callable and API signature from class function (or method).
-        By default, callable is used as function as well.
-        If callable is a class method, implicitly return its defining class as first parameter.
+        Create UP InstantaneousAction based on method. Implicitly use its defining class as
+         first action parameter if it exists. If set_callable is True, also set method
+         as the executable action's callable.
+        Return the InstantaneousAction with its parameters for convenient definition of its
+         preconditions and effects.
         """
-        if function is None:
-            function = callable
-        signature: Dict[str, Type] = OrderedDict()
-        if hasattr(function, '__qualname__') and '.' in function.__qualname__:
-            # Add defining class of function to parameters.
-            namespace = sys.modules[function.__module__]
-            for name in function.__qualname__.split('.')[:-1]:
-                # Note: Use "context" to resolve potential relay to Python source file.
-                namespace = (
-                    namespace.__dict__["context"][name]
-                    if "context" in namespace.__dict__.keys()
-                    else namespace.__dict__[name]
-                )
-            assert isinstance(namespace, type)
-            signature[function.__qualname__.rsplit('.', maxsplit=1)[0]] = namespace
-        for parameter_name, api_type in function.__annotations__.items():
-            signature[parameter_name] = api_type
-        return callable.__name__, signature
+        return self.create_action(*self.get_name_and_signature(method), method if set_callable else None)
 
     def set_api_actions(self, functions: Iterable[Callable[..., object]]) -> None:
         """
