@@ -34,7 +34,7 @@
 # Authors: Alexander Sung, DFKI
 
 
-from typing import Callable, Dict, Iterable, List, Optional, Tuple
+from typing import Callable, Dict, Iterable, List, Optional, Set, Tuple
 import typing
 from collections import OrderedDict
 from enum import Enum
@@ -53,7 +53,8 @@ class Bridge:
         # Note: Map from type instead of str to recognize subclasses.
         self.types: Dict[type, Type] = {bool: BoolType(), int: IntType(), float: RealType()}
         self.fluents: Dict[str, Fluent] = {}
-        self.fluent_functions: Dict[str, Callable[..., Object]] = {}
+        self.fluent_functions: Dict[str, Callable[..., object]] = {}
+        self.api_function_names: Set[str] = set()
         self.actions: Dict[str, InstantaneousAction] = {}
         self.api_actions: Dict[str, Callable[..., object]] = {}
         self.objects: Dict[str, Object] = {}
@@ -114,8 +115,8 @@ class Bridge:
         """
         Create UP fluent with name using the UP types corresponding to the api_types in signature
          updated by kwargs. By default, use BoolType() as result_api_type.
-        Optionally, provide a callable which calculates the fluent's values in the application
-         domain for problem initialization. Otherwise, you must set it separately.
+        Optionally, provide a callable which calculates the fluent's values for problem
+         initialization. Otherwise, you must set it later.
         """
         assert name not in self.fluents.keys()
         self.fluents[name] = Fluent(
@@ -128,27 +129,35 @@ class Bridge:
             ),
         )
         if callable:
-            _callable = callable  # Note: Workaround for type annotation within lambda function.
-            self.fluent_functions[name] = lambda *args: self.get_object(
-                _callable(*[self.api_objects[arg.name] for arg in args])
-            )
+            self.fluent_functions[name] = callable
+            self.set_if_api_signature(name, dict(signature, **kwargs) if signature else kwargs)
         return self.fluents[name]
 
     def create_fluent_from_function(self, function: Callable[..., object]) -> Fluent:
         """
         Create UP fluent based on function, which calculates the fluent's values
-         in the application domain for problem initialization.
+         for problem initialization.
         """
         return self.create_fluent(
             function.__name__, function.__annotations__['return'], function.__annotations__, callable=function
         )
 
-    def set_fluent_functions(self, functions: Iterable[Callable[..., Object]]) -> None:
-        """Set UP functions as fluent functions. Their __name__ must match with fluent creation."""
+    def set_fluent_functions(self, functions: Iterable[Callable[..., object]]) -> None:
+        """Set fluent functions. Their __name__ must match with fluent creation."""
         for function in functions:
             name = function.__name__
             assert name not in self.fluent_functions.keys()
             self.fluent_functions[name] = function
+            self.set_if_api_signature(name, function.__annotations__)
+
+    def set_if_api_signature(self, name: str, signature: Dict[str, type]) -> None:
+        """Determine and store whether signature of name has application domain parameters."""
+        if any(
+            not issubclass(parameter_type, Object)
+            for parameter_name, parameter_type in signature.items()
+            if parameter_name != 'return'
+        ):
+            self.api_function_names.add(name)
 
     def create_action(
         self,
@@ -159,7 +168,7 @@ class Bridge:
     ) -> Tuple[InstantaneousAction, List[Parameter]]:
         """
         Create UP InstantaneousAction with name based on signature updated by kwargs.
-         Optionally, provide a callable for action execution. Otherwise, you must set it separately.
+         Optionally, provide a callable for action execution. Otherwise, you must set it later.
         Return the InstantaneousAction with its parameters for convenient definition of its
          preconditions and effects in the UP domain.
         """
@@ -269,7 +278,15 @@ class Bridge:
             # Loop through all parameter value combinations.
             for parameters in itertools.product(*[type_objects[parameter.type] for parameter in fluent.signature]):
                 # Use the fluent function to calculate the initial values.
-                value = self.fluent_functions[fluent.name](*parameters)
+                value = (
+                    self.get_object(
+                        self.fluent_functions[fluent.name](
+                            *[self.api_objects[parameter.name] for parameter in parameters]
+                        )
+                    )
+                    if fluent.name in self.api_function_names
+                    else self.fluent_functions[fluent.name](*parameters)
+                )
                 problem.set_initial_value(fluent(*parameters), value)
 
     def solve(self, problem: Problem) -> Optional[List[ActionInstance]]:
