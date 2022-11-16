@@ -120,7 +120,11 @@ class Bridge:
         return self.create_fluent(
             function.__name__,
             annotations['return'],
-            OrderedDict((parameter_name, api_type) for parameter_name, api_type in list(annotations.items())[:-1]),
+            OrderedDict(
+                (parameter_name, api_type)
+                for parameter_name, api_type in list(annotations.items())
+                if parameter_name != 'return'
+            ),
             callable=function,
         )
 
@@ -150,7 +154,8 @@ class Bridge:
             # Use signature's types, without its return type.
             OrderedDict(
                 (parameter_name, self.get_type(api_type))
-                for parameter_name, api_type in list((dict(signature, **kwargs) if signature else kwargs).items())[:-1]
+                for parameter_name, api_type in list((dict(signature, **kwargs) if signature else kwargs).items())
+                if parameter_name != 'return'
             ),
         )
         self.actions[name] = action

@@ -48,11 +48,12 @@ from unified_planning.shortcuts import Equals, Not, OneshotPlanner
 from tables_demo_planning.planning_bridge import Bridge
 from tables_demo_planning.mobipick_components import ArmPose, EnvironmentRepresentation, Item, Location, Robot
 from robot_api import TuplePose
-import robot_api
 
 """Concrete Mobipick domain, bridged from its application to its planning representations"""
 
 
+# Note: A Generic cannot be a TypeVar of another Generic.
+#  See https://github.com/python/mypy/issues/2756.
 E = TypeVar('E', bound=EnvironmentRepresentation)
 
 
@@ -69,7 +70,7 @@ class Domain(Bridge, Generic[E]):
     UNKNOWN_POSE_NAME = "unknown_pose"
 
     def __init__(self, env: E) -> None:
-        super().__init__()
+        Bridge.__init__(self)
         self.env = env
         # Create types for planning based on class types.
         self.create_types([Robot, Pose, ArmPose, Item, Location])
@@ -80,12 +81,10 @@ class Domain(Bridge, Generic[E]):
         self.robot_has = self.create_fluent_from_function(env.get_robot_has)
 
         # Create objects for both planning and execution.
-        self.api_robot = env.robot
         self.robot = self.create_object("mobipick", env.robot)
         config_path = f"{rospkg.RosPack().get_path('mobipick_pick_n_place')}/config/"
         filename = "moelk_tables_demo.yaml"
         self.api_poses = self.load_waypoints(os.path.join(config_path, filename))
-        self.api_robot.set_home_pose(self.api_poses[self.BASE_HOME_POSE_NAME])
         self.poses = self.create_objects(self.api_poses)
         self.base_home_pose = self.objects[self.BASE_HOME_POSE_NAME]
         self.base_handover_pose = self.objects[self.BASE_HANDOVER_POSE_NAME]
@@ -171,7 +170,6 @@ class Domain(Bridge, Generic[E]):
                     pose = yaml_contents[pose_name]
                     position, orientation = pose[:3], pose[4:] + [pose[3]]
                     poses[pose_name] = TuplePose.to_pose((position, orientation))
-                    robot_api.add_waypoint(pose_name, (position, orientation))
         return poses
 
     def define_mobipick_problem(
