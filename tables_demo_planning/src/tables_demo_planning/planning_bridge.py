@@ -117,14 +117,19 @@ class Bridge:
     ) -> Fluent:
         """
         Create UP fluent with name using the UP types corresponding to the api_types in signature
-         updated by kwargs. By default, use BoolType() as result_api_type.
+         updated by kwargs. By default, use BoolType() as result_api_type if it is not provided
+         and no return type is given in signature.
         Optionally, provide a callable which calculates the fluent's values for problem
          initialization. Otherwise, you must set it later.
         """
         assert name not in self.fluents.keys()
         self.fluents[name] = Fluent(
             name,
-            self.get_type(result_api_type) if result_api_type else BoolType(),
+            self.get_type(result_api_type)
+            if result_api_type
+            else self.get_type(signature['return'])
+            if signature and 'return' in signature.keys()
+            else BoolType(),
             OrderedDict(
                 (parameter_name, self.get_type(api_type))
                 for parameter_name, api_type in (dict(signature, **kwargs) if signature else kwargs).items()
@@ -136,14 +141,16 @@ class Bridge:
             self.set_if_api_signature(name, dict(signature, **kwargs) if signature else kwargs)
         return self.fluents[name]
 
-    def create_fluent_from_function(self, function: Callable[..., object]) -> Fluent:
+    def create_fluent_from_function(self, function: Callable[..., object], set_callable: bool = True) -> Fluent:
         """
         Create UP fluent based on function, which calculates the fluent's values
-         for problem initialization.
+         for problem initialization. If function is a class method and a corresponding UP
+         representation exists for its defining class, implicitly use the later as first parameter.
+        If set_callable is True, also set function as the fluent function's callable. Otherwise,
+         you must set it later.
         """
-        return self.create_fluent(
-            function.__name__, function.__annotations__['return'], function.__annotations__, callable=function
-        )
+        name, signature = self.get_name_and_signature(function)
+        return self.create_fluent(name, signature=signature, callable=function if set_callable else None)
 
     def set_fluent_functions(self, functions: Iterable[Callable[..., object]]) -> None:
         """Set fluent functions. Their __name__ must match with fluent creation."""
