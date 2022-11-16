@@ -9,11 +9,11 @@ repositories:
     version: tables-demo-rebased
   object_pose_msgs:
      type: git
-     url: https://git.ni.dfki.de/environment_representation/object_pose_msgs.git
+     url: https://github.com/DFKI-NI/object_pose_msgs.git
      version: main
   pose_selector:
     type: git
-    url: git@git.ni.dfki.de:environment_representation/pose_selector.git
+    url: https://github.com/DFKI-NI/pose_selector.git
     version: noetic
   robot_api:
     type: git
