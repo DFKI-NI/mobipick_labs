@@ -121,13 +121,13 @@ class Domain(Bridge, Generic[E]):
         self.box_search_location = self.objects[Location.box_search_location.name]
 
         # Create actions for planning based on class definitions.
-        self.move_base, (_, x, y) = self.create_action_from_method(Robot.move_base, set_callable=False)
+        self.move_base, (_, x, y) = self.create_action_from_function(Robot.move_base, set_callable=False)
         self.move_base.add_precondition(self.robot_at(x))
         self.move_base.add_precondition(self.robot_has(self.nothing))
         self.move_base.add_precondition(self.robot_arm_at(self.arm_pose_home))
         self.move_base.add_effect(self.robot_at(x), False)
         self.move_base.add_effect(self.robot_at(y), True)
-        self.move_base_with_item, (_, item, x, y) = self.create_action_from_method(
+        self.move_base_with_item, (_, item, x, y) = self.create_action_from_function(
             Robot.move_base_with_item, set_callable=False
         )
         self.move_base_with_item.add_precondition(self.robot_at(x))
@@ -136,7 +136,7 @@ class Domain(Bridge, Generic[E]):
         self.move_base_with_item.add_precondition(self.robot_arm_at(self.arm_pose_transport))
         self.move_base_with_item.add_effect(self.robot_at(x), False)
         self.move_base_with_item.add_effect(self.robot_at(y), True)
-        self.move_arm, (_, x, y) = self.create_action_from_method(Robot.move_arm, set_callable=False)
+        self.move_arm, (_, x, y) = self.create_action_from_function(Robot.move_arm, set_callable=False)
         self.move_arm.add_precondition(self.robot_arm_at(x))
         self.move_arm.add_effect(self.robot_arm_at(x), False)
         self.move_arm.add_effect(self.robot_arm_at(y), True)
