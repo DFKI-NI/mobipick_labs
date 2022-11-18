@@ -4,7 +4,7 @@
   <!-- visualise the poses inside the pose selector as textured meshes -->
   <arg name="object_color_rgba_pick" value="[0,0,0,0]"/>
   <node pkg="pose_selector" type="pose_selector_visualizer.py" name="pick_pose_selector_visualiser" output="screen">
-    <rosparam command="load" file="$(find pbr_objects)/config/meshes.yaml" /> <!-- Path to mesh objects config file -->
+    <rosparam command="load" file="$(find pbr_objects)/config/textured_meshes.yaml" /> <!-- Path to mesh objects config file -->
     <rosparam param="object_color_rgba" subst_value="True">$(arg object_color_rgba_pick)</rosparam>
     <remap from="/pose_selector_get_all_service" to="/pick_pose_selector_node/pose_selector_get_all" />
   </node>
