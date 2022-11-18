@@ -1,15 +1,12 @@
 <?xml version="1.0"?>
 <launch>
 
-  <!-- pose selector: DB to store object poses -->
-  <arg name="objects_of_interest" value="[relay, screwdriver, multimeter, power_drill_with_grip, klt]"/>
   <!-- visualise the poses inside the pose selector as textured meshes -->
   <arg name="object_color_rgba_pick" value="[0,0,0,0]"/>
-  <node pkg="grasplan" type="pose_selector_visualiser.py" name="pick_pose_selector_visualiser" output="screen">
-    <param name="object_pkg" type="string" value="mobipick_gazebo" />
-    <param name="pose_selector_get_all_poses_srv_name" value="/pick_pose_selector_node/pose_selector_get_all" />
+  <node pkg="pose_selector" type="pose_selector_visualizer.py" name="pick_pose_selector_visualiser" output="screen">
+    <rosparam command="load" file="$(find pbr_objects)/config/meshes.yaml" /> <!-- Path to mesh objects config file -->
     <rosparam param="object_color_rgba" subst_value="True">$(arg object_color_rgba_pick)</rosparam>
-    <rosparam param="objects_of_interest" subst_value="True">$(arg objects_of_interest)</rosparam>
+    <remap from="/pose_selector_get_all_service" to="/pick_pose_selector_node/pose_selector_get_all" />
   </node>
 
   <!-- visualise grasps ( draws multiple brown grippers :1 per grasp ; as mesh in rviz using visualisation marker array ) -->

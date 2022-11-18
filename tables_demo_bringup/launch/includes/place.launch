@@ -17,17 +17,15 @@
     <param name="debug" value="false" />
     <param name="global_reference_frame" value="map" />
     <rosparam param="objects_of_interest" subst_value="True">$(arg objects_of_interest)</rosparam>
-    <remap from="/mobipick/gripper_astra/rgb/logical_image" to="/mobipick/place_object_node/place_poses"/>
+    <remap from="/logical_image" to="/mobipick/place_object_node/place_poses"/>
   </node>
 
   <!-- visualisation of placing poses (they show in magenta color) -->
   <arg name="object_color_rgba_place" value="[1,0,1,1]"/>
-  <node pkg="grasplan" type="pose_selector_visualiser.py" name="place_pose_selector_visualiser" output="screen">
-    <remap from="pose_selector_objects" to="place_pose_selector_objects"/> <!-- marker array topic name, meshes are published on this topic -->
-    <param name="object_pkg" type="string" value="mobipick_gazebo" />
-    <param name="pose_selector_get_all_poses_srv_name" value="/place_pose_selector_node/pose_selector_get_all" />
+  <node pkg="pose_selector" type="pose_selector_visualizer.py" name="place_pose_selector_visualiser" output="screen">
+    <rosparam command="load" file="$(find pbr_objects)/config/meshes.yaml" /> <!-- Path to mesh objects config file -->
     <rosparam param="object_color_rgba" subst_value="True">$(arg object_color_rgba_place)</rosparam>
-    <rosparam param="objects_of_interest" subst_value="True">$(arg objects_of_interest)</rosparam>
+    <remap from="/pose_selector_get_all_service" to="/place_pose_selector_node/pose_selector_get_all" />
   </node>
 
 </launch>
