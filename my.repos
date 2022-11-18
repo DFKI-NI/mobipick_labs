@@ -5,8 +5,8 @@ repositories:
     version: main
   mobipick:
     type: git
-    url: git@git.ni.dfki.de:mobipick/mobipick.git
-    version: tables-demo-rebased
+    url: https://github.com/DFKI-NI/mobipick.git
+    version: noetic
   object_pose_msgs:
      type: git
      url: https://github.com/DFKI-NI/object_pose_msgs.git
