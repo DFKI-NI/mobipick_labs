@@ -3,6 +3,14 @@ repositories:
     type: git
     url: https://github.com/DFKI-NI/dot_graph_visualization.git
     version: main
+  espeak_ros:
+    type: git
+    url: https://github.com/socrob/espeak_ros.git
+    version: master
+  grasplan:
+    type: git
+    url: https://github.com/aprilprojecteu/grasplan.git
+    version: tables-demo
   mobipick:
     type: git
     url: https://github.com/DFKI-NI/mobipick.git
@@ -11,6 +19,10 @@ repositories:
      type: git
      url: https://github.com/DFKI-NI/object_pose_msgs.git
      version: main
+  pbr_objects:
+    type: git
+    url: https://github.com/DFKI-NI/pbr_objects.git
+    version: master
   pose_selector:
     type: git
     url: https://github.com/DFKI-NI/pose_selector.git
@@ -19,19 +31,7 @@ repositories:
     type: git
     url: https://github.com/DFKI-NI/robot_api.git
     version: release-1.4
-  grasplan:
-    type: git
-    url: https://github.com/aprilprojecteu/grasplan.git
-    version: tables-demo
   symbolic_fact_generation:
     type: git
     url: https://github.com/DFKI-NI/symbolic_fact_generation.git
     version: main
-  pbr_objects:
-    type: git
-    url: https://github.com/DFKI-NI/pbr_objects.git
-    version: master
-  espeak_ros:
-    type: git
-    url: https://github.com/socrob/espeak_ros.git
-    version: master
