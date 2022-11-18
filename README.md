@@ -134,9 +134,9 @@ rosservice call /mobipick/continue_statemachine
 Plan visualization
 ------------------
 
-Install and source this
-[dot_graph_visualization](https://git.ni.dfki.de/acting/dot_graph_visualization)
-module, then call it with:
+Install and source the
+[dot_graph_visualization](https://github.com/DFKI-NI/dot_graph_visualization)
+rqt plugin, then call it with:
 
 ```bash
 rqt --standalone dot_graph_visualization
