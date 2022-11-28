@@ -9,7 +9,7 @@ sudo apt-get update -qq
 sudo apt-get install -qq -y python3-vcstool git
 
 # Install demo dependencies.
-vcs import --skip-existing < "$FILEPATH"/my.repos
+vcs import --recursive --skip-existing < "$FILEPATH"/my.repos
 vcs pull
 
 # Install mobipick's dependencies.
