@@ -50,6 +50,12 @@ To start the power drill pick&place demo, run:
 rosrun tables_demo_planning pick_n_place_demo_node.py
 ```
 
+Optionally, for making the robot speak, run this command on a PC with a speaker (e.g., your laptop):
+
+```bash
+rosrun espeak_ros espeak_node
+```
+
 
 Gazebo demo
 -----------
