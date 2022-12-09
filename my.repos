@@ -30,7 +30,7 @@ repositories:
   robot_api:
     type: git
     url: https://github.com/DFKI-NI/robot_api.git
-    version: release-1.4
+    version: releases
   symbolic_fact_generation:
     type: git
     url: https://github.com/DFKI-NI/symbolic_fact_generation.git
