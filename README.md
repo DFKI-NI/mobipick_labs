@@ -6,8 +6,16 @@ Code for the "tables" demo on 2022-07-12.
 Scenario description
 --------------------
 
-See this [wiki page](https://git.ni.dfki.de/mobipick/documentation/-/wikis/Mobipick-tables-demo).
+![mobipick_tables_sim_and_real.png](images/mobipick_tables_sim_and_real.png)
 
+The tables demo consists of an environment with items on multiple tables, in which the robot shall
+
+- find the box and place it onto the target table,
+- find the multimeter and place it into the box,
+- in any order,
+- and react to changes to the environment, e.g. items being moved around during the demo.
+
+For details about the DFKI internal event, see this [wiki page](https://git.ni.dfki.de/mobipick/documentation/-/wikis/Mobipick-tables-demo).
 
 Installation
 ------------
