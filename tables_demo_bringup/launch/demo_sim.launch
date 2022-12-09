@@ -44,7 +44,6 @@
   <!-- ::::: Manipulation , MoveIt: arm movement ::::: -->
   <include file="$(find mobipick_moveit_config)/launch/moveit_planning_execution.launch">
     <arg name="use_pointcloud" value="true"/>
-    <arg name="simulation" value="true"/>
   </include>
 
   <include file="$(find tables_demo_bringup)/launch/bringup.launch" >
