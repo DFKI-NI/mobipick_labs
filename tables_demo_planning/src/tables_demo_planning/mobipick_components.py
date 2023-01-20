@@ -20,7 +20,6 @@ class ArmPose(Enum):
     transport = "transport"
     place = "place_1"
     tucked = "tucked"
-    interaction = "interaction"  # not a pose in rosparams but used to simplify planning
 
 
 class Item(Enum):

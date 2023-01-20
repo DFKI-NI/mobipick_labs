@@ -98,10 +98,10 @@ class Domain(Bridge, Generic[E]):
         self.unknown_pose = self.create_object(self.UNKNOWN_POSE_NAME, Pose())
         self.poses.extend([self.tool_search_pose, self.box_search_pose, self.unknown_pose])
         self.arm_poses = self.create_enum_objects(ArmPose)
+        self.arm_pose_unknown = self.objects[ArmPose.unknown.name]
         self.arm_pose_home = self.objects[ArmPose.home.name]
         self.arm_pose_observe = self.objects[ArmPose.observe.name]
         self.arm_pose_transport = self.objects[ArmPose.transport.name]
-        self.arm_pose_interaction = self.objects[ArmPose.interaction.name]
         self.items = self.create_enum_objects(Item)
         self.nothing = self.objects[Item.nothing.name]
         self.power_drill = self.objects[Item.power_drill.name]
