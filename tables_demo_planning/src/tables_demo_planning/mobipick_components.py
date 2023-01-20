@@ -20,6 +20,7 @@ class ArmPose(Enum):
     transport = "transport"
     place = "place_1"
     tucked = "tucked"
+    handover = "handover"
 
 
 class Item(Enum):

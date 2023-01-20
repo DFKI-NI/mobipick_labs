@@ -143,7 +143,7 @@ class PickAndPlaceDomain(Domain[PickAndPlaceEnv]):
         self.hand_over.add_precondition(self.robot_arm_at(self.arm_pose_transport))
         self.hand_over.add_precondition(Not(self.robot_has(self.nothing)))
         self.hand_over.add_effect(self.robot_arm_at(self.arm_pose_transport), False)
-        self.hand_over.add_effect(self.robot_arm_at(self.arm_pose_unknown), True)
+        self.hand_over.add_effect(self.robot_arm_at(self.arm_pose_handover), True)
         for item in self.items:
             self.hand_over.add_effect(self.robot_has(item), item == self.nothing)
         self.hand_over.add_effect(self.item_offered, True)
