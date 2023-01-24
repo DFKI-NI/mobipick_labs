@@ -1,5 +1,5 @@
-mobipick_tables_demo
-====================
+mobipick_labs
+=============
 
 Code for the "tables" demo on 2022-07-12.
 
