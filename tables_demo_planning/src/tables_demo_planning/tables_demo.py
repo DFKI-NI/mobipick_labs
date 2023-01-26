@@ -376,7 +376,7 @@ class TablesDemoDomain(Domain[E]):
         # Solve overall problem.
         self.set_goals()
         actions = self.replan()
-        if not actions:
+        if actions is None:
             print("Execution ended because no plan could be found.")
             return
 
@@ -469,7 +469,10 @@ class TablesDemoDomain(Domain[E]):
                                 if result:
                                     # Note: True result only means any subaction succeeded.
                                     # Check if the search actually succeeded.
-                                    if self.env.item_search is None:
+                                    if (
+                                        self.env.item_search is None
+                                        and len(self.env.newly_perceived_item_locations) <= 1
+                                    ):
                                         print("- Continue with plan.")
                                         if self.visualization:
                                             self.visualization.succeed(subaction_name)
@@ -525,7 +528,7 @@ class TablesDemoDomain(Domain[E]):
                     break
             else:
                 break
-            if not actions:
+            if actions is None:
                 print("Execution ended because no plan could be found.")
                 return
 

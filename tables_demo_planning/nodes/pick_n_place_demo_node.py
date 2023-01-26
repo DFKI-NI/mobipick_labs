@@ -196,8 +196,15 @@ class PickAndPlaceDomain(Domain[PickAndPlaceEnv]):
             # Plan
             actions = self.solve(problem)
             if not actions:
-                print("Execution ended because no plan could be found.")
-                self.visualization.add_node("Mission impossible", "red")
+                if actions is None:
+                    print("Execution ended because no plan could be found.")
+                    self.espeak_pub.publish("Mission impossible!")
+                    self.visualization.add_node("Mission impossible", "red")
+                else:
+                    print("Demo complete.")
+                    self.espeak_pub.publish("Demo complete.")
+                    self.visualization.add_node("Demo complete", "green")
+                active = False
                 return
 
             print("> Plan:")
