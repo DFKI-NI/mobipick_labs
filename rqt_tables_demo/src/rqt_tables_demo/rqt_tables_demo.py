@@ -458,11 +458,11 @@ class RqtTablesDemo(Plugin):
                 result = action_client.get_result()
                 rospy.loginfo(f'{place_object_server_name} is done with execution, resuĺt was = "{result}"')
                 if result.success:
-                    rospy.loginfo(f'Succesfully placed object')
+                    rospy.loginfo('Succesfully placed object')
                 else:
-                    rospy.logerr(f'Failed to place object')
+                    rospy.logerr('Failed to place object')
             else:
-                rospy.logerr(f'Failed to place object, timeout?')
+                rospy.logerr('Failed to place object, timeout?')
         else:
             rospy.logerr(f'action server {place_object_server_name} not available')
 
@@ -491,10 +491,10 @@ class RqtTablesDemo(Plugin):
                 result = action_client.get_result()
                 rospy.loginfo(f'{insert_object_server_name} is done with execution, resuĺt was = "{result}"')
                 if result.success:
-                    rospy.loginfo(f'Succesfully inserted object')
+                    rospy.loginfo('Succesfully inserted object')
                 else:
-                    rospy.logerr(f'Failed to insert object')
+                    rospy.logerr('Failed to insert object')
             else:
-                rospy.logerr(f'Failed to insert object, timeout?')
+                rospy.logerr('Failed to insert object, timeout?')
         else:
             rospy.logerr(f'action server {insert_object_server_name} not available')

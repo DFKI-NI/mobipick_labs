@@ -393,7 +393,7 @@ class TablesDemoDomain(Domain[E]):
                     assert isinstance(parameters[-2], Location)
                     location = self.env.resolve_search_location(parameters[-2])
                     if location == self.target_location:
-                        print(f"Picking up box OBSOLETE.")
+                        print("Picking up box OBSOLETE.")
                         if self.visualization:
                             self.visualization.cancel(action_name)
                         actions = self.replan()
