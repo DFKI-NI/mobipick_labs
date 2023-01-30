@@ -47,6 +47,7 @@ from tables_demo_planning.subplan_visualization import SubPlanVisualization
 
 """Running the Pick and Place demo with a simple execution loop"""
 
+
 def run_demo():
     """Run the pick and place demo."""
     domain = PickAndPlaceDomain()
@@ -79,8 +80,7 @@ def run_demo():
         print("> Plan:")
         print('\n'.join(map(str, actions)))
         action_names = [
-            f"{len(executed_actions) + number} {domain.label(action)}"
-            for number, action in enumerate(actions, start=1)
+            f"{len(executed_actions) + number} {domain.label(action)}" for number, action in enumerate(actions, start=1)
         ]
         visualization.set_actions(action_names, preserve_actions=executed_actions)
         # ... and execute.
