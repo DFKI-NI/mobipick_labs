@@ -85,6 +85,11 @@ class Domain(Bridge, Generic[E]):
         config_path = f"{rospkg.RosPack().get_path('mobipick_pick_n_place')}/config/"
         filename = "moelk_tables_demo.yaml"
         self.api_poses = self.load_waypoints(os.path.join(config_path, filename))
+        if len({TuplePose.from_pose(pose) for pose in self.api_poses.values()}) < len(self.api_poses):
+            rospy.logwarn(
+                f"Duplicate poses in '{filename}' might let checks fail"
+                " whether something is at a specific symbolic pose."
+            )
         self.poses = self.create_objects(self.api_poses)
         self.base_home_pose = self.objects[self.BASE_HOME_POSE_NAME]
         self.base_handover_pose = self.objects[self.BASE_HANDOVER_POSE_NAME]
