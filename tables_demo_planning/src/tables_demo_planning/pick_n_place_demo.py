@@ -114,14 +114,14 @@ class PickAndPlaceDomain(Domain[PickAndPlaceEnv]):
             (PickAndPlaceRobot.move_base, PickAndPlaceRobot.move_base_with_item, PickAndPlaceRobot.move_arm)
         )
         self.pick, (_,) = self.create_action_from_function(PickAndPlaceRobot.pick_power_drill)
-        self.pick.add_precondition(self.robot_at(self.base_table_2_pose))
+        self.pick.add_precondition(self.robot_at(self.base_pick_pose))
         self.pick.add_precondition(self.robot_has(self.nothing))
         for arm_pose in self.arm_poses:
             self.pick.add_effect(self.robot_arm_at(arm_pose), arm_pose == self.arm_pose_unknown)
         self.pick.add_effect(self.robot_has(self.nothing), False)
         self.pick.add_effect(self.robot_has(self.power_drill), True)
         self.place, (_,) = self.create_action_from_function(PickAndPlaceRobot.place_power_drill)
-        self.place.add_precondition(self.robot_at(self.base_table_3_pose))
+        self.place.add_precondition(self.robot_at(self.base_place_pose))
         self.place.add_precondition(self.robot_has(self.power_drill))
         for arm_pose in self.arm_poses:
             self.place.add_effect(self.robot_arm_at(arm_pose), arm_pose == self.arm_pose_unknown)
