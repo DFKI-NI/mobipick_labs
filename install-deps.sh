@@ -16,6 +16,6 @@ vcs pull
 mobipick/install-deps.sh
 
 # Install Unified Planning library and its planners.
-pip install 'unified-planning[tamer,fast-downward]==0.5.0.34.dev1'
-pip install 'pyparsing>=3'   # has to be installed manually, see https://github.com/aiplan4eu/unified-planning/issues/325
-pip install unified-planning-bridge/
+pip3 install 'unified-planning[tamer,fast-downward]==0.5.0.34.dev1'
+pip3 install 'pyparsing>=3'   # has to be installed manually, see https://github.com/aiplan4eu/unified-planning/issues/325
+pip3 install unified-planning-bridge/
