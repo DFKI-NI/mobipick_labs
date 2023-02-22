@@ -4,6 +4,7 @@ from geometry_msgs.msg import Pose
 import rospy
 from robot_api import TuplePose
 import robot_api
+from symbolic_fact_generation.robot_facts_generator import HasArmPostureGenerator
 
 """General component definitions for Mobipick applications"""
 
@@ -134,6 +135,12 @@ class EnvironmentRepresentation(Generic[R]):
         #  to enable mutual references during their initializations.
         self.robot = robot
 
+        self.arm_pose_fact_generator = HasArmPostureGenerator(fact_name='robot_arm_pose',
+                                                              joint_states_topic='/mobipick/joint_states',
+                                                              arm_posture_param='',
+                                                              arm_tolerance=0.01,
+                                                              undefined_pose_name="unknown")
+
     def __repr__(self) -> str:
         return (
             f"{self.robot.__class__.__name__} at {self.robot.pose},"
@@ -143,7 +150,11 @@ class EnvironmentRepresentation(Generic[R]):
 
     def get_robot_arm_at(self, arm_pose: ArmPose) -> bool:
         """Return fluent value whether robot arm is at arm_pose."""
-        return self.robot.arm_pose == arm_pose
+        arm_pose_facts = self.arm_pose_fact_generator.generate_facts()
+        arm_pose_name = ArmPose.unknown.value
+        if arm_pose_facts:
+            arm_pose_name = arm_pose_facts[0].values[0]
+        return ArmPose[arm_pose_name] == arm_pose
 
     def get_robot_has(self, item: Item) -> bool:
         """Return fluent value whether robot has item."""

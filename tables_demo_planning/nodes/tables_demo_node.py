@@ -41,6 +41,7 @@ from typing import Dict
 import sys
 import unified_planning
 import rospy
+import rospkg
 import actionlib
 from std_msgs.msg import String
 from std_srvs.srv import Empty, SetBool
@@ -54,10 +55,12 @@ from grasplan.msg import (
     PlaceObjectGoal,
 )
 from unified_planning.model import Object
-from symbolic_fact_generation import on_fact_generator
+from symbolic_fact_generation.on_fact_generator import OnGenerator
+from symbolic_fact_generation.robot_facts_generator import RobotAtGenerator
 from tables_demo_planning.mobipick_components import APIRobot, ArmPose, Item, Location
 from tables_demo_planning.subplan_visualization import SubPlanVisualization
 from tables_demo_planning.tables_demo import TablesDemoDomain, TablesDemoEnv, TablesDemoRobot
+from pose_selector.srv import PoseDelete, PoseDeleteRequest
 
 """
 Main execution node of the tables demo.
@@ -71,6 +74,7 @@ class TablesDemoAPIRobot(TablesDemoRobot['TablesDemoAPIEnv'], APIRobot):
         TablesDemoRobot.__init__(self, env)
 
         self.activate_pose_selector = rospy.ServiceProxy("/pick_pose_selector_node/pose_selector_activate", SetBool)
+        self.delete_pose_selector = rospy.ServiceProxy("/pick_pose_selector_node/pose_selector_delete", PoseDelete)
         self.open_gripper = rospy.ServiceProxy("/mobipick/pose_teacher/open_gripper", Empty)
         self.pick_object_action_client = actionlib.SimpleActionClient("/mobipick/pick_object", PickObjectAction)
         self.pick_object_goal = PickObjectGoal()
@@ -78,6 +82,13 @@ class TablesDemoAPIRobot(TablesDemoRobot['TablesDemoAPIEnv'], APIRobot):
         self.place_object_goal = PlaceObjectGoal()
         self.insert_object_action_client = actionlib.SimpleActionClient("/mobipick/insert_object", InsertObjectAction)
         self.insert_object_goal = InsertObjectGoal()
+
+        self.on_fact_generator = OnGenerator(fact_name='on',
+                                             objects_of_interest=[
+                                                 item.value for item in TablesDemoAPIDomain.DEMO_ITEMS],
+                                             container_objects=['klt'],
+                                             query_srv_str="/pick_pose_selector_node/pose_selector_class_query",
+                                             planning_scene_param="/mobipick/pick_object_node/planning_scene_boxes")
 
     def pick_item(self, pose: Pose, location: Location, item: Item) -> bool:
         """At pose, look for item at location, pick it up, then move arm to transport pose."""
@@ -189,11 +200,14 @@ class TablesDemoAPIRobot(TablesDemoRobot['TablesDemoAPIEnv'], APIRobot):
         rospy.loginfo("Wait for pose selector service ...")
         rospy.wait_for_service("/pick_pose_selector_node/pose_selector_activate", timeout=rospy.Duration(2.0))
         rospy.loginfo(f"Clear facts for {location.name}.")
-        on_fact_generator.clear_facts_and_poses_for_table(location.name)
+        for believed_item, believed_location in list(self.env.believed_item_locations.items()):
+            if believed_location == location:
+                class_id, instance_id = believed_item.value.rsplit("_", 1)
+                self.delete_pose_selector(PoseDeleteRequest(class_id=class_id, instance_id=int(instance_id)))
         self.activate_pose_selector(True)
         rospy.sleep(5)
         rospy.loginfo("Get facts from fact generator.")
-        facts = on_fact_generator.get_current_facts()
+        facts = self.on_fact_generator.generate_facts()
         self.activate_pose_selector(False)
         perceived_item_locations: Dict[Item, Location] = {}
         # Perceive facts for items on table location.
@@ -209,7 +223,7 @@ class TablesDemoAPIRobot(TablesDemoRobot['TablesDemoAPIEnv'], APIRobot):
                     perceived_item_locations[Item(fact_item_name)] = location
         # Also perceive facts for items in box if it is perceived on table location.
         for fact in facts:
-            if fact.name == "on":
+            if fact.name == "in":
                 fact_item_name, fact_location_name = fact.values
                 if (
                     fact_item_name in [item.value for item in TablesDemoDomain.DEMO_ITEMS]
@@ -263,8 +277,16 @@ class TablesDemoAPIDomain(TablesDemoDomain[TablesDemoAPIEnv]):
         self.visualization = SubPlanVisualization()
         self.espeak_pub = rospy.Publisher("/espeak_node/speak_line", String, queue_size=1)
 
+        config_path = f"{rospkg.RosPack().get_path('mobipick_pick_n_place')}/config/moelk_tables_demo.yaml"
+        self.robot_at_fact_generator = RobotAtGenerator(
+            fact_name='robot_at', global_frame='/map', robot_frame='/mobipick/base_link', waypoint_param=config_path, undefined_pose_name="unknown_pose")
+
     def get_robot_at(self, pose: Object) -> bool:
-        base_pose_name = self.env.robot.base.get_pose_name()
+        # base_pose_name = self.env.robot.base.get_pose_name()
+        base_pose_name = None
+        robot_at_facts = self.robot_at_fact_generator.generate_facts()
+        if robot_at_facts:
+            base_pose_name = robot_at_facts[0].values[0]
         base_pose = self.objects.get(base_pose_name, self.unknown_pose)
         return pose == base_pose
 
