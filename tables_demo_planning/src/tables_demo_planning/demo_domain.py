@@ -84,7 +84,8 @@ class Domain(Bridge, Generic[E]):
         self.robot = self.create_object("mobipick", env.robot)
         config_path = f"{rospkg.RosPack().get_path('mobipick_pick_n_place')}/config/"
         filename = "moelk_tables_demo.yaml"
-        self.api_poses = self.load_waypoints(os.path.join(config_path, filename))
+        self.config_filepath = os.path.join(config_path, filename)
+        self.api_poses = self.load_waypoints(self.config_filepath)
         if len({TuplePose.from_pose(pose) for pose in self.api_poses.values()}) < len(self.api_poses):
             rospy.logwarn(
                 f"Duplicate poses in '{filename}' might let checks fail"
