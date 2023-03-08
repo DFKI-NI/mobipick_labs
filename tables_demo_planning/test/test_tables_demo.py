@@ -115,7 +115,7 @@ class TablesDemoSimDomain(TablesDemoDomain[TablesDemoSimEnv]):
 
 
 def test_tables_demo() -> None:
-    unified_planning.shortcuts.get_env().credits_stream = None
+    unified_planning.shortcuts.get_environment().credits_stream = None
     # Define environment values.
     item_locations = {
         Item.multimeter: Location.table_3,

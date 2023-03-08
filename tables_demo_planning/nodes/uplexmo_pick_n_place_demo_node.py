@@ -113,7 +113,7 @@ class PickAndPlaceOrchestrator:
 
 
 if __name__ == "__main__":
-    unified_planning.shortcuts.get_env().credits_stream = None
+    unified_planning.shortcuts.get_environment().credits_stream = None
     try:
         PickAndPlaceOrchestrator().generate_and_execute_plan()
     except rospy.ROSInterruptException:
