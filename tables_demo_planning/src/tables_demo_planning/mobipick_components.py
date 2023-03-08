@@ -135,11 +135,13 @@ class EnvironmentRepresentation(Generic[R]):
         #  to enable mutual references during their initializations.
         self.robot = robot
 
-        self.arm_pose_fact_generator = HasArmPostureGenerator(fact_name='robot_arm_pose',
-                                                              joint_states_topic='/mobipick/joint_states',
-                                                              arm_posture_param='',
-                                                              arm_tolerance=0.01,
-                                                              undefined_pose_name="unknown")
+        self.arm_pose_fact_generator = HasArmPostureGenerator(
+            fact_name='robot_arm_pose',
+            joint_states_topic='/mobipick/joint_states',
+            arm_posture_param='',
+            arm_tolerance=0.01,
+            undefined_pose_name="unknown",
+        )
 
     def __repr__(self) -> str:
         return (

@@ -83,12 +83,13 @@ class TablesDemoAPIRobot(TablesDemoRobot['TablesDemoAPIEnv'], APIRobot):
         self.insert_object_action_client = actionlib.SimpleActionClient("/mobipick/insert_object", InsertObjectAction)
         self.insert_object_goal = InsertObjectGoal()
 
-        self.on_fact_generator = OnGenerator(fact_name='on',
-                                             objects_of_interest=[
-                                                 item.value for item in TablesDemoAPIDomain.DEMO_ITEMS],
-                                             container_objects=['klt'],
-                                             query_srv_str="/pick_pose_selector_node/pose_selector_class_query",
-                                             planning_scene_param="/mobipick/pick_object_node/planning_scene_boxes")
+        self.on_fact_generator = OnGenerator(
+            fact_name='on',
+            objects_of_interest=[item.value for item in TablesDemoAPIDomain.DEMO_ITEMS],
+            container_objects=['klt'],
+            query_srv_str="/pick_pose_selector_node/pose_selector_class_query",
+            planning_scene_param="/mobipick/pick_object_node/planning_scene_boxes",
+        )
 
     def pick_item(self, pose: Pose, location: Location, item: Item) -> bool:
         """At pose, look for item at location, pick it up, then move arm to transport pose."""
@@ -279,7 +280,12 @@ class TablesDemoAPIDomain(TablesDemoDomain[TablesDemoAPIEnv]):
 
         config_path = f"{rospkg.RosPack().get_path('mobipick_pick_n_place')}/config/moelk_tables_demo.yaml"
         self.robot_at_fact_generator = RobotAtGenerator(
-            fact_name='robot_at', global_frame='/map', robot_frame='/mobipick/base_link', waypoint_param=config_path, undefined_pose_name="unknown_pose")
+            fact_name='robot_at',
+            global_frame='/map',
+            robot_frame='/mobipick/base_link',
+            waypoint_param=config_path,
+            undefined_pose_name="unknown_pose",
+        )
 
     def get_robot_at(self, pose: Object) -> bool:
         # base_pose_name = self.env.robot.base.get_pose_name()
