@@ -41,7 +41,6 @@ from typing import Dict
 import sys
 import unified_planning
 import rospy
-import rospkg
 import actionlib
 from std_msgs.msg import String
 from std_srvs.srv import Empty, SetBool
@@ -278,12 +277,11 @@ class TablesDemoAPIDomain(TablesDemoDomain[TablesDemoAPIEnv]):
         self.visualization = SubPlanVisualization()
         self.espeak_pub = rospy.Publisher("/espeak_node/speak_line", String, queue_size=1)
 
-        config_path = f"{rospkg.RosPack().get_path('mobipick_pick_n_place')}/config/moelk_tables_demo.yaml"
         self.robot_at_fact_generator = RobotAtGenerator(
             fact_name='robot_at',
             global_frame='/map',
             robot_frame='/mobipick/base_link',
-            waypoint_param=config_path,
+            waypoint_param=self.config_filepath,
             undefined_pose_name="unknown_pose",
         )
 
