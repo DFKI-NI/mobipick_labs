@@ -119,7 +119,7 @@ def run_demo():
 
 
 if __name__ == '__main__':
-    unified_planning.shortcuts.get_env().credits_stream = None
+    unified_planning.shortcuts.get_environment().credits_stream = None
     try:
         run_demo()
     except rospy.ROSInterruptException:

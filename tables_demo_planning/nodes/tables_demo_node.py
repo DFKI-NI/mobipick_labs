@@ -295,7 +295,7 @@ class TablesDemoAPIDomain(TablesDemoDomain[TablesDemoAPIEnv]):
 
 
 if __name__ == '__main__':
-    unified_planning.shortcuts.get_env().credits_stream = None
+    unified_planning.shortcuts.get_environment().credits_stream = None
     try:
         target_location = Location.table_2
         if len(sys.argv) >= 2:
