@@ -200,7 +200,7 @@ class TablesDemoAPIRobot(TablesDemoRobot['TablesDemoAPIEnv'], APIRobot):
         rospy.loginfo("Wait for pose selector service ...")
         rospy.wait_for_service("/pick_pose_selector_node/pose_selector_activate", timeout=rospy.Duration(2.0))
         rospy.loginfo(f"Clear facts for {location.name}.")
-        for believed_item, believed_location in list(self.env.believed_item_locations.items()):
+        for believed_item, believed_location in self.env.believed_item_locations.items():
             if believed_location == location:
                 class_id, instance_id = believed_item.value.rsplit("_", 1)
                 self.pose_selector_delete(PoseDeleteRequest(class_id=class_id, instance_id=int(instance_id)))
@@ -286,7 +286,6 @@ class TablesDemoAPIDomain(TablesDemoDomain[TablesDemoAPIEnv]):
         )
 
     def get_robot_at(self, pose: Object) -> bool:
-        # base_pose_name = self.env.robot.base.get_pose_name()
         base_pose_name = None
         robot_at_facts = self.robot_at_fact_generator.generate_facts()
         if robot_at_facts:
