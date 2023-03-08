@@ -73,8 +73,8 @@ class TablesDemoAPIRobot(TablesDemoRobot['TablesDemoAPIEnv'], APIRobot):
         APIRobot.__init__(self, namespace)
         TablesDemoRobot.__init__(self, env)
 
-        self.activate_pose_selector = rospy.ServiceProxy("/pick_pose_selector_node/pose_selector_activate", SetBool)
-        self.delete_pose_selector = rospy.ServiceProxy("/pick_pose_selector_node/pose_selector_delete", PoseDelete)
+        self.pose_selector_activate = rospy.ServiceProxy("/pick_pose_selector_node/pose_selector_activate", SetBool)
+        self.pose_selector_delete = rospy.ServiceProxy("/pick_pose_selector_node/pose_selector_delete", PoseDelete)
         self.open_gripper = rospy.ServiceProxy("/mobipick/pose_teacher/open_gripper", Empty)
         self.pick_object_action_client = actionlib.SimpleActionClient("/mobipick/pick_object", PickObjectAction)
         self.pick_object_goal = PickObjectGoal()
@@ -204,12 +204,12 @@ class TablesDemoAPIRobot(TablesDemoRobot['TablesDemoAPIEnv'], APIRobot):
         for believed_item, believed_location in list(self.env.believed_item_locations.items()):
             if believed_location == location:
                 class_id, instance_id = believed_item.value.rsplit("_", 1)
-                self.delete_pose_selector(PoseDeleteRequest(class_id=class_id, instance_id=int(instance_id)))
-        self.activate_pose_selector(True)
+                self.pose_selector_delete(PoseDeleteRequest(class_id=class_id, instance_id=int(instance_id)))
+        self.pose_selector_activate(True)
         rospy.sleep(5)
         rospy.loginfo("Get facts from fact generator.")
         facts = self.on_fact_generator.generate_facts()
-        self.activate_pose_selector(False)
+        self.pose_selector_activate(False)
         perceived_item_locations: Dict[Item, Location] = {}
         # Perceive facts for items on table location.
         for fact in facts:
