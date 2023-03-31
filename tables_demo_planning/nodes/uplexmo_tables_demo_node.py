@@ -48,7 +48,7 @@ from unified_planning.plans import Plan, ActionInstance
 from unified_planning.shortcuts import OneshotPlanner, Problem
 from unified_planning.engines import OptimalityGuarantee
 from up_bridge.plexmo import SequentialPlanMonitor, SequentialPlanDispatcher
-from unified_planning.model import UPCOWState
+from unified_planning.model import UPState
 
 """
 Main execution node of the tables demo using plexmo for execution.
@@ -77,7 +77,7 @@ class TablesDemoOrchestrator:
         # check preconditions
         self._domain.set_initial_values(self._domain.problem)
         monitor = SequentialPlanMonitor(self._domain.problem)
-        state = UPCOWState(self._domain.problem.initial_values)
+        state = UPState(self._domain.problem.initial_values)
         unsatisfied = monitor.check_preconditions(action, state)[1]
         if len(unsatisfied) > 0:
             print("Preconditions of action %s are not satisfied" % action_name)
@@ -214,7 +214,7 @@ class TablesDemoOrchestrator:
 
 
 if __name__ == '__main__':
-    unified_planning.shortcuts.get_env().credits_stream = None
+    unified_planning.shortcuts.get_environment().credits_stream = None
     try:
         target_location = Location.table_2
         if len(sys.argv) >= 2:
