@@ -151,7 +151,7 @@ Pick-and-place demo (using plexmo)
 
 An alternative version of this demo exists which makes use of the generic plan
 execution and monitoring module
-[plexmo](https://github.com/aiplan4eu/unified-planning-bridge/tree/master/up_bridge/plexmo).
+[plexmo](https://github.com/aiplan4eu/embedded-systems-bridge/tree/master/up_esb/plexmo).
 
 This demo can either be run on the real robot like this:
 

@@ -43,10 +43,10 @@ from tables_demo_planning.pick_n_place_demo import PickAndPlaceDomain
 from unified_planning.plans import Plan, ActionInstance
 from unified_planning.shortcuts import OneshotPlanner, Problem
 from unified_planning.engines import OptimalityGuarantee
-from up_bridge.plexmo import SequentialPlanDispatcher
-from up_bridge.plexmo import SequentialPlanMonitor
-from unified_planning.model import UPCOWState
+from unified_planning.model import UPState
 from unified_planning.model.metrics import MinimizeSequentialPlanLength
+from up_esb.plexmo import SequentialPlanDispatcher
+from up_esb.plexmo import SequentialPlanMonitor
 
 
 class PickAndPlaceOrchestrator:
@@ -66,7 +66,7 @@ class PickAndPlaceOrchestrator:
 
         self._domain.set_initial_values(self._problem)
         monitor = SequentialPlanMonitor(self._problem)
-        state = UPCOWState(self._problem.initial_values)
+        state = UPState(self._problem.initial_values)
         unsatisfied = monitor.check_preconditions(action, state)[1]
         if len(unsatisfied) > 0:
             print("Preconditions of action %s are not satisfied" % action_name)

@@ -17,4 +17,4 @@ mobipick/install-deps.sh
 
 # Install Unified Planning library and its planners.
 pip3 install 'unified-planning[tamer,fast-downward]==0.5.0.304.dev1'
-pip3 install unified-planning-bridge/
+pip3 install embedded-systems-bridge/

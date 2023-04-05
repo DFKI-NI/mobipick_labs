@@ -35,6 +35,6 @@ repositories:
     type: git
     url: https://github.com/DFKI-NI/symbolic_fact_generation.git
     version: main
-  unified-planning-bridge:
+  embedded-systems-bridge:
     type: git
-    url: https://github.com/aiplan4eu/unified-planning-bridge.git
+    url: https://github.com/aiplan4eu/embedded-systems-bridge.git
