@@ -1,8 +1,6 @@
 mobipick_labs
 =============
 
-Code for the "tables" demo on 2022-07-12.
-
 Scenario description
 --------------------
 
@@ -15,15 +13,16 @@ The tables demo consists of an environment with items on multiple tables, in whi
 - in any order,
 - and react to changes to the environment, e.g. items being moved around during the demo.
 
-For details about the DFKI internal event, see this [wiki page](https://git.ni.dfki.de/mobipick/documentation/-/wikis/Mobipick-tables-demo).
+For details about the DFKI internal event at which this demo was presented,
+see this [wiki page](https://git.ni.dfki.de/mobipick/documentation/-/wikis/Mobipick-tables-demo).
 
 Installation
 ------------
 
 This demo might install a lot, depending on what you already have on your
-system. Your catkin workspace for mobipick, if you don't mind adding further
-repositories, or a new catkin workspace with only this repository is
-recommended to start with. [vcs](https://pypi.org/project/vcstool/) and
+system. Your catkin workspace for [mobipick](https://git.ni.dfki.de/mobipick/mobipick),
+if you don't mind adding further repositories, or a new catkin workspace with only this
+repository is recommended to start with. [vcs](https://pypi.org/project/vcstool/) and
 [wstool](http://wiki.ros.org/wstool) will be installed when needed,
 ROS and Python 3 are assumed to be available on your system.
 
@@ -35,13 +34,13 @@ ROS and Python 3 are assumed to be available on your system.
 Real robot demo
 ---------------
 
-Start up the robot according to the [instructions on the
+Start up the robot according to the (DFKI internal) [instructions on the
 wiki](https://git.ni.dfki.de/mobipick/documentation/-/wikis/starting-up-the-robot),
 then:
 
 
 ```bash
-roslaunch mobipick_bringup mobipick_bringup_both.launch   # already part of the startup instructions
+roslaunch mobipick_bringup mobipick_bringup_both.launch  # already part of the startup instructions
 roslaunch pbr_dope dope.launch
 roslaunch tables_demo_bringup bringup.launch
 ```
@@ -64,6 +63,11 @@ Optionally, for making the robot speak, run this command on a PC with a speaker 
 rosrun espeak_ros espeak_node
 ```
 
+Optionally for visualization:
+
+```bash
+rosrun rviz rviz -d `rospack find tables_demo_bringup`/config/pick_n_place.rviz __ns:=mobipick
+```
 
 Gazebo demo
 -----------
@@ -73,11 +77,7 @@ roslaunch tables_demo_bringup demo_sim.launch
 rosrun tables_demo_planning tables_demo_node.py
 ```
 
-Optionally for visualization:
-
-```bash
-rosrun rviz rviz -d `rospack find tables_demo_bringup`/config/pick_n_place.rviz __ns:=mobipick
-```
+The optional components above for speaker and visualization work in simulation as well.
 
 Grasping/Placing/Inserting objects demo (using grasplan)
 --------------------------------------
