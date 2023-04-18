@@ -42,7 +42,7 @@ from geometry_msgs.msg import Pose
 from unified_planning.model import Object
 from unified_planning.model.metrics import MinimizeSequentialPlanLength
 from unified_planning.plans import ActionInstance
-from unified_planning.shortcuts import And, Equals, Not, Or
+from unified_planning.shortcuts import Equals, Not, Or
 from tables_demo_planning.demo_domain import Domain
 from tables_demo_planning.mobipick_components import ArmPose, EnvironmentRepresentation, Item, Location, Robot
 from tables_demo_planning.subplan_visualization import SubPlanVisualization
@@ -259,13 +259,15 @@ class TablesDemoDomain(Domain[E]):
         self.search_box.add_effect(self.believe_item_at(self.box, self.box_search_location), True)
         self.conclude_tool_search, (_, item) = self.create_action_from_function(TablesDemoRobot.conclude_tool_search)
         self.conclude_tool_search.add_precondition(self.believe_item_at(item, self.anywhere))
-        self.conclude_tool_search.add_precondition(And(self.searched_at(table) for table in self.tables))
+        for table in self.tables:
+            self.conclude_tool_search.add_precondition(self.searched_at(table))
         self.conclude_tool_search.add_precondition(Not(Equals(item, self.box)))
         self.conclude_tool_search.add_effect(self.believe_item_at(item, self.anywhere), False)
         self.conclude_tool_search.add_effect(self.believe_item_at(item, self.tool_search_location), True)
         self.conclude_box_search, (_,) = self.create_action_from_function(TablesDemoRobot.conclude_box_search)
         self.conclude_box_search.add_precondition(self.believe_item_at(self.box, self.anywhere))
-        self.conclude_box_search.add_precondition(And(self.searched_at(table) for table in self.tables))
+        for table in self.tables:
+            self.conclude_box_search.add_precondition(self.searched_at(table))
         self.conclude_box_search.add_effect(self.believe_item_at(self.box, self.anywhere), False)
         self.conclude_box_search.add_effect(self.believe_item_at(self.box, self.box_search_location), True)
 
