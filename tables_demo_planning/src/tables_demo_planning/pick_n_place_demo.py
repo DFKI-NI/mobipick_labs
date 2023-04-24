@@ -97,8 +97,8 @@ class PickAndPlaceDomain(Domain[PickAndPlaceEnv]):
     SCENARIO_POSE_NAMES = (
         Domain.BASE_HANDOVER_POSE_NAME,
         Domain.BASE_HOME_POSE_NAME,
-        Domain.BASE_TABLE_2_POSE_NAME,
-        Domain.BASE_TABLE_3_POSE_NAME,
+        Domain.BASE_PICK_POSE_NAME,
+        Domain.BASE_PLACE_POSE_NAME,
     )
 
     def __init__(self) -> None:
