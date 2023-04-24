@@ -69,11 +69,11 @@ def run_demo():
             if actions is None:
                 print("Execution ended because no plan could be found.")
                 espeak_pub.publish("Mission impossible!")
-                domain.visualization.add_node("Mission impossible", "red")
+                visualization.add_node("Mission impossible", "red")
             else:
                 print("Demo complete.")
                 espeak_pub.publish("Demo complete.")
-                domain.visualization.add_node("Demo complete", "green")
+                visualization.add_node("Demo complete", "green")
             active = False
             return
 
