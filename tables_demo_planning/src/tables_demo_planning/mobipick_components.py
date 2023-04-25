@@ -156,7 +156,7 @@ class EnvironmentRepresentation(Generic[R]):
         arm_pose_name = ArmPose.unknown.value
         if arm_pose_facts:
             arm_pose_name = arm_pose_facts[0].values[0]
-        return ArmPose[arm_pose_name] == arm_pose
+        return ArmPose(arm_pose_name) == arm_pose
 
     def get_robot_has(self, item: Item) -> bool:
         """Return fluent value whether robot has item."""
