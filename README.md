@@ -13,14 +13,14 @@ The tables demo consists of an environment with items on multiple tables, in whi
 - in any order,
 - and react to changes to the environment, e.g. items being moved around during the demo.
 
-For details about the DFKI internal event at which this demo was presented,
-see this [wiki page](https://git.ni.dfki.de/mobipick/documentation/-/wikis/Mobipick-tables-demo).
+For details about the event at which this demo was presented, see its (DFKI internal)
+[Mobipick tables demo wiki page](https://git.ni.dfki.de/mobipick/documentation/-/wikis/Mobipick-tables-demo).
 
 Installation
 ------------
 
-This demo might install a lot, depending on what you already have on your
-system. Your catkin workspace for [mobipick](https://git.ni.dfki.de/mobipick/mobipick),
+This demo might install a lot, depending on what you already have on your system.
+Your catkin workspace for [mobipick](https://github.com/DFKI-NI/mobipick),
 if you don't mind adding further repositories, or a new catkin workspace with only this
 repository is recommended to start with. [vcs](https://pypi.org/project/vcstool/) and
 [wstool](http://wiki.ros.org/wstool) will be installed when needed,
@@ -34,8 +34,8 @@ ROS and Python 3 are assumed to be available on your system.
 Real robot demo
 ---------------
 
-Start up the robot according to the (DFKI internal) [instructions on the
-wiki](https://git.ni.dfki.de/mobipick/documentation/-/wikis/starting-up-the-robot),
+Start up the robot according to the (DFKI internal)
+[instructions on the wiki](https://git.ni.dfki.de/mobipick/documentation/-/wikis/starting-up-the-robot),
 then:
 
 
