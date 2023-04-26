@@ -24,7 +24,7 @@ class ArmPose(Enum):
     handover = "handover"
 
     @classmethod
-    def get(cls, value: str) -> 'ArmPose':
+    def get_by_value(cls, value: str) -> 'ArmPose':
         """Return ArmPose by its Enum value if it exists, else ArmPose.unknown."""
         for member in ArmPose:
             if value == member.value:
@@ -105,7 +105,7 @@ class APIRobot(Robot, robot_api.Robot):
 
     def get_arm_pose(self) -> ArmPose:
         """Return current arm pose."""
-        return ArmPose.get(self.arm.get_pose_name())
+        return ArmPose.get_by_value(self.arm.get_pose_name())
 
     def get_item(self) -> Item:
         """Return Item.something if robot arm has an object attached, else Item.nothing."""
@@ -163,7 +163,7 @@ class EnvironmentRepresentation(Generic[R]):
         arm_pose_name = ArmPose.unknown.value
         if arm_pose_facts:
             arm_pose_name = arm_pose_facts[0].values[0]
-        return ArmPose.get(arm_pose_name) == arm_pose
+        return ArmPose.get_by_value(arm_pose_name) == arm_pose
 
     def get_robot_has(self, item: Item) -> bool:
         """Return fluent value whether robot has item."""
