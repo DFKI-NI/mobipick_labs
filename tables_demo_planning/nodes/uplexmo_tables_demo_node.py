@@ -47,7 +47,7 @@ from tables_demo_planning.subplan_visualization import SubPlanVisualization
 from unified_planning.plans import Plan, ActionInstance
 from unified_planning.shortcuts import OneshotPlanner, Problem
 from unified_planning.engines import OptimalityGuarantee
-from up_bridge.plexmo import SequentialPlanMonitor, SequentialPlanDispatcher
+from up_esb.plexmo import SequentialPlanMonitor, SequentialPlanDispatcher
 from unified_planning.model import UPState
 
 """
