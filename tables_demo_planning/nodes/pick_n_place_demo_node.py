@@ -86,12 +86,12 @@ def run_demo():
         # ... and execute.
         print("> Execution:")
         for action in actions:
-            function, parameters = domain.get_executable_action(action)
+            executable_action, parameters = domain.get_executable_action(action)
             action_name = f"{len(executed_actions) + 1} {domain.label(action)}"
             print(action)
             visualization.execute(action_name)
             espeak_pub.publish(domain.label(action))
-            result = function(*parameters)
+            result = executable_action(*parameters)
             executed_actions.add(action_name)
             if rospy.is_shutdown():
                 return

@@ -387,11 +387,11 @@ class TablesDemoDomain(Domain[E]):
                 )
             print("> Execution:")
             for action in actions:
-                function, parameters = self.get_executable_action(action)
+                executable_action, parameters = self.get_executable_action(action)
                 action_name = f"{len(executed_actions) + 1} {self.label(action)}"
                 print(action)
                 # Explicitly do not pick up box from target_table since planning does not handle it yet.
-                if function == TablesDemoRobot.pick_item and parameters[-1] == Item.box:
+                if executable_action == TablesDemoRobot.pick_item and parameters[-1] == Item.box:
                     assert isinstance(parameters[-2], Location)
                     location = self.env.resolve_search_location(parameters[-2])
                     if location == self.target_location:
@@ -407,7 +407,7 @@ class TablesDemoDomain(Domain[E]):
                     self.espeak_pub.publish(self.label(action))
 
                 # Execute action.
-                result = function(*parameters)
+                result = executable_action(*parameters)
                 executed_actions.add(action_name)
                 if rospy.is_shutdown():
                     return
