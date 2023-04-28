@@ -36,11 +36,10 @@
       <rosparam command="load" file="$(arg dope_converter_config)" />
     </node>
     <node pkg="pose_selector" type="pose_selector_node" name="pick_pose_selector_node" output="screen">
-      <remap from="/logical_image" to="/dope_converter_poses" />
-      <remap from="/mobipick/dope/detected_objects" to="/dope_converter_poses"/>
       <param name="debug" value="false" />
       <param name="global_reference_frame" value="map" />
       <rosparam param="objects_of_interest" subst_value="True">$(arg objects_of_interest)</rosparam>
+      <remap from="/logical_image" to="/dope_converter_poses" />
     </node>
 
     <!-- force torque observer -->
