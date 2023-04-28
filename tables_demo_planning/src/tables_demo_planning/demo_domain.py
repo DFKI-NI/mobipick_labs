@@ -34,12 +34,11 @@
 # Authors: Alexander Sung, DFKI
 
 
-from typing import Callable, Dict, Generic, Iterable, List, Optional, Sequence, TypeVar
-import os
+from typing import Callable, Dict, Generic, Iterable, List, Optional, Sequence, TypeVar, Union
 import time
 import yaml
 import rospy
-import rospkg
+import rosparam
 from geometry_msgs.msg import Pose
 from unified_planning.engines import OptimalityGuarantee
 from unified_planning.model import Fluent, InstantaneousAction, Object, Problem
@@ -47,7 +46,7 @@ from unified_planning.plans import ActionInstance
 from unified_planning.shortcuts import Equals, Not, OneshotPlanner
 from up_esb.bridge import Bridge
 from tables_demo_planning.mobipick_components import ArmPose, EnvironmentRepresentation, Item, Location, Robot
-from robot_api import TuplePose
+from robot_api import TuplePose, is_instance
 
 """Concrete Mobipick domain, bridged from its application to its planning representations"""
 
@@ -82,14 +81,19 @@ class Domain(Bridge, Generic[E]):
 
         # Create objects for both planning and execution.
         self.robot = self.create_object("mobipick", env.robot)
-        config_path = f"{rospkg.RosPack().get_path('mobipick_pick_n_place')}/config/"
-        filename = "moelk_tables_demo.yaml"
-        self.config_filepath = os.path.join(config_path, filename)
-        self.api_poses = self.load_waypoints(self.config_filepath)
+        rosparam_namespace = "/mobipick/tables_demo_planning"
+        self.api_poses: Dict[str, Pose] = {}
+        for param_name in rosparam.list_params(rosparam_namespace):
+            assert isinstance(param_name, str)
+            param = rosparam.get_param(param_name)
+            if is_instance(param, Sequence[Union[float, int]]) and len(param) == 7:
+                self.api_poses[param_name.rsplit('/', maxsplit=1)[-1]] = TuplePose.to_pose(
+                    (param[:3], param[4:] + [param[3]])
+                )
         if len({TuplePose.from_pose(pose) for pose in self.api_poses.values()}) < len(self.api_poses):
             rospy.logwarn(
-                f"Duplicate poses in '{filename}' might let checks fail"
-                " whether something is at a specific symbolic pose."
+                f"Duplicate poses in rosparam namespace '{rosparam_namespace}'"
+                " might let checks fail whether something is at a specific symbolic pose."
             )
         self.poses = self.create_objects(self.api_poses)
         self.base_home_pose = self.objects[self.BASE_HOME_POSE_NAME]
