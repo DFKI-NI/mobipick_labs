@@ -281,7 +281,6 @@ class TablesDemoAPIDomain(TablesDemoDomain[TablesDemoAPIEnv]):
             fact_name='robot_at',
             global_frame='/map',
             robot_frame='/mobipick/base_link',
-            waypoint_param=self.config_filepath,
             undefined_pose_name="unknown_pose",
         )
 
