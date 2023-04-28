@@ -59,4 +59,6 @@
   <!-- ::::: Insert object ::::: -->
   <include file="$(find tables_demo_bringup)/launch/includes/insert.launch"/>
 
+  <!-- config for tables_demo_planning -->
+  <rosparam command="load" file="$(find mobipick_pick_n_place)/config/$(arg world)_demo.yaml" ns="mobipick/tables_demo_planning" />
 </launch>
