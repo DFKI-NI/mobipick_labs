@@ -1,5 +1,6 @@
 <?xml version="1.0"?>
 <launch>
+  <arg name="planning_scene_config" default="$(find tables_demo_bringup)/config/moelk_tables_planning_scene.yaml" />
 
   <!-- visualise the poses inside the pose selector as textured meshes -->
   <arg name="object_color_rgba_pick" value="[0,0,0,0]"/>
@@ -26,7 +27,7 @@
     <param name="pose_selector_delete_srv_name" type="string" value="/pick_pose_selector_node/pose_selector_delete" />
     <param name="detach_all_objects" value="true" />
     <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/pick_params.yaml" command="load" />
-    <rosparam file="$(find tables_demo_bringup)/config/moelk_tables_planning_scene.yaml" command="load" />
+    <rosparam file="$(arg planning_scene_config)" command="load" />
     <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/grasp_planning_core_params.yaml" command="load" />
     <!-- allows to specify how much the gripper should close per object -->
     <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/object_grasps/gripper_distance_values_per_object.yaml" command="load" />

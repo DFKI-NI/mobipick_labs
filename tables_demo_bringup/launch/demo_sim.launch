@@ -1,5 +1,6 @@
 <?xml version="1.0"?>
 <launch>
+  <arg name="world" default="moelk_tables" doc="Which environment to run (can be 'moelk_tables' or 'cic_tables' for now)" />
 
   <!-- the pose where to spawn the robot in simulation -->
   <arg name="robot_x"   default="10.30" />
@@ -48,6 +49,6 @@
 
   <include file="$(find tables_demo_bringup)/launch/bringup.launch" >
     <arg name="simulation" value="true" />
+    <arg name="world"      value="$(arg world)" />
   </include>
-
 </launch>

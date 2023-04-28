@@ -42,7 +42,7 @@ then:
 ```bash
 roslaunch mobipick_bringup mobipick_bringup_both.launch  # already part of the startup instructions
 roslaunch pbr_dope dope.launch
-roslaunch tables_demo_bringup bringup.launch
+roslaunch tables_demo_bringup bringup.launch   # optional: world:=cic_tables (default: moelk_tables)
 ```
 
 To start the full tables demo, then run:

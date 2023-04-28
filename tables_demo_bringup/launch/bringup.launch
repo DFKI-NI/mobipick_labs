@@ -1,6 +1,7 @@
 <?xml version="1.0"?>
 <launch>
   <arg name="simulation" default="false" />
+  <arg name="world" default="moelk_tables" doc="Which environment to run (can be 'moelk_tables' or 'cic_tables' for now)" />
   <arg name="objects_of_interest" default="[relay, screwdriver, multimeter, power_drill_with_grip, klt]"/>
   <arg name="dope_converter_config" default="$(find pbr_objects)/config/class_ids.yaml" />
 
@@ -47,7 +48,9 @@
   </group>
 
   <!-- ::::: Grasp planning ::::: -->
-  <include file="$(find tables_demo_bringup)/launch/includes/grasp_planning.launch"/>
+  <include file="$(find tables_demo_bringup)/launch/includes/grasp_planning.launch">
+    <arg name="planning_scene_config" value="$(find tables_demo_bringup)/config/$(arg world)_planning_scene.yaml" />
+  </include>
 
   <!-- ::::: Place object ::::: -->
   <include file="$(find tables_demo_bringup)/launch/includes/place.launch">
