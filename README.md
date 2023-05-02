@@ -79,6 +79,15 @@ rosrun tables_demo_planning tables_demo_node.py
 
 The optional components above for speaker and visualization work in simulation as well.
 
+Tables demo using plexmo
+----------------------------------
+
+To use plexmo instead of the original version of plan execution use `uplexmo_tables_demo_node.py` instead of `tables_demo_node.py` for starting the tables demo:
+
+```bash
+rosrun tables_demo_planning tables_demo_node.py
+```
+
 Grasping/Placing/Inserting objects demo (using grasplan)
 --------------------------------------
 
