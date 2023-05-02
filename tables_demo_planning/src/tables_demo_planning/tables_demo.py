@@ -363,7 +363,7 @@ class TablesDemoDomain(Domain[E]):
         """Run the mobipick tables demo."""
         print(f"Scenario: Mobipick shall bring all items to {self.target_table}.")
 
-        executed_actions: Set[str] = set()
+        executed_action_names: Set[str] = set()  # Note: For visualization purposes only.
         retries_before_abortion = self.RETRIES_BEFORE_ABORTION
         error_counts: Dict[str, int] = defaultdict(int)
         # Solve overall problem.
@@ -380,15 +380,15 @@ class TablesDemoDomain(Domain[E]):
             if self.visualization:
                 self.visualization.set_actions(
                     [
-                        f"{number + len(executed_actions)} {self.label(action)}"
+                        f"{number + len(executed_action_names)} {self.label(action)}"
                         for number, action in enumerate(actions, start=1)
                     ],
-                    preserve_actions=executed_actions,
+                    preserve_actions=executed_action_names,
                 )
             print("> Execution:")
             for action in actions:
                 executable_action, parameters = self.get_executable_action(action)
-                action_name = f"{len(executed_actions) + 1} {self.label(action)}"
+                action_name = f"{len(executed_action_names) + 1} {self.label(action)}"
                 print(action)
                 # Explicitly do not pick up box from target_table since planning does not handle it yet.
                 if executable_action == TablesDemoRobot.pick_item and parameters[-1] == Item.box:
@@ -408,7 +408,7 @@ class TablesDemoDomain(Domain[E]):
 
                 # Execute action.
                 result = executable_action(*parameters)
-                executed_actions.add(action_name)
+                executed_action_names.add(action_name)
                 if rospy.is_shutdown():
                     return
 
@@ -434,18 +434,19 @@ class TablesDemoDomain(Domain[E]):
                         if self.visualization:
                             self.visualization.set_actions(
                                 [
-                                    f"{len(executed_actions)}{chr(number)} {self.label(subaction)}"
+                                    f"{len(executed_action_names)}{chr(number)} {self.label(subaction)}"
                                     for number, subaction in enumerate(subactions, start=97)
                                 ],
-                                preserve_actions=executed_actions,
+                                preserve_actions=executed_action_names,
                                 predecessor=action_name,
                             )
                         print("- Search execution:")
                         subaction_execution_count = 0
                         for subaction in subactions:
-                            subfunction, subparameters = self.get_executable_action(subaction)
+                            executable_subaction, subparameters = self.get_executable_action(subaction)
                             subaction_name = (
-                                f"{len(executed_actions)}{chr(subaction_execution_count + 97)} {self.label(subaction)}"
+                                f"{len(executed_action_names)}{chr(subaction_execution_count + 97)}"
+                                f" {self.label(subaction)}"
                             )
                             print(subaction)
                             if self.visualization:
@@ -453,7 +454,7 @@ class TablesDemoDomain(Domain[E]):
                             if self.espeak_pub:
                                 self.espeak_pub.publish(self.label(subaction))
                             # Execute search action.
-                            result = subfunction(*subparameters)
+                            result = executable_subaction(*subparameters)
                             subaction_execution_count += 1
                             if rospy.is_shutdown():
                                 return

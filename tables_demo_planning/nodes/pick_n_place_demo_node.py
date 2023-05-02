@@ -53,7 +53,7 @@ def run_demo():
     domain = PickAndPlaceDomain()
     espeak_pub = rospy.Publisher("/espeak_node/speak_line", String, queue_size=1)
     visualization = SubPlanVisualization()
-    executed_actions: Set[str] = set()
+    executed_action_names: Set[str] = set()  # Note: For visualization purposes only.
     error_count = 0
     active = True
     while active:
@@ -80,19 +80,20 @@ def run_demo():
         print("> Plan:")
         print('\n'.join(map(str, actions)))
         action_names = [
-            f"{len(executed_actions) + number} {domain.label(action)}" for number, action in enumerate(actions, start=1)
+            f"{len(executed_action_names) + number} {domain.label(action)}"
+            for number, action in enumerate(actions, start=1)
         ]
-        visualization.set_actions(action_names, preserve_actions=executed_actions)
+        visualization.set_actions(action_names, preserve_actions=executed_action_names)
         # ... and execute.
         print("> Execution:")
         for action in actions:
             executable_action, parameters = domain.get_executable_action(action)
-            action_name = f"{len(executed_actions) + 1} {domain.label(action)}"
+            action_name = f"{len(executed_action_names) + 1} {domain.label(action)}"
             print(action)
             visualization.execute(action_name)
             espeak_pub.publish(domain.label(action))
             result = executable_action(*parameters)
-            executed_actions.add(action_name)
+            executed_action_names.add(action_name)
             if rospy.is_shutdown():
                 return
 
