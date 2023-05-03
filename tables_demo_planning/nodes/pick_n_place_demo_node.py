@@ -42,6 +42,7 @@ import rospy
 from std_msgs.msg import String
 import unified_planning
 from unified_planning.model.metrics import MinimizeSequentialPlanLength
+from up_esb.orchestrator import Orchestrator
 from tables_demo_planning.pick_n_place_demo import PickAndPlaceDomain
 from tables_demo_planning.subplan_visualization import SubPlanVisualization
 
@@ -54,9 +55,8 @@ def run_demo():
     espeak_pub = rospy.Publisher("/espeak_node/speak_line", String, queue_size=1)
     visualization = SubPlanVisualization()
     executed_action_names: Set[str] = set()  # Note: For visualization purposes only.
-    error_count = 0
-    active = True
-    while active:
+    orchestrator = Orchestrator(domain)
+    while orchestrator.active:
         # Create problem based on current state.
         problem = domain.initialize_problem()
         problem.add_quality_metric(MinimizeSequentialPlanLength())
@@ -74,7 +74,6 @@ def run_demo():
                 print("Demo complete.")
                 espeak_pub.publish("Demo complete.")
                 visualization.add_node("Demo complete", "green")
-            active = False
             return
 
         print("> Plan:")
@@ -86,25 +85,25 @@ def run_demo():
         visualization.set_actions(action_names, preserve_actions=executed_action_names)
         # ... and execute.
         print("> Execution:")
-        for action in actions:
-            executable_action, parameters = domain.get_executable_action(action)
+        orchestrator.set_action_sequence(actions, action_success_function=lambda result: result is None or result)
+        while orchestrator.has_next_action():
+            action = orchestrator.get_next_action()
             action_name = f"{len(executed_action_names) + 1} {domain.label(action)}"
             print(action)
             visualization.execute(action_name)
             espeak_pub.publish(domain.label(action))
-            result = executable_action(*parameters)
+            is_success = orchestrator.execute()
             executed_action_names.add(action_name)
             if rospy.is_shutdown():
                 return
 
-            if result is None or result:
+            if is_success:
                 visualization.succeed(action_name)
             else:
                 print("-- Action failed! Need to replan.")
-                error_count += 1
                 visualization.fail(action_name)
                 espeak_pub.publish("Action failed.")
-                if error_count >= 3:
+                if orchestrator.total_failure_count >= 3:
                     print("Execution ended after too many failures.")
                     espeak_pub.publish("Mission impossible!")
                     visualization.add_node("Mission impossible", "red")
@@ -113,7 +112,6 @@ def run_demo():
                 # Abort execution and loop to planning.
                 break
         else:
-            active = False
             print("Demo complete.")
             espeak_pub.publish("Demo complete.")
             visualization.add_node("Demo complete", "green")
