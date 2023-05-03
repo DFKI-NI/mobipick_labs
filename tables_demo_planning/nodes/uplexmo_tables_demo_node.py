@@ -84,7 +84,7 @@ class TablesDemoOrchestrator:
             print("Unsatisfied preconditions: %s" % str(unsatisfied))
             print("State is: ")
             for k, v in self._domain.problem.initial_values.items():
-                print(f"  {str(k)} := {str(v)}\n")
+                print(f"  {str(k)} := {str(v)}")
             # return False # TODO commented out until issue with wrong state is resolved
 
         # Execute the action
