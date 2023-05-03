@@ -361,7 +361,7 @@ class TablesDemoDomain(Domain[E]):
 
     def run(self) -> None:
         """Run the mobipick tables demo."""
-        print(f"Scenario: Mobipick shall bring all items to {self.target_table}.")
+        print(f"Scenario: Mobipick shall bring the box with the multimeter inside to {self.target_table}.")
 
         executed_action_names: Set[str] = set()  # Note: For visualization purposes only.
         retries_before_abortion = self.RETRIES_BEFORE_ABORTION
