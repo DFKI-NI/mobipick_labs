@@ -42,7 +42,7 @@ import rospy
 import unified_planning
 from typing import Optional, Set
 from tables_demo_planning.mobipick_components import Location
-from tables_demo_planning.tables_demo_robotapi import TablesDemoAPIDomain
+from tables_demo_planning.tables_demo_api import TablesDemoAPIDomain
 from tables_demo_planning.subplan_visualization import SubPlanVisualization
 from unified_planning.plans import Plan, ActionInstance
 from unified_planning.shortcuts import OneshotPlanner, Problem

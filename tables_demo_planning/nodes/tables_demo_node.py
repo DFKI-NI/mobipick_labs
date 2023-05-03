@@ -41,7 +41,7 @@ import sys
 import rospy
 import unified_planning
 from tables_demo_planning.mobipick_components import Location
-from tables_demo_planning.tables_demo_robotapi import TablesDemoAPIDomain
+from tables_demo_planning.tables_demo_api import TablesDemoAPIDomain
 
 """
 Main execution node of the tables demo.
