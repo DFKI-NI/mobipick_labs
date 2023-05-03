@@ -93,7 +93,7 @@ class TablesDemoOrchestrator:
         result = executable_action(*parameters)
         self._executed_actions.add(action_name)
         if rospy.is_shutdown():
-            return
+            return False
 
         if self._domain.env.item_search:
             # Check whether an obsolete item search invalidates the previous plan.
@@ -114,7 +114,7 @@ class TablesDemoOrchestrator:
 
         return result is not None and result
 
-    def search_item(self, previous_action_name) -> bool:
+    def search_item(self, previous_action_name) -> object:
         try:
             # Search for item by creating and executing a subplan.
             self._domain.set_initial_values(self._domain.subproblem)
@@ -183,7 +183,7 @@ class TablesDemoOrchestrator:
             self._domain.env.item_search = None
         return result
 
-    def generate_and_execute_plan(self):
+    def generate_and_execute_plan(self) -> None:
         print(f"Scenario: Mobipick shall bring the box with the multimeter inside to {self._domain.target_table}.")
         self._executed_actions: Set[str] = set()
         # retries_before_abortion = self._domain.RETRIES_BEFORE_ABORTION  # FIXME Currently not used
