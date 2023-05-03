@@ -183,7 +183,7 @@ class TablesDemoOrchestrator:
         return result
 
     def generate_and_execute_plan(self):
-        print(f"Scenario: Mobipick shall bring all items to {self._domain.target_table}.")
+        print(f"Scenario: Mobipick shall bring the box with the multimeter inside to {self._domain.target_table}.")
         self._executed_actions: Set[str] = set()
         # retries_before_abortion = self._domain.RETRIES_BEFORE_ABORTION  # FIXME Currently not used
         # error_counts: Dict[str, int] = defaultdict(int) # FIXME Currently not used
