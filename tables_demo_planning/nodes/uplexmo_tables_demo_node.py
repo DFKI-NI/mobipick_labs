@@ -135,7 +135,7 @@ class TablesDemoOrchestrator:
             print("- Search execution:")
             subaction_execution_count = 0
             for subaction in subactions:
-                subfunction, subparameters = self._domain.get_executable_action(subaction)
+                executable_subaction, subparameters = self._domain.get_executable_action(subaction)
                 label = self._domain.label(subaction)
                 subaction_name = f"{len(self._executed_actions)}{chr(subaction_execution_count + 97)} {label}"
                 print(subaction)
@@ -144,7 +144,7 @@ class TablesDemoOrchestrator:
                 if self.espeak_pub:
                     self.espeak_pub.publish(self._domain.label(subaction))
                 # Execute search action.
-                result = subfunction(*subparameters)
+                result = executable_subaction(*subparameters)
                 subaction_execution_count += 1
                 if rospy.is_shutdown():
                     return "Interrupted"
