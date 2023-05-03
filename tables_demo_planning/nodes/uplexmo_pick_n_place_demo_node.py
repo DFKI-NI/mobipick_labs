@@ -73,7 +73,7 @@ class PickAndPlaceOrchestrator:
             print("Unsatisfied preconditions: %s" % str(unsatisfied))
             print("State is: ")
             for k, v in self._problem.initial_values.items():
-                print(f"  {str(k)} := {str(v)}\n")
+                print(f"  {str(k)} := {str(v)}")
             # return False   # commented out until issue with arm state is resolved
 
         print("Dispatching " + action_name)
