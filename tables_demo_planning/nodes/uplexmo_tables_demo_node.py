@@ -170,6 +170,7 @@ class TablesDemoOrchestrator:
                                 self.visualization.cancel(subaction_name)
                             if self.espeak_pub:
                                 self.espeak_pub.publish("Found another item. Make a new plan.")
+                            result = None
                             self._trigger_replanning = True
                             break
                     else:
