@@ -43,6 +43,7 @@ from unified_planning.model import Object
 from unified_planning.model.metrics import MinimizeSequentialPlanLength
 from unified_planning.plans import ActionInstance
 from unified_planning.shortcuts import Equals, Not, Or
+from up_esb.orchestrator import Orchestrator
 from tables_demo_planning.demo_domain import Domain
 from tables_demo_planning.mobipick_components import ArmPose, EnvironmentRepresentation, Item, Location, Robot
 from tables_demo_planning.subplan_visualization import SubPlanVisualization
@@ -374,7 +375,8 @@ class TablesDemoDomain(Domain[E]):
             return
 
         # Loop action execution as long as there are actions.
-        while actions:
+        orchestrator = Orchestrator(self)
+        while orchestrator.active:
             print("> Plan:")
             print('\n'.join(map(str, actions)))
             if self.visualization:
@@ -386,7 +388,9 @@ class TablesDemoDomain(Domain[E]):
                     preserve_actions=executed_action_names,
                 )
             print("> Execution:")
-            for action in actions:
+            orchestrator.set_action_sequence(actions)
+            while orchestrator.has_next_action():
+                action = orchestrator.get_next_action()
                 executable_action, parameters = self.get_executable_action(action)
                 action_name = f"{len(executed_action_names) + 1} {self.label(action)}"
                 print(action)
@@ -407,7 +411,8 @@ class TablesDemoDomain(Domain[E]):
                     self.espeak_pub.publish(self.label(action))
 
                 # Execute action.
-                result = executable_action(*parameters)
+                orchestrator.execute()
+                result = orchestrator.get_last_action_result()
                 executed_action_names.add(action_name)
                 if rospy.is_shutdown():
                     return
