@@ -388,7 +388,7 @@ class TablesDemoDomain(Domain[E]):
                     preserve_actions=executed_action_names,
                 )
             print("> Execution:")
-            orchestrator.set_action_sequence(actions)
+            orchestrator.set_actions(actions)
             while orchestrator.has_next_action():
                 action = orchestrator.get_next_action()
                 executable_action, parameters = self.get_executable_action(action)

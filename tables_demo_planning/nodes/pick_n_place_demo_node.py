@@ -85,7 +85,7 @@ def run_demo():
         visualization.set_actions(action_names, preserve_actions=executed_action_names)
         # ... and execute.
         print("> Execution:")
-        orchestrator.set_action_sequence(actions, action_success_function=lambda result: result is None or result)
+        orchestrator.set_actions(actions, action_success_function=lambda result: result is None or result)
         while orchestrator.has_next_action():
             action = orchestrator.get_next_action()
             action_name = f"{len(executed_action_names) + 1} {domain.label(action)}"
