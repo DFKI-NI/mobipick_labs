@@ -391,7 +391,7 @@ class TablesDemoDomain(Domain[E]):
                 action_name = f"{len(executed_action_names) + 1} {self.label(action)}"
                 print(action)
                 # Explicitly do not pick up box from target_table since planning does not handle it yet.
-                if executable_action == TablesDemoRobot.pick_item and parameters[-1] == Item.box:
+                if action.action.name == "pick_item" and parameters[-1] == Item.box:
                     assert isinstance(parameters[-2], Location)
                     location = self.env.resolve_search_location(parameters[-2])
                     if location == self.target_location:
