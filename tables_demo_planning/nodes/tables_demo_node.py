@@ -53,6 +53,8 @@ if __name__ == '__main__':
             parameter = sys.argv[1]
             if parameter in ("1", "table1", "table_1"):
                 target_location = Location.table_1
+            elif parameter in ("2", "table2", "table_2"):
+                target_location = Location.table_2
             elif parameter in ("3", "table3", "table_3"):
                 target_location = Location.table_3
             else:
