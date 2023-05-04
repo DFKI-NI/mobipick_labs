@@ -162,7 +162,6 @@ class TablesDemoEnv(EnvironmentRepresentation[R]):
 class TablesDemoDomain(Domain[E]):
     DEMO_ITEMS = (Item.box, Item.multimeter)
     TABLE_LOCATIONS = (Location.table_1, Location.table_2, Location.table_3)
-    RETRIES_BEFORE_ABORTION = 2
 
     def __init__(self, env: E, target_location: Location) -> None:
         Domain.__init__(self, env)
@@ -321,6 +320,7 @@ class TablesDemoDomain(Domain[E]):
 
         self.visualization: Optional[SubPlanVisualization] = None
         self.espeak_pub: Optional[rospy.Publisher] = None
+        self.orchestrator = Orchestrator(self)
 
     def get_pose_at(self, pose: Object, location: Object) -> bool:
         return location == (self.pose_locations[pose] if pose in self.pose_locations.keys() else self.anywhere)
@@ -358,15 +358,16 @@ class TablesDemoDomain(Domain[E]):
         """Print believed item locations, initialize UP problem, and solve it."""
         self.env.print_believed_item_locations()
         self.set_initial_values(self.problem)
-        return self.solve(self.problem)
+        actions = self.solve(self.problem)
+        self.orchestrator.set_actions(actions)
+        return actions
 
     def run(self) -> None:
         """Run the mobipick tables demo."""
         print(f"Scenario: Mobipick shall bring the box with the multimeter inside to {self.target_table}.")
 
         executed_action_names: Set[str] = set()  # Note: For visualization purposes only.
-        retries_before_abortion = self.RETRIES_BEFORE_ABORTION
-        error_counts: Dict[str, int] = defaultdict(int)
+        failure_counts: Dict[str, int] = defaultdict(int)
         # Solve overall problem.
         self.set_goals()
         actions = self.replan()
@@ -375,8 +376,7 @@ class TablesDemoDomain(Domain[E]):
             return
 
         # Loop action execution as long as there are actions.
-        orchestrator = Orchestrator(self)
-        while orchestrator.active:
+        while self.orchestrator.active:
             print("> Plan:")
             print('\n'.join(map(str, actions)))
             if self.visualization:
@@ -388,14 +388,13 @@ class TablesDemoDomain(Domain[E]):
                     preserve_actions=executed_action_names,
                 )
             print("> Execution:")
-            orchestrator.set_actions(actions)
-            while orchestrator.has_next_action():
-                action = orchestrator.get_next_action()
-                executable_action, parameters = self.get_executable_action(action)
+            while self.orchestrator.has_next_action():
+                action = self.orchestrator.get_next_action()
+                _, parameters = self.get_executable_action(action)
                 action_name = f"{len(executed_action_names) + 1} {self.label(action)}"
                 print(action)
                 # Explicitly do not pick up box from target_table since planning does not handle it yet.
-                if executable_action == TablesDemoRobot.pick_item and parameters[-1] == Item.box:
+                if action.action.name == "pick_item" and parameters[-1] == Item.box:
                     assert isinstance(parameters[-2], Location)
                     location = self.env.resolve_search_location(parameters[-2])
                     if location == self.target_location:
@@ -411,8 +410,8 @@ class TablesDemoDomain(Domain[E]):
                     self.espeak_pub.publish(self.label(action))
 
                 # Execute action.
-                orchestrator.execute()
-                result = orchestrator.get_last_action_result()
+                self.orchestrator.execute()
+                result = self.orchestrator.get_last_action_result()
                 executed_action_names.add(action_name)
                 if rospy.is_shutdown():
                     return
@@ -446,9 +445,16 @@ class TablesDemoDomain(Domain[E]):
                                 predecessor=action_name,
                             )
                         print("- Search execution:")
+                        self.orchestrator.prepend_actions(
+                            subactions,
+                            action_continuation_function=lambda result: result is None
+                            or result
+                            and not (self.env.item_search is None and len(self.env.newly_perceived_item_locations) <= 1)
+                            and not self.env.newly_perceived_item_locations,
+                        )
                         subaction_execution_count = 0
-                        for subaction in subactions:
-                            executable_subaction, subparameters = self.get_executable_action(subaction)
+                        while self.orchestrator.has_next_action():
+                            subaction = self.orchestrator.get_next_action()
                             subaction_name = (
                                 f"{len(executed_action_names)}{chr(subaction_execution_count + 97)}"
                                 f" {self.label(subaction)}"
@@ -459,7 +465,8 @@ class TablesDemoDomain(Domain[E]):
                             if self.espeak_pub:
                                 self.espeak_pub.publish(self.label(subaction))
                             # Execute search action.
-                            result = executable_subaction(*subparameters)
+                            self.orchestrator.execute()
+                            result = self.orchestrator.get_last_action_result()
                             subaction_execution_count += 1
                             if rospy.is_shutdown():
                                 return
@@ -500,15 +507,15 @@ class TablesDemoDomain(Domain[E]):
                     if result:
                         if self.visualization:
                             self.visualization.succeed(action_name)
-                        retries_before_abortion = self.RETRIES_BEFORE_ABORTION
+                        self.orchestrator.failure_count = 0
                     else:
                         if self.visualization:
                             self.visualization.fail(action_name)
                         if self.espeak_pub:
                             self.espeak_pub.publish("Action failed.")
-                        error_counts[self.label(action)] += 1
+                        failure_counts[self.label(action)] += 1
                         # Note: This will also fail if two different failures occur successively.
-                        if retries_before_abortion <= 0 or any(count >= 3 for count in error_counts.values()):
+                        if self.orchestrator.failure_count >= 3 or any(count >= 3 for count in failure_counts.values()):
                             print("Task could not be completed even after retrying.")
                             if self.visualization:
                                 self.visualization.add_node("Mission impossible", "red")
@@ -516,13 +523,12 @@ class TablesDemoDomain(Domain[E]):
                                 self.espeak_pub.publish("Mission impossible!")
                             return
 
-                        retries_before_abortion -= 1
                         actions = self.replan()
                         break
                 else:
                     if self.visualization:
                         self.visualization.cancel(action_name)
-                    retries_before_abortion = self.RETRIES_BEFORE_ABORTION
+                    self.orchestrator.failure_count = 0
                     actions = self.replan()
                     break
             else:
