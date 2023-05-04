@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-
 # Software License Agreement (BSD License)
 #
 #  Copyright (c) 2022, DFKI GmbH
@@ -36,6 +35,11 @@
 #
 # Authors: Sebastian Stock, Alexander Sung
 
+"""
+Main execution node of the tables demo using plexmo for execution.
+Development in progress.
+"""
+
 
 import sys
 import rospy
@@ -49,11 +53,6 @@ from unified_planning.shortcuts import OneshotPlanner, Problem
 from unified_planning.engines import OptimalityGuarantee
 from up_esb.plexmo import SequentialPlanMonitor, SequentialPlanDispatcher
 from unified_planning.model import UPState
-
-"""
-Main execution node of the tables demo using plexmo for execution.
-Development in progress.
-"""
 
 
 class TablesDemoOrchestrator:

@@ -1,12 +1,12 @@
+"""General component definitions for Mobipick applications"""
+
 from typing import Dict, Generic, Tuple, TypeVar
 from enum import Enum, IntEnum
 from geometry_msgs.msg import Pose
+from symbolic_fact_generation.robot_facts_generator import HasArmPostureGenerator
 import rospy
 from robot_api import TuplePose
 import robot_api
-from symbolic_fact_generation.robot_facts_generator import HasArmPostureGenerator
-
-"""General component definitions for Mobipick applications"""
 
 
 class ActionResult(IntEnum):

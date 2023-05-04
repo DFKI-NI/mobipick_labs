@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
+
+"""This test script tests planning, re-planning, and visualization without Gazebo simulation."""
+
+
 from typing import Dict
 import unified_planning
 from geometry_msgs.msg import Pose
 from unified_planning.model import Object
 from tables_demo_planning.mobipick_components import ArmPose, Item, Location
 from tables_demo_planning.tables_demo import TablesDemoDomain, TablesDemoEnv, TablesDemoRobot
-
-"""This test script tests planning, re-planning, and visualization without Gazebo simulation."""
 
 
 class TablesDemoSimRobot(TablesDemoRobot['TablesDemoSimEnv']):

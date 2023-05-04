@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-
 # Software License Agreement (BSD License)
 #
 #  Copyright (c) 2022, DFKI GmbH
@@ -35,6 +34,9 @@
 #
 #
 # Authors: Sebastian Stock
+
+"""Main execution node of the Pick and Place demo using plexmo for execution."""
+
 
 import rospy
 import unified_planning

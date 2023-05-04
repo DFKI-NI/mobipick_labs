@@ -33,6 +33,8 @@
 #
 # Authors: Alexander Sung, DFKI
 
+"""A concrete Mobipick domain, connecting its application to its planning representations"""
+
 
 from typing import Callable, Dict, Generic, Iterable, List, Optional, Sequence, TypeVar, Union
 import time
@@ -47,8 +49,6 @@ from unified_planning.shortcuts import Equals, Not, OneshotPlanner
 from up_esb.bridge import Bridge
 from tables_demo_planning.mobipick_components import ArmPose, EnvironmentRepresentation, Item, Location, Robot
 from robot_api import TuplePose, is_instance
-
-"""Concrete Mobipick domain, bridged from its application to its planning representations"""
 
 
 # Note: A Generic cannot be a TypeVar of another Generic.

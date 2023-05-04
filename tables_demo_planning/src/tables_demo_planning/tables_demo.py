@@ -33,6 +33,11 @@
 #
 # Authors: Alexander Sung, Oscar Lima, Marc Vinci
 
+"""
+These Mobipick components connect the planning domain with the application domain,
+ and include methods valid for both simulation and reality.
+"""
+
 
 from typing import Dict, Generic, List, Optional, Set, TypeVar
 from abc import ABC, abstractmethod

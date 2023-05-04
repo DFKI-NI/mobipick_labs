@@ -33,6 +33,8 @@
 #
 # Authors: Alexander Sung, Oscar Lima, Marc Vinci, Sebastian Stock
 
+"""These Mobipick components implement functionalities in the ROS application domain."""
+
 
 from typing import Dict
 import rospy

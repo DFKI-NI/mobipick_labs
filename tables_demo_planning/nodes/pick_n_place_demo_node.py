@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-
 # Software License Agreement (BSD License)
 #
 #  Copyright (c) 2022, DFKI GmbH
@@ -36,6 +35,8 @@
 #
 # Authors: Alexander Sung, Sebastian Stock
 
+"""Run the Pick and Place demo with an execution loop using a behavior tree."""
+
 
 from typing import Set
 import rospy
@@ -44,8 +45,6 @@ import unified_planning
 from unified_planning.model.metrics import MinimizeSequentialPlanLength
 from tables_demo_planning.pick_n_place_demo import PickAndPlaceDomain
 from tables_demo_planning.subplan_visualization import SubPlanVisualization
-
-"""Running the Pick and Place demo with a simple execution loop"""
 
 
 def run_demo():
@@ -63,7 +62,7 @@ def run_demo():
         domain.set_initial_values(problem)
         domain.set_goals(problem)
 
-        # Plan
+        # Plan ...
         actions = domain.solve(problem)
         if not actions:
             if actions is None:

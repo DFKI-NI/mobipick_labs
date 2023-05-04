@@ -33,16 +33,16 @@
 #
 # Authors: Alexander Sung, DFKI
 
+"""
+Helper component which maintains the dot graph of a simple sequential plan,
+visualized by the dot_graph_visualization repository.
+"""
+
 
 from typing import List, Sequence
 from pydot import Dot, Edge, Node
 from std_msgs.msg import String
 import rospy
-
-"""
-Helper component which maintains the dot graph of a simple sequential plan,
-visualized by the dot_graph_visualization repository.
-"""
 
 
 class PlanVisualization:

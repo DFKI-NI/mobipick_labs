@@ -33,13 +33,13 @@
 #
 # Authors: Alexander Sung, Sebastian Stock
 
+"""Pick and Place application in the Mobipick domain"""
+
 
 from unified_planning.model import Object, Problem
 from unified_planning.shortcuts import Not
 from tables_demo_planning.mobipick_components import APIRobot, ArmPose, EnvironmentRepresentation, Item
 from tables_demo_planning.demo_domain import Domain
-
-"""Pick and Place application in the Mobipick domain"""
 
 
 class PickAndPlaceRobot(APIRobot):

@@ -1,3 +1,9 @@
+"""
+Standalone planning example using replanning with interim goal on failed action.
+This script was used during development but it not part of the demo.
+"""
+
+
 import time
 import rospy
 from random import randrange
@@ -5,11 +11,6 @@ from unified_planning.model import FNode, Fluent, InstantaneousAction, Object, P
 from unified_planning.plans import Plan
 from unified_planning.shortcuts import And, BoolType, Equals, Not, OneshotPlanner, UserType
 from tables_demo_planning.plan_visualization import PlanVisualization
-
-"""
-Standalone planning example using replanning with interim goal on failed action.
-This script was used during development but it not part of the demo.
-"""
 
 
 # Define object types and objects.

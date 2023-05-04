@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-
 # Software License Agreement (BSD License)
 #
 #  Copyright (c) 2022, DFKI GmbH
@@ -36,17 +35,14 @@
 #
 # Authors: Alexander Sung, Oscar Lima, Marc Vinci, Sebastian Stock
 
+"""Main execution node of the tables demo."""
+
 
 import sys
 import rospy
 import unified_planning
 from tables_demo_planning.mobipick_components import Location
 from tables_demo_planning.tables_demo_api import TablesDemoAPIDomain
-
-"""
-Main execution node of the tables demo.
-Development in progress.
-"""
 
 
 if __name__ == '__main__':
