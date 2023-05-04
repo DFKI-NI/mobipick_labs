@@ -79,6 +79,10 @@ class TablesDemoAPIRobot(TablesDemoRobot['TablesDemoAPIEnv'], APIRobot):
             query_srv_str="/pick_pose_selector_node/pose_selector_class_query",
             planning_scene_param="/mobipick/pick_object_node/planning_scene_boxes",
         )
+        # Clear all demo items' poses already on the pose_selector from previous observations.
+        for item in TablesDemoAPIDomain.DEMO_ITEMS:
+            class_id, instance_id = item.value.rsplit("_", 1)
+            self.pose_selector_delete(PoseDeleteRequest(class_id=class_id, instance_id=int(instance_id)))
 
     def pick_item(self, pose: Pose, location: Location, item: Item) -> bool:
         """At pose, look for item at location, pick it up, then move arm to transport pose."""
