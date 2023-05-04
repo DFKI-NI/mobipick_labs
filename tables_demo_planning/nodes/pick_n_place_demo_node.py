@@ -103,7 +103,7 @@ def run_demo():
                 print("-- Action failed! Need to replan.")
                 visualization.fail(action_name)
                 espeak_pub.publish("Action failed.")
-                if orchestrator.total_failure_count >= 3:
+                if orchestrator.failure_count >= 3:
                     print("Execution ended after too many failures.")
                     espeak_pub.publish("Mission impossible!")
                     visualization.add_node("Mission impossible", "red")
