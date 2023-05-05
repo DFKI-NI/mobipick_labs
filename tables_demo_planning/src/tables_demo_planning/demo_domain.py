@@ -86,10 +86,8 @@ class Domain(Bridge, Generic[E]):
         for param_name in rosparam.list_params(rosparam_namespace):
             assert isinstance(param_name, str)
             param = rosparam.get_param(param_name)
-            if is_instance(param, Sequence[Union[float, int]]) and len(param) == 7:
-                self.api_poses[param_name.rsplit('/', maxsplit=1)[-1]] = TuplePose.to_pose(
-                    (param[:3], param[4:] + [param[3]])
-                )
+            if is_instance(param, Sequence[Sequence[Union[float, int]]]) and tuple(map(len, param)) == (3, 4):
+                self.api_poses[param_name.rsplit('/', maxsplit=1)[-1]] = TuplePose.to_pose(param)
         if len({TuplePose.from_pose(pose) for pose in self.api_poses.values()}) < len(self.api_poses):
             rospy.logwarn(
                 f"Duplicate poses in rosparam namespace '{rosparam_namespace}'"
@@ -178,9 +176,7 @@ class Domain(Bridge, Generic[E]):
             yaml_contents: Dict[str, List[float]] = yaml.safe_load(yaml_file)["poses"]
             for pose_name in sorted(yaml_contents.keys()):
                 if pose_name.startswith("base_") and pose_name.endswith("_pose"):
-                    pose = yaml_contents[pose_name]
-                    position, orientation = pose[:3], pose[4:] + [pose[3]]
-                    poses[pose_name] = TuplePose.to_pose((position, orientation))
+                    poses[pose_name] = TuplePose.to_pose(yaml_contents[pose_name])
         return poses
 
     def define_mobipick_problem(
