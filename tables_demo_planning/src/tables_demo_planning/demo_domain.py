@@ -82,22 +82,31 @@ class Domain(Bridge, Generic[E]):
         # Create objects for both planning and execution.
         self.robot = self.create_object("mobipick", env.robot)
         rosparam_namespace = "/mobipick/tables_demo_planning"
+        self.pose_aliases = {
+            self.BASE_HANDOVER_POSE_NAME: self.BASE_HANDOVER_POSE_NAME,
+            self.BASE_HOME_POSE_NAME: self.BASE_HOME_POSE_NAME,
+            self.BASE_PICK_POSE_NAME: self.BASE_PICK_POSE_NAME,
+            self.BASE_PLACE_POSE_NAME: self.BASE_PLACE_POSE_NAME,
+        }
         self.api_poses: Dict[str, Pose] = {}
-        for param_name in rosparam.list_params(rosparam_namespace):
-            assert isinstance(param_name, str)
-            param = rosparam.get_param(param_name)
-            if is_instance(param, Sequence[Sequence[Union[float, int]]]) and tuple(map(len, param)) == (3, 4):
-                self.api_poses[param_name.rsplit('/', maxsplit=1)[-1]] = TuplePose.to_pose(param)
+        for param_path in rosparam.list_params(rosparam_namespace):
+            assert isinstance(param_path, str)
+            param = rosparam.get_param(param_path)
+            param_name = param_path.rsplit('/', maxsplit=1)[-1]
+            if param_name.endswith("_pose_name") and isinstance(param, str):
+                self.pose_aliases[param_name[:-5]] = param
+            elif is_instance(param, Sequence[Sequence[Union[float, int]]]) and tuple(map(len, param)) == (3, 4):
+                self.api_poses[param_name] = TuplePose.to_pose(param)
         if len({TuplePose.from_pose(pose) for pose in self.api_poses.values()}) < len(self.api_poses):
             rospy.logwarn(
                 f"Duplicate poses in rosparam namespace '{rosparam_namespace}'"
                 " might let checks fail whether something is at a specific symbolic pose."
             )
         self.poses = self.create_objects(self.api_poses)
-        self.base_home_pose = self.objects[self.BASE_HOME_POSE_NAME]
-        self.base_handover_pose = self.objects[self.BASE_HANDOVER_POSE_NAME]
-        self.base_pick_pose = self.objects[self.BASE_PICK_POSE_NAME]
-        self.base_place_pose = self.objects[self.BASE_PLACE_POSE_NAME]
+        self.base_home_pose = self.objects[self.pose_aliases[self.BASE_HOME_POSE_NAME]]
+        self.base_handover_pose = self.objects[self.pose_aliases[self.BASE_HANDOVER_POSE_NAME]]
+        self.base_pick_pose = self.objects[self.pose_aliases[self.BASE_PICK_POSE_NAME]]
+        self.base_place_pose = self.objects[self.pose_aliases[self.BASE_PLACE_POSE_NAME]]
         self.base_table_1_pose = self.objects[self.BASE_TABLE_1_POSE_NAME]
         self.base_table_2_pose = self.objects[self.BASE_TABLE_2_POSE_NAME]
         self.base_table_3_pose = self.objects[self.BASE_TABLE_3_POSE_NAME]

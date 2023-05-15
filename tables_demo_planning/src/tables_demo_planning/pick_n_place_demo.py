@@ -94,17 +94,16 @@ class PickAndPlaceEnv(EnvironmentRepresentation[PickAndPlaceRobot]):
 
 
 class PickAndPlaceDomain(Domain[PickAndPlaceEnv]):
-    SCENARIO_POSE_NAMES = (
-        Domain.BASE_HANDOVER_POSE_NAME,
-        Domain.BASE_HOME_POSE_NAME,
-        Domain.BASE_PICK_POSE_NAME,
-        Domain.BASE_PLACE_POSE_NAME,
-    )
-
     def __init__(self) -> None:
         super().__init__(PickAndPlaceEnv())
+        self.scenario_pose_names = (
+            self.pose_aliases[Domain.BASE_HANDOVER_POSE_NAME],
+            self.pose_aliases[Domain.BASE_HOME_POSE_NAME],
+            self.pose_aliases[Domain.BASE_PICK_POSE_NAME],
+            self.pose_aliases[Domain.BASE_PLACE_POSE_NAME],
+        )
         self.env.robot.add_waypoints(
-            {pose_name: pose for pose_name, pose in self.api_poses.items() if pose_name in self.SCENARIO_POSE_NAMES}
+            {pose_name: pose for pose_name, pose in self.api_poses.items() if pose_name in self.scenario_pose_names}
         )
         self.env.robot.initialize(self.api_poses[self.BASE_HOME_POSE_NAME], *self.env.robot.get())
         self.set_fluent_functions([self.get_robot_at])
@@ -155,7 +154,7 @@ class PickAndPlaceDomain(Domain[PickAndPlaceEnv]):
             actions.append(self.hand_over)
         return self.define_mobipick_problem(
             actions=actions,
-            poses=[self.objects[pose_name] for pose_name in self.SCENARIO_POSE_NAMES],
+            poses=[self.objects[pose_name] for pose_name in self.scenario_pose_names],
             items=[self.power_drill],
             locations=[],
         )
