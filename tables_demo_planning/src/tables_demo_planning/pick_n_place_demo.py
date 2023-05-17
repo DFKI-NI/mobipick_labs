@@ -44,7 +44,7 @@ from tables_demo_planning.demo_domain import Domain
 
 class PickAndPlaceRobot(APIRobot):
     def __init__(self, namespace: str, env: 'PickAndPlaceEnv') -> None:
-        APIRobot.__init__(self, namespace)
+        super().__init__(namespace)
         self.env = env
 
     def get_item(self) -> Item:
@@ -85,7 +85,7 @@ class PickAndPlaceRobot(APIRobot):
 
 class PickAndPlaceEnv(EnvironmentRepresentation[PickAndPlaceRobot]):
     def __init__(self) -> None:
-        EnvironmentRepresentation.__init__(self, PickAndPlaceRobot("mobipick", self))
+        super().__init__(PickAndPlaceRobot("mobipick", self))
         self.item_offered = False
 
     def get_item_offered(self) -> bool:
@@ -102,7 +102,7 @@ class PickAndPlaceDomain(Domain[PickAndPlaceEnv]):
     )
 
     def __init__(self) -> None:
-        Domain.__init__(self, PickAndPlaceEnv())
+        super().__init__(PickAndPlaceEnv())
         self.env.robot.add_waypoints(
             {pose_name: pose for pose_name, pose in self.api_poses.items() if pose_name in self.SCENARIO_POSE_NAMES}
         )

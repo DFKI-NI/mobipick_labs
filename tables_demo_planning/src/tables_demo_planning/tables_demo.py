@@ -133,7 +133,7 @@ R = TypeVar('R', bound=TablesDemoRobot)
 
 class TablesDemoEnv(EnvironmentRepresentation[R]):
     def __init__(self, robot: R) -> None:
-        EnvironmentRepresentation.__init__(self, robot)
+        super().__init__(robot)
         self.believed_item_locations: Dict[Item, Location] = {}
         self.newly_perceived_item_locations: Dict[Item, Location] = {}
         self.item_search: Optional[Item] = None
@@ -169,7 +169,7 @@ class TablesDemoDomain(Domain[E]):
     RETRIES_BEFORE_ABORTION = 2
 
     def __init__(self, env: E, target_location: Location) -> None:
-        Domain.__init__(self, env)
+        super().__init__(env)
         self.target_location = target_location
         self.target_table = self.objects[self.target_location.name]
         self.pose_locations = {

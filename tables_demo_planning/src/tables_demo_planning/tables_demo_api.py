@@ -250,12 +250,12 @@ class TablesDemoAPIRobot(TablesDemoRobot['TablesDemoAPIEnv'], APIRobot):
 
 class TablesDemoAPIEnv(TablesDemoEnv[TablesDemoAPIRobot]):
     def __init__(self) -> None:
-        TablesDemoEnv.__init__(self, TablesDemoAPIRobot("mobipick", self))
+        super().__init__(TablesDemoAPIRobot("mobipick", self))
 
 
 class TablesDemoAPIDomain(TablesDemoDomain[TablesDemoAPIEnv]):
     def __init__(self, target_location: Location) -> None:
-        TablesDemoDomain.__init__(self, TablesDemoAPIEnv(), target_location)
+        super().__init__(TablesDemoAPIEnv(), target_location)
         self.env.robot.add_waypoints(self.api_poses)
         self.env.robot.initialize(self.api_poses[self.BASE_HOME_POSE_NAME], *self.env.robot.get())
         self.set_fluent_functions((self.get_robot_at,))
