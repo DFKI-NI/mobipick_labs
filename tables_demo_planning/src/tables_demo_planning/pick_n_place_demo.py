@@ -36,6 +36,7 @@
 """Pick and Place application in the Mobipick domain"""
 
 
+import rosparam
 from unified_planning.model import Object, Problem
 from unified_planning.shortcuts import Not
 from tables_demo_planning.mobipick_components import APIRobot, ArmPose, EnvironmentRepresentation, Item
@@ -96,12 +97,31 @@ class PickAndPlaceEnv(EnvironmentRepresentation[PickAndPlaceRobot]):
 class PickAndPlaceDomain(Domain[PickAndPlaceEnv]):
     def __init__(self) -> None:
         super().__init__(PickAndPlaceEnv())
-        self.scenario_pose_names = (
-            self.pose_aliases[Domain.BASE_HANDOVER_POSE_NAME],
-            self.pose_aliases[Domain.BASE_HOME_POSE_NAME],
-            self.pose_aliases[Domain.BASE_PICK_POSE_NAME],
-            self.pose_aliases[Domain.BASE_PLACE_POSE_NAME],
+        # Read pose parameters from rosparam server.
+        rosparam_namespace = "/mobipick/tables_demo_planning"
+        params = rosparam.list_params(rosparam_namespace)
+        self.base_handover_pose_name = (
+            rosparam.get_param(rosparam_namespace + "/base_handover_pose_name")
+            if rosparam_namespace + "/base_handover_pose_name" in params
+            else self.BASE_HANDOVER_POSE_NAME
         )
+        self.base_home_pose_name = (
+            rosparam.get_param(rosparam_namespace + "/base_home_pose_name")
+            if rosparam_namespace + "/base_home_pose_name" in params
+            else self.BASE_HOME_POSE_NAME
+        )
+        self.base_pick_pose_name = rosparam.get_param(rosparam_namespace + "/base_pick_pose_name")
+        self.base_place_pose_name = rosparam.get_param(rosparam_namespace + "/base_place_pose_name")
+
+        # Define scenario poses and waypoints.
+        self.scenario_pose_names = (
+            self.base_handover_pose_name,
+            self.base_home_pose_name,
+            self.base_pick_pose_name,
+            self.base_place_pose_name,
+        )
+        self.base_pick_pose = self.objects[self.base_pick_pose_name]
+        self.base_place_pose = self.objects[self.base_place_pose_name]
         self.env.robot.add_waypoints(
             {pose_name: pose for pose_name, pose in self.api_poses.items() if pose_name in self.scenario_pose_names}
         )
@@ -109,6 +129,7 @@ class PickAndPlaceDomain(Domain[PickAndPlaceEnv]):
         self.set_fluent_functions([self.get_robot_at])
         self.item_offered = self.create_fluent_from_function(self.env.get_item_offered)
 
+        # Create additional actions.
         self.set_api_actions(
             (PickAndPlaceRobot.move_base, PickAndPlaceRobot.move_base_with_item, PickAndPlaceRobot.move_arm)
         )
@@ -134,11 +155,19 @@ class PickAndPlaceDomain(Domain[PickAndPlaceEnv]):
         for item in self.items:
             self.hand_over.add_effect(self.robot_has(item), item == self.nothing)
         self.hand_over.add_effect(self.item_offered, True)
+
+        # Create additional visualization labels.
         self.method_labels.update(
             {
                 self.pick: lambda _: "Pick up power drill",
                 self.place: lambda _: "Place power drill on table",
                 self.hand_over: lambda _: "Hand over power drill to person",
+            }
+        )
+        self.parameter_labels.update(
+            {
+                self.base_pick_pose: "pick",
+                self.base_place_pose: "place",
             }
         )
 
