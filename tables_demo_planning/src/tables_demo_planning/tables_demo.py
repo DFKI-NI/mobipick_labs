@@ -84,6 +84,14 @@ class TablesDemoRobot(Robot, ABC, Generic[E]):
         self.env.believed_item_locations[item] = Location.in_box
         self.arm_pose = ArmPose.home
         return True
+    
+    def handover_item(self, pose: Pose, item: Item) -> bool:
+        """At pose, handover holding item to a person."""
+        print(f"Successfully handed {item.name} over.")
+        self.item = Item.nothing
+        self.env.believed_item_locations[item] = Location.anywhere
+        self.arm_pose = ArmPose.handover
+        return True
 
     def search_at(self, pose: Pose, location: Location) -> bool:
         """At pose, search for item_search at location."""
@@ -230,6 +238,18 @@ class TablesDemoDomain(Domain[E]):
             self.store_item.add_effect(self.robot_arm_at(arm_pose), arm_pose == self.arm_pose_home)
         self.store_item.add_effect(self.believe_item_at(item, self.on_robot), False)
         self.store_item.add_effect(self.believe_item_at(item, self.in_box), True)
+        self.handover_item, (_, pose, item) = self.create_action_from_function(
+            TablesDemoRobot.handover_item, set_callable=False
+        )
+        self.handover_item.add_precondition(self.robot_at(pose))
+        self.handover_item.add_precondition(self.robot_has(item))
+        self.handover_item.add_precondition(self.believe_item_at(item, self.on_robot))
+        self.handover_item.add_effect(self.robot_has(item), False)
+        self.handover_item.add_effect(self.robot_has(self.nothing), True)
+        for arm_pose in self.arm_poses:
+            self.handover_item.add_effect(self.robot_arm_at(arm_pose), arm_pose == self.arm_pose_handover)
+        self.handover_item.add_effect(self.believe_item_at(item, self.on_robot), False)
+        self.handover_item.add_effect(self.believe_item_at(item, self.anywhere), True)
         self.search_at, (_, pose, location) = self.create_action_from_function(TablesDemoRobot.search_at)
         self.search_at.add_precondition(self.robot_at(pose))
         self.search_at.add_precondition(
@@ -283,6 +303,7 @@ class TablesDemoDomain(Domain[E]):
                 self.pick_item,
                 self.place_item,
                 self.store_item,
+                self.handover_item,
                 self.search_tool,
                 self.search_box,
             ),
@@ -313,6 +334,7 @@ class TablesDemoDomain(Domain[E]):
                 self.pick_item: lambda parameters: f"Pick up {parameters[-1]}",
                 self.place_item: lambda parameters: f"Place {parameters[-1]} onto table",
                 self.store_item: lambda parameters: f"Place {parameters[-1]} into box",
+                self.handover_item: lambda parameters: f"Handover {parameters[-1]} to person",
                 self.search_at: lambda parameters: f"Search at {parameters[-1]}",
                 self.search_tool: lambda parameters: f"Search tables for {parameters[-1]}",
                 self.search_box: lambda _: "Search tables for the box",
