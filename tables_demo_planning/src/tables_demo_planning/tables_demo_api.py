@@ -254,8 +254,8 @@ class TablesDemoAPIEnv(TablesDemoEnv[TablesDemoAPIRobot]):
 
 
 class TablesDemoAPIDomain(TablesDemoDomain[TablesDemoAPIEnv]):
-    def __init__(self, target_location: Location) -> None:
-        super().__init__(TablesDemoAPIEnv(), target_location)
+    def __init__(self) -> None:
+        super().__init__(TablesDemoAPIEnv())
         self.env.robot.add_waypoints(self.api_poses)
         self.env.robot.initialize(self.api_poses[self.BASE_HOME_POSE_NAME], *self.env.robot.get())
         self.set_fluent_functions((self.get_robot_at,))

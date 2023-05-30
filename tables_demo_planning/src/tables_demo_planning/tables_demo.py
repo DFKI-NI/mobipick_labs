@@ -168,10 +168,8 @@ class TablesDemoDomain(Domain[E]):
     TABLE_LOCATIONS = (Location.table_1, Location.table_2, Location.table_3)
     RETRIES_BEFORE_ABORTION = 2
 
-    def __init__(self, env: E, target_location: Location) -> None:
+    def __init__(self, env: E) -> None:
         super().__init__(env)
-        self.target_location = target_location
-        self.target_table = self.objects[self.target_location.name]
         self.pose_locations = {
             self.base_table_1_pose: self.table_1,
             self.base_table_2_pose: self.table_2,
@@ -329,7 +327,7 @@ class TablesDemoDomain(Domain[E]):
     def get_pose_at(self, pose: Object, location: Object) -> bool:
         return location == (self.pose_locations[pose] if pose in self.pose_locations.keys() else self.anywhere)
 
-    def set_goals(self) -> None:
+    def set_goals(self, target_location) -> None:
         """Set the goals for the overall demo."""
         self.problem.clear_goals()
         if Item.box in self.DEMO_ITEMS:
@@ -339,14 +337,14 @@ class TablesDemoDomain(Domain[E]):
                 self.problem.add_goal(self.believe_item_at(self.relay, self.in_box))
             if Item.screwdriver in self.DEMO_ITEMS:
                 self.problem.add_goal(self.believe_item_at(self.screwdriver, self.in_box))
-            self.problem.add_goal(self.believe_item_at(self.box, self.target_table))
+            self.problem.add_goal(self.believe_item_at(self.box, self.objects[target_location.name]))
         else:
             if Item.multimeter in self.DEMO_ITEMS:
-                self.problem.add_goal(self.believe_item_at(self.multimeter, self.target_table))
+                self.problem.add_goal(self.believe_item_at(self.multimeter, self.objects[target_location.name]))
             if Item.relay in self.DEMO_ITEMS:
-                self.problem.add_goal(self.believe_item_at(self.relay, self.target_table))
+                self.problem.add_goal(self.believe_item_at(self.relay, self.objects[target_location.name]))
             if Item.screwdriver in self.DEMO_ITEMS:
-                self.problem.add_goal(self.believe_item_at(self.screwdriver, self.target_table))
+                self.problem.add_goal(self.believe_item_at(self.screwdriver, self.objects[target_location.name]))
 
     def set_search_goals(self) -> None:
         """Set the goals for the current item_search subproblem."""
@@ -364,15 +362,16 @@ class TablesDemoDomain(Domain[E]):
         self.set_initial_values(self.problem)
         return self.solve(self.problem)
 
-    def run(self) -> None:
+    def run(self, target_location: Location) -> None:
         """Run the mobipick tables demo."""
-        print(f"Scenario: Mobipick shall bring the box with the multimeter inside to {self.target_table}.")
+        print(
+            f"Scenario: Mobipick shall bring the box with the multimeter inside to {self.objects[target_location.name]}.")
 
         executed_action_names: Set[str] = set()  # Note: For visualization purposes only.
         retries_before_abortion = self.RETRIES_BEFORE_ABORTION
         error_counts: Dict[str, int] = defaultdict(int)
         # Solve overall problem.
-        self.set_goals()
+        self.set_goals(target_location)
         actions = self.replan()
         if actions is None:
             print("Execution ended because no plan could be found.")
@@ -399,7 +398,7 @@ class TablesDemoDomain(Domain[E]):
                 if action.action.name == "pick_item" and parameters[-1] == Item.box:
                     assert isinstance(parameters[-2], Location)
                     location = self.env.resolve_search_location(parameters[-2])
-                    if location == self.target_location:
+                    if location == target_location:
                         print("Picking up box OBSOLETE.")
                         if self.visualization:
                             self.visualization.cancel(action_name)

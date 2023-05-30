@@ -56,8 +56,8 @@ from unified_planning.model import UPState
 
 
 class TablesDemoOrchestrator:
-    def __init__(self, target_location: Location) -> None:
-        self._domain = TablesDemoAPIDomain(target_location)
+    def __init__(self) -> None:
+        self._domain = TablesDemoAPIDomain()
         self.visualization: Optional[SubPlanVisualization] = None
         self.espeak_pub: Optional[rospy.Publisher] = None
         self._trigger_replanning = False  # Temporary solution until it is provided by dispatcher
@@ -182,8 +182,8 @@ class TablesDemoOrchestrator:
             self._domain.env.item_search = None
         return result
 
-    def generate_and_execute_plan(self) -> None:
-        print(f"Scenario: Mobipick shall bring the box with the multimeter inside to {self._domain.target_table}.")
+    def generate_and_execute_plan(self, target_location: Location) -> None:
+        print(f"Scenario: Mobipick shall bring the box with the multimeter inside to {self._domain.objects[target_location.name]}.")
         self._executed_actions: Set[str] = set()
         # retries_before_abortion = self._domain.RETRIES_BEFORE_ABORTION  # FIXME Currently not used
         # error_counts: Dict[str, int] = defaultdict(int) # FIXME Currently not used
@@ -193,7 +193,7 @@ class TablesDemoOrchestrator:
             self._trigger_replanning = False
             # Plan
             self._domain.set_initial_values(self._domain.problem)
-            self._domain.set_goals()
+            self._domain.set_goals(target_location)
             plan = self.solve_problem(self._domain.problem)
             if not plan:
                 print("Could not find a plan. Exiting.")
@@ -225,6 +225,6 @@ if __name__ == '__main__':
                 target_location = Location.table_3
             else:
                 rospy.logwarn(f"Unknown parameter '{parameter}', using default table.")
-        TablesDemoOrchestrator(target_location).generate_and_execute_plan()
+        TablesDemoOrchestrator().generate_and_execute_plan(target_location)
     except rospy.ROSInterruptException:
         pass
