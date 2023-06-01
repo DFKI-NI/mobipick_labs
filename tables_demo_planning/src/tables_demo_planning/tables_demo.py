@@ -151,7 +151,7 @@ class TablesDemoEnv(EnvironmentRepresentation[R]):
         self.search_location = Location.anywhere
         self.offered_items: Set[Item] = set()
 
-    def get_offered_items(self, item: Item) -> bool:
+    def get_item_offered(self, item: Item) -> bool:
         return item in self.offered_items
 
     def get_believe_item_at(self, item: Item, location: Location) -> bool:
@@ -195,7 +195,7 @@ class TablesDemoDomain(Domain[E]):
         self.believe_item_at = self.create_fluent_from_function(self.env.get_believe_item_at)
         self.searched_at = self.create_fluent_from_function(self.env.get_searched_at)
         self.pose_at = self.create_fluent("get_pose_at", pose=Pose, location=Location)
-        self.offered_item = self.create_fluent_from_function(self.env.get_offered_items)
+        self.item_offered = self.create_fluent_from_function(self.env.get_item_offered)
         self.set_fluent_functions((self.get_pose_at,))
 
         self.pick_item, (_, pose, location, item) = self.create_action_from_function(
@@ -251,14 +251,14 @@ class TablesDemoDomain(Domain[E]):
         self.handover_item.add_precondition(self.robot_at(pose))
         self.handover_item.add_precondition(self.robot_has(item))
         self.handover_item.add_precondition(self.believe_item_at(item, self.on_robot))
-        self.handover_item.add_precondition(Not(self.offered_item(item)))
+        self.handover_item.add_precondition(Not(self.item_offered(item)))
         self.handover_item.add_effect(self.robot_has(item), False)
         self.handover_item.add_effect(self.robot_has(self.nothing), True)
         for arm_pose in self.arm_poses:
             self.handover_item.add_effect(self.robot_arm_at(arm_pose), arm_pose == self.arm_pose_handover)
         self.handover_item.add_effect(self.believe_item_at(item, self.on_robot), False)
         self.handover_item.add_effect(self.believe_item_at(item, self.anywhere), True)
-        self.handover_item.add_effect(self.offered_item(item), True)
+        self.handover_item.add_effect(self.item_offered(item), True)
         self.search_at, (_, pose, location) = self.create_action_from_function(TablesDemoRobot.search_at)
         self.search_at.add_precondition(self.robot_at(pose))
         self.search_at.add_precondition(
@@ -310,7 +310,7 @@ class TablesDemoDomain(Domain[E]):
                 self.robot_has,
                 self.believe_item_at,
                 self.pose_at,
-                self.offered_item,
+                self.item_offered,
             ),
             actions=(
                 self.move_base,
