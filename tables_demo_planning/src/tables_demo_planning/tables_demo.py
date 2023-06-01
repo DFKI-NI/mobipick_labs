@@ -304,7 +304,14 @@ class TablesDemoDomain(Domain[E]):
         self.conclude_box_search.add_effect(self.believe_item_at(self.box, self.box_search_location), True)
 
         self.problem = self.define_problem(
-            fluents=(self.robot_at, self.robot_arm_at, self.robot_has, self.believe_item_at, self.pose_at, self.offered_item),
+            fluents=(
+                self.robot_at,
+                self.robot_arm_at,
+                self.robot_has,
+                self.believe_item_at,
+                self.pose_at,
+                self.offered_item,
+            ),
             actions=(
                 self.move_base,
                 self.move_base_with_item,
@@ -396,7 +403,9 @@ class TablesDemoDomain(Domain[E]):
     def run(self, target_location: Location) -> None:
         """Run the mobipick tables demo."""
         print(
-            f"Scenario: Mobipick shall bring the box with the multimeter inside to {self.objects[target_location.name]}.")
+            "Scenario: Mobipick shall bring the box with the multimeter inside to"
+            f" {self.objects[target_location.name]}."
+        )
 
         executed_action_names: Set[str] = set()  # Note: For visualization purposes only.
         retries_before_abortion = self.RETRIES_BEFORE_ABORTION
