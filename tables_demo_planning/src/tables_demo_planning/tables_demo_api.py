@@ -232,6 +232,7 @@ class TablesDemoAPIRobot(TablesDemoRobot['TablesDemoAPIEnv'], APIRobot):
                 ):
                     rospy.loginfo(f"{fact_item_name} is perceived as on {fact_location_name}.")
                     perceived_item_locations[Item(fact_item_name)] = location
+                    self.env.offered_items.discard(Item(fact_item_name))
         # Also perceive facts for items in box if it is perceived on table location.
         for fact in facts:
             if fact.name == "in":
@@ -243,6 +244,7 @@ class TablesDemoAPIRobot(TablesDemoRobot['TablesDemoAPIEnv'], APIRobot):
                 ):
                     rospy.loginfo(f"{fact_item_name} is perceived as on {fact_location_name}.")
                     perceived_item_locations[Item(fact_item_name)] = Location.in_box
+                    self.env.offered_items.discard(Item(fact_item_name))
         # Determine newly perceived items and their locations.
         self.env.newly_perceived_item_locations.clear()
         for perceived_item, perceived_location in perceived_item_locations.items():
