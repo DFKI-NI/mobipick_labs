@@ -86,8 +86,8 @@ class TablesDemoRobot(Robot, ABC, Generic[E]):
         self.arm_pose = ArmPose.home
         return True
 
-    def handover_item(self, pose: Pose, item: Item) -> bool:
-        """At pose, handover holding item to a person."""
+    def hand_over_item(self, pose: Pose, item: Item) -> bool:
+        """At pose, hand over item held to a person."""
         print(f"Successfully handed {item.name} over.")
         self.item = Item.nothing
         self.env.believed_item_locations[item] = Location.anywhere
@@ -246,7 +246,7 @@ class TablesDemoDomain(Domain[E]):
         self.store_item.add_effect(self.believe_item_at(item, self.on_robot), False)
         self.store_item.add_effect(self.believe_item_at(item, self.in_box), True)
         self.handover_item, (_, pose, item) = self.create_action_from_function(
-            TablesDemoRobot.handover_item, set_callable=False
+            TablesDemoRobot.hand_over_item, set_callable=False
         )
         self.handover_item.add_precondition(self.robot_at(pose))
         self.handover_item.add_precondition(self.robot_has(item))

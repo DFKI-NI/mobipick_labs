@@ -189,9 +189,9 @@ class TablesDemoAPIRobot(TablesDemoRobot['TablesDemoAPIEnv'], APIRobot):
         self.arm.move("home")
         return True
 
-    def handover_item(self, pose: Pose, item: Item) -> bool:
+    def hand_over_item(self, pose: Pose, item: Item) -> bool:
         """
-        At pose, handover item to person, observe force torque feedback
+        At pose, hand over item to person, observe force torque feedback
         until item is taken by person, then move arm to home pose.
         """
         self.arm.move("handover")
@@ -201,7 +201,7 @@ class TablesDemoAPIRobot(TablesDemoRobot['TablesDemoAPIEnv'], APIRobot):
             return False
 
         self.arm.execute("ReleaseGripper")
-        TablesDemoRobot.handover_item(self, pose, item)
+        TablesDemoRobot.hand_over_item(self, pose, item)
         return True
 
     def perceive(self, location: Location) -> Dict[Item, Location]:
@@ -283,7 +283,7 @@ class TablesDemoAPIDomain(TablesDemoDomain[TablesDemoAPIEnv]):
                 TablesDemoAPIRobot.move_arm,
                 TablesDemoAPIRobot.pick_item,
                 TablesDemoAPIRobot.place_item,
-                TablesDemoAPIRobot.handover_item,
+                TablesDemoAPIRobot.hand_over_item,
                 TablesDemoAPIRobot.store_item,
             )
         )
