@@ -85,7 +85,7 @@ class TablesDemoRobot(Robot, ABC, Generic[E]):
         self.env.believed_item_locations[item] = Location.in_box
         self.arm_pose = ArmPose.home
         return True
-    
+
     def handover_item(self, pose: Pose, item: Item) -> bool:
         """At pose, handover holding item to a person."""
         print(f"Successfully handed {item.name} over.")
@@ -358,7 +358,7 @@ class TablesDemoDomain(Domain[E]):
     def get_pose_at(self, pose: Object, location: Object) -> bool:
         return location == (self.pose_locations[pose] if pose in self.pose_locations.keys() else self.anywhere)
 
-    def set_goals(self, target_location) -> None:
+    def set_goals(self, target_location: Location) -> None:
         """Set the goals for the overall demo."""
         self.problem.clear_goals()
         if Item.box in self.DEMO_ITEMS:
