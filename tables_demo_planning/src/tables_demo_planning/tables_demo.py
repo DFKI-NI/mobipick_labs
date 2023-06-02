@@ -66,7 +66,6 @@ class TablesDemoRobot(Robot, ABC, Generic[E]):
         print(f"Successfully picked up {item.name}.")
         self.item = item
         self.env.believed_item_locations[item] = Location.on_robot
-        self.env.offered_items.discard(item)
         self.arm_pose = ArmPose.transport
         return True
 
