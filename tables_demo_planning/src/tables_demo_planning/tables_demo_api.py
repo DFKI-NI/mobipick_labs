@@ -189,6 +189,21 @@ class TablesDemoAPIRobot(TablesDemoRobot['TablesDemoAPIEnv'], APIRobot):
         self.arm.move("home")
         return True
 
+    def hand_over_item(self, pose: Pose, item: Item) -> bool:
+        """
+        At pose, hand over item to person, observe force torque feedback
+        until item is taken by person, then move arm to home pose.
+        """
+        self.arm.move("handover")
+        self.arm_pose = ArmPose.handover
+        # observe force torque sensor using treshold 5.0 and a timeout of 25.0 seconds
+        if not self.arm.observe_force_torque(5.0, 25.0):
+            return False
+
+        self.arm.execute("ReleaseGripper")
+        TablesDemoRobot.hand_over_item(self, pose, item)
+        return True
+
     def perceive(self, location: Location) -> Dict[Item, Location]:
         """Move arm into observation pose and return all perceived items with their locations."""
         self.arm.move("observe100cm_right")
@@ -217,6 +232,9 @@ class TablesDemoAPIRobot(TablesDemoRobot['TablesDemoAPIEnv'], APIRobot):
                 ):
                     rospy.loginfo(f"{fact_item_name} is perceived as on {fact_location_name}.")
                     perceived_item_locations[Item(fact_item_name)] = location
+                    # Remove item from offered_items dict to be able to repeat the handover
+                    # action with that item, if it is perceived again in the scene.
+                    self.env.offered_items.discard(Item(fact_item_name))
         # Also perceive facts for items in box if it is perceived on table location.
         for fact in facts:
             if fact.name == "in":
@@ -228,6 +246,9 @@ class TablesDemoAPIRobot(TablesDemoRobot['TablesDemoAPIEnv'], APIRobot):
                 ):
                     rospy.loginfo(f"{fact_item_name} is perceived as on {fact_location_name}.")
                     perceived_item_locations[Item(fact_item_name)] = Location.in_box
+                    # Remove item from offered_items dict to be able to repeat the handover
+                    # action with that item, if it is perceived again in the scene.
+                    self.env.offered_items.discard(Item(fact_item_name))
         # Determine newly perceived items and their locations.
         self.env.newly_perceived_item_locations.clear()
         for perceived_item, perceived_location in perceived_item_locations.items():
@@ -254,8 +275,8 @@ class TablesDemoAPIEnv(TablesDemoEnv[TablesDemoAPIRobot]):
 
 
 class TablesDemoAPIDomain(TablesDemoDomain[TablesDemoAPIEnv]):
-    def __init__(self, target_location: Location) -> None:
-        super().__init__(TablesDemoAPIEnv(), target_location)
+    def __init__(self) -> None:
+        super().__init__(TablesDemoAPIEnv())
         self.env.robot.add_waypoints(self.api_poses)
         self.env.robot.initialize(self.api_poses[self.BASE_HOME_POSE_NAME], *self.env.robot.get())
         self.set_fluent_functions((self.get_robot_at,))
@@ -266,6 +287,7 @@ class TablesDemoAPIDomain(TablesDemoDomain[TablesDemoAPIEnv]):
                 TablesDemoAPIRobot.move_arm,
                 TablesDemoAPIRobot.pick_item,
                 TablesDemoAPIRobot.place_item,
+                TablesDemoAPIRobot.hand_over_item,
                 TablesDemoAPIRobot.store_item,
             )
         )

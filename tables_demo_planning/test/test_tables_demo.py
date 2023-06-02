@@ -96,8 +96,8 @@ class TablesDemoSimEnv(TablesDemoEnv[TablesDemoSimRobot]):
 
 
 class TablesDemoSimDomain(TablesDemoDomain[TablesDemoSimEnv]):
-    def __init__(self, item_locations: Dict[Item, Location], target_location: Location) -> None:
-        super().__init__(TablesDemoSimEnv(item_locations), target_location)
+    def __init__(self, item_locations: Dict[Item, Location]) -> None:
+        super().__init__(TablesDemoSimEnv(item_locations))
         home_pose = self.api_poses[self.BASE_HOME_POSE_NAME]
         self.env.robot.initialize(home_pose, home_pose, ArmPose.unknown, Item.nothing)
         self.set_fluent_functions((self.get_robot_at,))
@@ -128,7 +128,7 @@ def test_tables_demo() -> None:
     # Define goal.
     target_location = Location.table_2
 
-    TablesDemoSimDomain(item_locations, target_location).run()
+    TablesDemoSimDomain(item_locations).run(target_location)
 
 
 if __name__ == '__main__':

@@ -85,6 +85,15 @@ class TablesDemoRobot(Robot, ABC, Generic[E]):
         self.arm_pose = ArmPose.home
         return True
 
+    def hand_over_item(self, pose: Pose, item: Item) -> bool:
+        """At pose, hand over item held to a person."""
+        print(f"Successfully handed {item.name} over.")
+        self.item = Item.nothing
+        self.env.believed_item_locations[item] = Location.anywhere
+        self.arm_pose = ArmPose.handover
+        self.env.offered_items.add(item)
+        return True
+
     def search_at(self, pose: Pose, location: Location) -> bool:
         """At pose, search for item_search at location."""
         self.env.search_location = location
@@ -139,6 +148,10 @@ class TablesDemoEnv(EnvironmentRepresentation[R]):
         self.item_search: Optional[Item] = None
         self.searched_locations: Set[Location] = set()
         self.search_location = Location.anywhere
+        self.offered_items: Set[Item] = set()
+
+    def get_item_offered(self, item: Item) -> bool:
+        return item in self.offered_items
 
     def get_believe_item_at(self, item: Item, location: Location) -> bool:
         """Return fluent value whether item is believed to be at location."""
@@ -168,10 +181,8 @@ class TablesDemoDomain(Domain[E]):
     TABLE_LOCATIONS = (Location.table_1, Location.table_2, Location.table_3)
     RETRIES_BEFORE_ABORTION = 2
 
-    def __init__(self, env: E, target_location: Location) -> None:
+    def __init__(self, env: E) -> None:
         super().__init__(env)
-        self.target_location = target_location
-        self.target_table = self.objects[self.target_location.name]
         self.pose_locations = {
             self.base_table_1_pose: self.table_1,
             self.base_table_2_pose: self.table_2,
@@ -183,6 +194,7 @@ class TablesDemoDomain(Domain[E]):
         self.believe_item_at = self.create_fluent_from_function(self.env.get_believe_item_at)
         self.searched_at = self.create_fluent_from_function(self.env.get_searched_at)
         self.pose_at = self.create_fluent("get_pose_at", pose=Pose, location=Location)
+        self.item_offered = self.create_fluent_from_function(self.env.get_item_offered)
         self.set_fluent_functions((self.get_pose_at,))
 
         self.pick_item, (_, pose, location, item) = self.create_action_from_function(
@@ -232,6 +244,20 @@ class TablesDemoDomain(Domain[E]):
             self.store_item.add_effect(self.robot_arm_at(arm_pose), arm_pose == self.arm_pose_home)
         self.store_item.add_effect(self.believe_item_at(item, self.on_robot), False)
         self.store_item.add_effect(self.believe_item_at(item, self.in_box), True)
+        self.handover_item, (_, pose, item) = self.create_action_from_function(
+            TablesDemoRobot.hand_over_item, set_callable=False
+        )
+        self.handover_item.add_precondition(self.robot_at(pose))
+        self.handover_item.add_precondition(self.robot_has(item))
+        self.handover_item.add_precondition(self.believe_item_at(item, self.on_robot))
+        self.handover_item.add_precondition(Not(self.item_offered(item)))
+        self.handover_item.add_effect(self.robot_has(item), False)
+        self.handover_item.add_effect(self.robot_has(self.nothing), True)
+        for arm_pose in self.arm_poses:
+            self.handover_item.add_effect(self.robot_arm_at(arm_pose), arm_pose == self.arm_pose_handover)
+        self.handover_item.add_effect(self.believe_item_at(item, self.on_robot), False)
+        self.handover_item.add_effect(self.believe_item_at(item, self.anywhere), True)
+        self.handover_item.add_effect(self.item_offered(item), True)
         self.search_at, (_, pose, location) = self.create_action_from_function(TablesDemoRobot.search_at)
         self.search_at.add_precondition(self.robot_at(pose))
         self.search_at.add_precondition(
@@ -277,7 +303,14 @@ class TablesDemoDomain(Domain[E]):
         self.conclude_box_search.add_effect(self.believe_item_at(self.box, self.box_search_location), True)
 
         self.problem = self.define_problem(
-            fluents=(self.robot_at, self.robot_arm_at, self.robot_has, self.believe_item_at, self.pose_at),
+            fluents=(
+                self.robot_at,
+                self.robot_arm_at,
+                self.robot_has,
+                self.believe_item_at,
+                self.pose_at,
+                self.item_offered,
+            ),
             actions=(
                 self.move_base,
                 self.move_base_with_item,
@@ -285,6 +318,7 @@ class TablesDemoDomain(Domain[E]):
                 self.pick_item,
                 self.place_item,
                 self.store_item,
+                self.handover_item,
                 self.search_tool,
                 self.search_box,
             ),
@@ -315,6 +349,7 @@ class TablesDemoDomain(Domain[E]):
                 self.pick_item: lambda parameters: f"Pick up {parameters[-1]}",
                 self.place_item: lambda parameters: f"Place {parameters[-1]} onto table",
                 self.store_item: lambda parameters: f"Place {parameters[-1]} into box",
+                self.handover_item: lambda parameters: f"Handover {parameters[-1]} to person",
                 self.search_at: lambda parameters: f"Search at {parameters[-1]}",
                 self.search_tool: lambda parameters: f"Search tables for {parameters[-1]}",
                 self.search_box: lambda _: "Search tables for the box",
@@ -329,7 +364,7 @@ class TablesDemoDomain(Domain[E]):
     def get_pose_at(self, pose: Object, location: Object) -> bool:
         return location == (self.pose_locations[pose] if pose in self.pose_locations.keys() else self.anywhere)
 
-    def set_goals(self) -> None:
+    def set_goals(self, target_location: Location) -> None:
         """Set the goals for the overall demo."""
         self.problem.clear_goals()
         if Item.box in self.DEMO_ITEMS:
@@ -339,14 +374,14 @@ class TablesDemoDomain(Domain[E]):
                 self.problem.add_goal(self.believe_item_at(self.relay, self.in_box))
             if Item.screwdriver in self.DEMO_ITEMS:
                 self.problem.add_goal(self.believe_item_at(self.screwdriver, self.in_box))
-            self.problem.add_goal(self.believe_item_at(self.box, self.target_table))
+            self.problem.add_goal(self.believe_item_at(self.box, self.objects[target_location.name]))
         else:
             if Item.multimeter in self.DEMO_ITEMS:
-                self.problem.add_goal(self.believe_item_at(self.multimeter, self.target_table))
+                self.problem.add_goal(self.believe_item_at(self.multimeter, self.objects[target_location.name]))
             if Item.relay in self.DEMO_ITEMS:
-                self.problem.add_goal(self.believe_item_at(self.relay, self.target_table))
+                self.problem.add_goal(self.believe_item_at(self.relay, self.objects[target_location.name]))
             if Item.screwdriver in self.DEMO_ITEMS:
-                self.problem.add_goal(self.believe_item_at(self.screwdriver, self.target_table))
+                self.problem.add_goal(self.believe_item_at(self.screwdriver, self.objects[target_location.name]))
 
     def set_search_goals(self) -> None:
         """Set the goals for the current item_search subproblem."""
@@ -364,15 +399,18 @@ class TablesDemoDomain(Domain[E]):
         self.set_initial_values(self.problem)
         return self.solve(self.problem)
 
-    def run(self) -> None:
+    def run(self, target_location: Location) -> None:
         """Run the mobipick tables demo."""
-        print(f"Scenario: Mobipick shall bring the box with the multimeter inside to {self.target_table}.")
+        print(
+            "Scenario: Mobipick shall bring the box with the multimeter inside to"
+            f" {self.objects[target_location.name]}."
+        )
 
         executed_action_names: Set[str] = set()  # Note: For visualization purposes only.
         retries_before_abortion = self.RETRIES_BEFORE_ABORTION
         error_counts: Dict[str, int] = defaultdict(int)
         # Solve overall problem.
-        self.set_goals()
+        self.set_goals(target_location)
         actions = self.replan()
         if actions is None:
             print("Execution ended because no plan could be found.")
@@ -399,7 +437,7 @@ class TablesDemoDomain(Domain[E]):
                 if action.action.name == "pick_item" and parameters[-1] == Item.box:
                     assert isinstance(parameters[-2], Location)
                     location = self.env.resolve_search_location(parameters[-2])
-                    if location == self.target_location:
+                    if location == target_location:
                         print("Picking up box OBSOLETE.")
                         if self.visualization:
                             self.visualization.cancel(action_name)

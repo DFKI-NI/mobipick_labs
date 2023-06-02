@@ -59,6 +59,6 @@ if __name__ == '__main__':
                 target_location = Location.table_3
             else:
                 rospy.logwarn(f"Unknown parameter '{parameter}', using default table.")
-        TablesDemoAPIDomain(target_location).run()
+        TablesDemoAPIDomain().run(target_location)
     except rospy.ROSInterruptException:
         pass
