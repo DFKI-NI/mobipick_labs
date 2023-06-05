@@ -178,7 +178,7 @@ class TablesDemoEnv(EnvironmentRepresentation[R]):
 
 
 class TablesDemoDomain(Domain[E]):
-    DEMO_ITEMS = (Item.box, Item.multimeter, Item.power_drill)
+    DEMO_ITEMS = (Item.box, Item.multimeter)
     TABLE_LOCATIONS = (Location.table_1, Location.table_2, Location.table_3)
     RETRIES_BEFORE_ABORTION = 2
 
