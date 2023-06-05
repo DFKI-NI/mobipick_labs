@@ -96,13 +96,14 @@ class TablesDemoRobot(Robot, ABC, Generic[E]):
 
     def search_at(self, pose: Pose, location: Location) -> bool:
         """At pose, search for item_search at location."""
-        self.env.search_location = location
         item_locations = self.perceive(location)
-        item = self.env.item_search
-        assert item
-        if item in item_locations.keys():
-            print(f"Search for {item.name} SUCCESSFUL.")
-            self.env.item_search = None
+        if self.env.item_search is not None:
+            self.env.search_location = location
+            item = self.env.item_search
+            assert item
+            if item in item_locations.keys():
+                print(f"Search for {item.name} SUCCESSFUL.")
+                self.env.item_search = None
         return True
 
     def check_reset_search(self) -> None:
@@ -177,7 +178,7 @@ class TablesDemoEnv(EnvironmentRepresentation[R]):
 
 
 class TablesDemoDomain(Domain[E]):
-    DEMO_ITEMS = (Item.box, Item.multimeter)
+    DEMO_ITEMS = (Item.box, Item.multimeter, Item.power_drill)
     TABLE_LOCATIONS = (Location.table_1, Location.table_2, Location.table_3)
     RETRIES_BEFORE_ABORTION = 2
 
