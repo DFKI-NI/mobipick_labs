@@ -56,6 +56,7 @@ class HierarchicalDomain(TablesDemoAPIDomain):
         self.perceive = Task("perceive", location=self.get_type(Location))
         self.get_item = Task("get_item", item=self.get_type(Item))
         self.put_item = Task("put_item", item=self.get_type(Item), location=self.get_type(Location))
+        self.move_item = Task("move_item", item=self.get_type(Item), location=self.get_type(Location))
 
         # METHODS
 
@@ -222,6 +223,18 @@ class HierarchicalDomain(TablesDemoAPIDomain):
         )
         self.put_item_full.set_ordered(s1, s2)
 
+        # MOVE ITEM
+        # move item from one location to another location
+        self.move_item_full = Method(
+            "move_item_full", item=self.get_type(Item), location=self.get_type(Location), pose=self.get_type(Pose)
+        )
+        move_item_full_item = self.move_item_full.parameter("item")
+        move_item_full_loc = self.move_item_full.parameter("location")
+        self.move_item_full.set_task(self.move_item, move_item_full_item, move_item_full_loc)
+        s1 = self.move_item_full.add_subtask(self.get_item, move_item_full_item)
+        s2 = self.move_item_full.add_subtask(self.put_item, move_item_full_item, move_item_full_loc)
+        self.move_item_full.set_ordered(s1, s2)
+
         self.problem = self.define_mobipick_problem(
             fluents=(
                 self.robot_at,
@@ -258,6 +271,7 @@ class HierarchicalDomain(TablesDemoAPIDomain):
                 self.get_item_full,
                 self.put_item_place,
                 self.put_item_full,
+                self.move_item_full,
             ),
             tasks=(
                 self.drive,
@@ -265,6 +279,7 @@ class HierarchicalDomain(TablesDemoAPIDomain):
                 self.perceive,
                 self.get_item,
                 self.put_item,
+                self.move_item,
             ),
         )
         self.problem.add_quality_metric(MinimizeSequentialPlanLength())
