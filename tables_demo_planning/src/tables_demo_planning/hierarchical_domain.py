@@ -54,6 +54,8 @@ class HierarchicalDomain(TablesDemoAPIDomain):
         self.drive = Task("drive", goal_pose=self.get_type(Pose))
         self.adapt_arm = Task("adapt_arm", to_pose=self.get_type(ArmPose))
         self.perceive = Task("perceive", location=self.get_type(Location))
+        self.get_item = Task("get_item", item=self.get_type(Item))
+        self.put_item = Task("put_item", item=self.get_type(Item), location=self.get_type(Location))
 
         # METHODS
 
@@ -148,6 +150,78 @@ class HierarchicalDomain(TablesDemoAPIDomain):
         s2 = self.perceive_full.add_subtask(self.search_at, self.robot, perceive_full_pose, perceive_full_loc)
         self.perceive_full.set_ordered(s1, s2)
 
+        # GET ITEM
+        # item already in robots gripper
+        self.get_item_noop = Method("get_item_noop", item=self.get_type(Item))
+        get_item_noop_item = self.get_item_noop.parameter("item")
+        self.get_item_noop.set_task(self.get_item, get_item_noop_item)
+        self.get_item_noop.add_precondition(self.robot_has(get_item_noop_item))
+
+        # not holding an item, robot already at item location, pick up item
+        self.get_item_pick = Method(
+            "get_item_pick", item=self.get_type(Item), item_loc=self.get_type(Location), pose=self.get_type(Pose)
+        )
+        get_item_pick_item = self.get_item_pick.parameter("item")
+        get_item_pick_loc = self.get_item_pick.parameter("item_loc")
+        get_item_pick_pose = self.get_item_pick.parameter("pose")
+        self.get_item_pick.set_task(self.get_item, get_item_pick_item)
+        self.get_item_pick.add_precondition(self.robot_at(get_item_pick_pose))
+        self.get_item_pick.add_precondition(self.robot_has(self.nothing))
+        self.get_item_pick.add_precondition(self.believe_item_at(get_item_pick_item, get_item_pick_loc))
+        self.get_item_pick.add_precondition(self.pose_at(get_item_pick_pose, get_item_pick_loc))
+        self.get_item_pick.add_subtask(
+            self.pick_item, self.robot, get_item_pick_pose, get_item_pick_loc, get_item_pick_item
+        )
+
+        # not holding an item, go to item location and pick up item
+        self.get_item_full = Method(
+            "get_item_full", item=self.get_type(Item), item_loc=self.get_type(Location), to_pose=self.get_type(Pose)
+        )
+        get_item_full_item = self.get_item_full.parameter("item")
+        get_item_full_loc = self.get_item_full.parameter("item_loc")
+        get_item_full_to_pose = self.get_item_full.parameter("to_pose")
+        self.get_item_full.set_task(self.get_item, get_item_full_item)
+        self.get_item_full.add_precondition(self.robot_has(self.nothing))
+        self.get_item_full.add_precondition(self.believe_item_at(get_item_full_item, get_item_full_loc))
+        self.get_item_full.add_precondition(self.pose_at(get_item_full_to_pose, get_item_full_loc))
+        s1 = self.get_item_full.add_subtask(self.drive, get_item_full_to_pose)
+        s2 = self.get_item_full.add_subtask(
+            self.pick_item, self.robot, get_item_full_to_pose, get_item_full_loc, get_item_full_item
+        )
+        self.get_item_full.set_ordered(s1, s2)
+
+        # PUT ITEM
+        # robot already at target pose, place item
+        self.put_item_place = Method(
+            "put_item_place", item=self.get_type(Item), location=self.get_type(Location), pose=self.get_type(Pose)
+        )
+        put_item_place_item = self.put_item_place.parameter("item")
+        put_item_place_location = self.put_item_place.parameter("location")
+        put_item_place_pose = self.put_item_place.parameter("pose")
+        self.put_item_place.set_task(self.put_item, put_item_place_item, put_item_place_location)
+        self.put_item_place.add_precondition(self.robot_has(put_item_place_item))
+        self.put_item_place.add_precondition(self.pose_at(put_item_place_pose, put_item_place_location))
+        self.put_item_place.add_precondition(self.robot_at(put_item_place_pose))
+        self.put_item_place.add_subtask(
+            self.place_item, self.robot, put_item_place_pose, put_item_place_location, put_item_place_item
+        )
+
+        # robot drives to target pose and places item
+        self.put_item_full = Method(
+            "put_item_full", item=self.get_type(Item), location=self.get_type(Location), pose=self.get_type(Pose)
+        )
+        put_item_full_item = self.put_item_full.parameter("item")
+        put_item_full_location = self.put_item_full.parameter("location")
+        put_item_full_pose = self.put_item_full.parameter("pose")
+        self.put_item_full.set_task(self.put_item, put_item_full_item, put_item_full_location)
+        self.put_item_full.add_precondition(self.robot_has(put_item_full_item))
+        self.put_item_full.add_precondition(self.pose_at(put_item_full_pose, put_item_full_location))
+        s1 = self.put_item_full.add_subtask(self.drive, put_item_full_pose)
+        s2 = self.put_item_full.add_subtask(
+            self.place_item, self.robot, put_item_full_pose, put_item_full_location, put_item_full_item
+        )
+        self.put_item_full.set_ordered(s1, s2)
+
         self.problem = self.define_mobipick_problem(
             fluents=(
                 self.robot_at,
@@ -179,11 +253,18 @@ class HierarchicalDomain(TablesDemoAPIDomain):
                 self.perceive_move_arm,
                 self.perceive_location,
                 self.perceive_full,
+                self.get_item_noop,
+                self.get_item_pick,
+                self.get_item_full,
+                self.put_item_place,
+                self.put_item_full,
             ),
             tasks=(
                 self.drive,
                 self.adapt_arm,
                 self.perceive,
+                self.get_item,
+                self.put_item,
             ),
         )
         self.problem.add_quality_metric(MinimizeSequentialPlanLength())
