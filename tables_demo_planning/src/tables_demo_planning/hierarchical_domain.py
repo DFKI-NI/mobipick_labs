@@ -57,6 +57,7 @@ class HierarchicalDomain(TablesDemoAPIDomain):
         self.get_item = Task("get_item", item=self.get_type(Item))
         self.put_item = Task("put_item", item=self.get_type(Item), location=self.get_type(Location))
         self.move_item = Task("move_item", item=self.get_type(Item), location=self.get_type(Location))
+        self.bring_item = Task("bring_item", item=self.get_type(Item))
 
         # METHODS
 
@@ -235,6 +236,43 @@ class HierarchicalDomain(TablesDemoAPIDomain):
         s2 = self.move_item_full.add_subtask(self.put_item, move_item_full_item, move_item_full_loc)
         self.move_item_full.set_ordered(s1, s2)
 
+        # BRING ITEM
+        # robot already has item and is at handover pose, hand item over, move arm to home pose
+        self.bring_item_handover = Method("bring_item_handover", item=self.get_type(Item))
+        bring_item_handover_item = self.bring_item_handover.parameter("item")
+        self.bring_item_handover.set_task(self.bring_item, bring_item_handover_item)
+        self.bring_item_handover.add_precondition(self.robot_has(bring_item_handover_item))
+        self.bring_item_handover.add_precondition(self.robot_at(self.base_handover_pose))
+        s1 = self.bring_item_handover.add_subtask(
+            self.handover_item, self.robot, self.base_handover_pose, bring_item_handover_item
+        )
+        s2 = self.bring_item_handover.add_subtask(self.adapt_arm, self.arm_pose_home)
+        self.bring_item_handover.set_ordered(s1, s2)
+
+        # robot already has item, move to handover pose, hand item over, move arm to home pose
+        self.bring_item_drive = Method("bring_item_drive", item=self.get_type(Item))
+        bring_item_drive_item = self.bring_item_drive.parameter("item")
+        self.bring_item_drive.set_task(self.bring_item, bring_item_drive_item)
+        self.bring_item_drive.add_precondition(self.robot_has(bring_item_drive_item))
+        s1 = self.bring_item_drive.add_subtask(self.drive, self.base_handover_pose)
+        s2 = self.bring_item_drive.add_subtask(
+            self.handover_item, self.robot, self.base_handover_pose, bring_item_drive_item
+        )
+        s3 = self.bring_item_drive.add_subtask(self.adapt_arm, self.arm_pose_home)
+        self.bring_item_drive.set_ordered(s1, s2, s3)
+
+        # go to item location, pick up item, go to handover pose, hand item over, move arm to home pose
+        self.bring_item_full = Method("bring_item_full", item=self.get_type(Item))
+        bring_item_full_item = self.bring_item_full.parameter("item")
+        self.bring_item_full.set_task(self.bring_item, bring_item_full_item)
+        s1 = self.bring_item_full.add_subtask(self.get_item, bring_item_full_item)
+        s2 = self.bring_item_full.add_subtask(self.drive, self.base_handover_pose)
+        s3 = self.bring_item_full.add_subtask(
+            self.handover_item, self.robot, self.base_handover_pose, bring_item_full_item
+        )
+        s4 = self.bring_item_full.add_subtask(self.adapt_arm, self.arm_pose_home)
+        self.bring_item_full.set_ordered(s1, s2, s3, s4)
+
         self.problem = self.define_mobipick_problem(
             fluents=(
                 self.robot_at,
@@ -272,6 +310,9 @@ class HierarchicalDomain(TablesDemoAPIDomain):
                 self.put_item_place,
                 self.put_item_full,
                 self.move_item_full,
+                self.bring_item_handover,
+                self.bring_item_drive,
+                self.bring_item_full,
             ),
             tasks=(
                 self.drive,
@@ -280,6 +321,7 @@ class HierarchicalDomain(TablesDemoAPIDomain):
                 self.get_item,
                 self.put_item,
                 self.move_item,
+                self.bring_item,
             ),
         )
         self.problem.add_quality_metric(MinimizeSequentialPlanLength())
