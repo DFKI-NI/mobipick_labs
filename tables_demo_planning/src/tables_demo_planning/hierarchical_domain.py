@@ -40,9 +40,9 @@ from typing import Iterable, Optional, Union
 from geometry_msgs.msg import Pose
 from unified_planning.model import Fluent, InstantaneousAction, Object, Action
 from unified_planning.model.htn import HierarchicalProblem, Method, Task, Subtask
-from unified_planning.shortcuts import Equals, Not
+from unified_planning.shortcuts import Equals, Not, Or
 from unified_planning.model.metrics import MinimizeSequentialPlanLength
-from tables_demo_planning.mobipick_components import ArmPose, Item
+from tables_demo_planning.mobipick_components import ArmPose, Item, Location
 from tables_demo_planning.tables_demo_api import TablesDemoAPIDomain
 
 
@@ -53,6 +53,7 @@ class HierarchicalDomain(TablesDemoAPIDomain):
         # TASKS
         self.drive = Task("drive", goal_pose=self.get_type(Pose))
         self.adapt_arm = Task("adapt_arm", to_pose=self.get_type(ArmPose))
+        self.perceive = Task("perceive", location=self.get_type(Location))
 
         # METHODS
 
@@ -106,13 +107,46 @@ class HierarchicalDomain(TablesDemoAPIDomain):
         self.adapt_arm_noop.add_precondition(self.robot_arm_at(adapt_arm_noop_to))
 
         # move arm to goal arm pose
-        self.adapt_arm_op = Method("adapt_arm_op", from_pose=self.get_type(ArmPose), to_pose=self.get_type(ArmPose))
-        adapt_arm_op_from = self.adapt_arm_op.parameter("from_pose")
-        adapt_arm_op_to = self.adapt_arm_op.parameter("to_pose")
-        self.adapt_arm_op.set_task(self.adapt_arm, adapt_arm_op_to)
-        self.adapt_arm_op.add_precondition(self.robot_arm_at(adapt_arm_op_from))
-        self.adapt_arm_op.add_precondition(Not(Equals(adapt_arm_op_from, adapt_arm_op_to)))
-        self.adapt_arm_op.add_subtask(self.move_arm, self.robot, adapt_arm_op_from, adapt_arm_op_to)
+        self.adapt_arm_full = Method("adapt_arm_full", from_pose=self.get_type(ArmPose), to_pose=self.get_type(ArmPose))
+        adapt_arm_full_from = self.adapt_arm_full.parameter("from_pose")
+        adapt_arm_full_to = self.adapt_arm_full.parameter("to_pose")
+        self.adapt_arm_full.set_task(self.adapt_arm, adapt_arm_full_to)
+        self.adapt_arm_full.add_precondition(self.robot_arm_at(adapt_arm_full_from))
+        self.adapt_arm_full.add_precondition(Not(Equals(adapt_arm_full_from, adapt_arm_full_to)))
+        self.adapt_arm_full.add_subtask(self.move_arm, self.robot, adapt_arm_full_from, adapt_arm_full_to)
+
+        # PERCEIVE LOCATION
+        # already at location, arm pose unknown
+        self.perceive_move_arm = Method("perceive_move_arm", pose=self.get_type(Pose), location=self.get_type(Location))
+        perceive_move_arm_pose = self.perceive_move_arm.parameter("pose")
+        perceive_move_arm_loc = self.perceive_move_arm.parameter("location")
+        self.perceive_move_arm.set_task(self.perceive, perceive_move_arm_loc)
+        self.perceive_move_arm.add_precondition(self.robot_at(perceive_move_arm_pose))
+        self.perceive_move_arm.add_precondition(
+            Or(self.robot_arm_at(arm_pose) for arm_pose in (self.arm_pose_handover, self.arm_pose_unknown))
+        )
+        s1 = self.perceive_move_arm.add_subtask(self.adapt_arm, self.arm_pose_observe)
+        s2 = self.perceive_move_arm.add_subtask(
+            self.search_at, self.robot, perceive_move_arm_pose, perceive_move_arm_loc
+        )
+        self.perceive_move_arm.set_ordered(s1, s2)
+
+        # already at location, perceive location
+        self.perceive_location = Method("perceive_location", pose=self.get_type(Pose), location=self.get_type(Location))
+        perceive_location_pose = self.perceive_location.parameter("pose")
+        perceive_location_loc = self.perceive_location.parameter("location")
+        self.perceive_location.set_task(self.perceive, perceive_location_loc)
+        self.perceive_location.add_precondition(self.robot_at(perceive_location_pose))
+        self.perceive_location.add_subtask(self.search_at, self.robot, perceive_location_pose, perceive_location_loc)
+
+        # drive to location, perceive location
+        self.perceive_full = Method("perceive_full", pose=self.get_type(Pose), location=self.get_type(Location))
+        perceive_full_pose = self.perceive_full.parameter("pose")
+        perceive_full_loc = self.perceive_full.parameter("location")
+        self.perceive_full.set_task(self.perceive, perceive_full_loc)
+        s1 = self.perceive_full.add_subtask(self.drive, perceive_full_pose)
+        s2 = self.perceive_full.add_subtask(self.search_at, self.robot, perceive_full_pose, perceive_full_loc)
+        self.perceive_full.set_ordered(s1, s2)
 
         self.problem = self.define_mobipick_problem(
             fluents=(
@@ -141,11 +175,15 @@ class HierarchicalDomain(TablesDemoAPIDomain):
                 self.drive_homeposture,
                 self.drive_transport,
                 self.adapt_arm_noop,
-                self.adapt_arm_op,
+                self.adapt_arm_full,
+                self.perceive_move_arm,
+                self.perceive_location,
+                self.perceive_full,
             ),
             tasks=(
                 self.drive,
                 self.adapt_arm,
+                self.perceive,
             ),
         )
         self.problem.add_quality_metric(MinimizeSequentialPlanLength())
