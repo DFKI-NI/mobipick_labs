@@ -31,6 +31,9 @@ ROS and Python 3 are assumed to be available on your system.
 ./build.sh
 ```
 
+Alternatively, you can use the [Docker environment](https://github.com/brean/mobipick_labs_docker)
+created by our colleague Andreas Bresser for a simple all-in-one quick start.
+
 Real robot demo
 ---------------
 
