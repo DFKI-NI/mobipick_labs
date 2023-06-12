@@ -59,6 +59,10 @@ class HierarchicalDomain(TablesDemoAPIDomain):
         self.move_item = Task("move_item", item=self.get_type(Item), location=self.get_type(Location))
         self.insert_item = Task("insert_item", item=self.get_type(Item), box=self.get_type(Item))
         self.bring_item = Task("bring_item", item=self.get_type(Item))
+        self.search_item = Task("search_item", item=self.get_type(Item))
+        self.tables_demo = Task(
+            "tables_demo", tool=self.get_type(Item), box=self.get_type(Item), location=self.get_type(Location)
+        )
 
         # METHODS
 
@@ -336,6 +340,215 @@ class HierarchicalDomain(TablesDemoAPIDomain):
         s4 = self.bring_item_full.add_subtask(self.adapt_arm, self.arm_pose_home)
         self.bring_item_full.set_ordered(s1, s2, s3, s4)
 
+        # SEARCH ITEM
+        # item location already known, nothing to do
+        self.search_item_noop = Method("search_item_noop", item=self.get_type(Item))
+        self.search_item_noop.set_task(self.search_item, self.search_item_noop.item)
+        self.search_item_noop.add_precondition(Not(self.believe_item_at(self.search_item_noop.item, self.anywhere)))
+
+        # full search
+        self.search_item_full = Method("search_item_full", item=self.get_type(Item))
+        self.search_item_full.set_task(self.search_item, self.search_item_full.item)
+        self.search_item_full.add_precondition(self.believe_item_at(self.search_item_full.item, self.anywhere))
+        for location in self.TABLE_LOCATIONS:
+            self.search_item_full.add_subtask(self.perceive, self.get_object(location))
+
+        # TABLES DEMO
+        # tool in box on target table, nothing to do
+        self.tables_demo_noop = Method(
+            "tables_demo_noop", tool=self.get_type(Item), box=self.get_type(Item), location=self.get_type(Location)
+        )
+        self.tables_demo_noop.set_task(
+            self.tables_demo, self.tables_demo_noop.tool, self.tables_demo_noop.box, self.tables_demo_noop.location
+        )
+        self.tables_demo_noop.add_precondition(self.believe_item_at(self.tables_demo_noop.tool, self.in_box))
+        self.tables_demo_noop.add_precondition(self.robot_has(self.nothing))
+        self.tables_demo_noop.add_precondition(
+            self.believe_item_at(self.tables_demo_noop.box, self.tables_demo_noop.location)
+        )
+
+        # tool in box, move to target table
+        self.tables_demo_move_box = Method(
+            "tables_demo_move_box", tool=self.get_type(Item), box=self.get_type(Item), location=self.get_type(Location)
+        )
+        self.tables_demo_move_box.set_task(
+            self.tables_demo,
+            self.tables_demo_move_box.tool,
+            self.tables_demo_move_box.box,
+            self.tables_demo_move_box.location,
+        )
+        self.tables_demo_move_box.add_precondition(self.believe_item_at(self.tables_demo_move_box.tool, self.in_box))
+        self.tables_demo_move_box.add_precondition(self.robot_has(self.nothing))
+        self.tables_demo_move_box.add_precondition(
+            Not(self.believe_item_at(self.tables_demo_move_box.box, self.tables_demo_move_box.location))
+        )
+        self.tables_demo_move_box.add_subtask(
+            self.move_item, self.tables_demo_move_box.box, self.tables_demo_move_box.location
+        )
+
+        # already holding tool, box on target table
+        self.tables_demo_insert_tool = Method(
+            "tables_demo_insert_tool",
+            tool=self.get_type(Item),
+            box=self.get_type(Item),
+            location=self.get_type(Location),
+        )
+        self.tables_demo_insert_tool.set_task(
+            self.tables_demo,
+            self.tables_demo_insert_tool.tool,
+            self.tables_demo_insert_tool.box,
+            self.tables_demo_insert_tool.location,
+        )
+        self.tables_demo_insert_tool.add_precondition(
+            self.believe_item_at(self.tables_demo_insert_tool.tool, self.on_robot)
+        )
+        self.tables_demo_insert_tool.add_precondition(self.robot_has(self.tables_demo_insert_tool.tool))
+        self.tables_demo_insert_tool.add_precondition(
+            self.believe_item_at(self.tables_demo_insert_tool.box, self.tables_demo_insert_tool.location)
+        )
+        self.tables_demo_insert_tool.add_subtask(
+            self.insert_item, self.tables_demo_insert_tool.tool, self.tables_demo_insert_tool.box
+        )
+
+        # already holding tool, box location known
+        self.tables_demo_insert_tool_move = Method(
+            "tables_demo_insert_tool_move",
+            tool=self.get_type(Item),
+            box=self.get_type(Item),
+            location=self.get_type(Location),
+        )
+        self.tables_demo_insert_tool_move.set_task(
+            self.tables_demo,
+            self.tables_demo_insert_tool_move.tool,
+            self.tables_demo_insert_tool_move.box,
+            self.tables_demo_insert_tool_move.location,
+        )
+        self.tables_demo_insert_tool_move.add_precondition(
+            self.believe_item_at(self.tables_demo_insert_tool_move.tool, self.on_robot)
+        )
+        self.tables_demo_insert_tool_move.add_precondition(self.robot_has(self.tables_demo_insert_tool_move.tool))
+        self.tables_demo_insert_tool_move.add_precondition(
+            Not(self.believe_item_at(self.tables_demo_insert_tool_move.box, self.anywhere))
+        )
+        self.tables_demo_insert_tool_move.add_subtask(
+            self.insert_item, self.tables_demo_insert_tool_move.tool, self.tables_demo_insert_tool_move.box
+        )
+        self.tables_demo_insert_tool_move.add_subtask(
+            self.move_item, self.tables_demo_insert_tool_move.box, self.tables_demo_insert_tool_move.location
+        )
+
+        # already holding tool
+        self.tables_demo_search_box = Method(
+            "tables_demo_search_box",
+            tool=self.get_type(Item),
+            box=self.get_type(Item),
+            location=self.get_type(Location),
+        )
+        self.tables_demo_search_box.set_task(
+            self.tables_demo,
+            self.tables_demo_search_box.tool,
+            self.tables_demo_search_box.box,
+            self.tables_demo_search_box.location,
+        )
+        self.tables_demo_search_box.add_precondition(
+            self.believe_item_at(self.tables_demo_search_box.tool, self.on_robot)
+        )
+        self.tables_demo_search_box.add_precondition(self.robot_has(self.tables_demo_search_box.tool))
+        self.tables_demo_search_box.add_subtask(self.search_box, self.robot)
+        self.tables_demo_search_box.add_subtask(
+            self.insert_item, self.tables_demo_search_box.tool, self.tables_demo_search_box.box
+        )
+        self.tables_demo_search_box.add_subtask(
+            self.move_item, self.tables_demo_search_box.box, self.tables_demo_search_box.location
+        )
+
+        # box location already known and on target table
+        self.tables_demo_search_tool = Method(
+            "tables_demo_search_tool",
+            tool=self.get_type(Item),
+            box=self.get_type(Item),
+            location=self.get_type(Location),
+        )
+        self.tables_demo_search_tool.set_task(
+            self.tables_demo,
+            self.tables_demo_search_tool.tool,
+            self.tables_demo_search_tool.box,
+            self.tables_demo_search_tool.location,
+        )
+        self.tables_demo_search_tool.add_precondition(
+            self.believe_item_at(self.tables_demo_search_tool.box, self.tables_demo_search_tool.location)
+        )
+        self.tables_demo_search_tool.add_subtask(self.search_tool, self.robot, self.tables_demo_search_tool.tool)
+        self.tables_demo_search_tool.add_subtask(self.get_item, self.tables_demo_search_tool.tool)
+        self.tables_demo_search_tool.add_subtask(
+            self.insert_item, self.tables_demo_search_tool.tool, self.tables_demo_search_tool.box
+        )
+
+        # box location already known
+        self.tables_demo_search_tool_move = Method(
+            "tables_demo_search_tool_move",
+            tool=self.get_type(Item),
+            box=self.get_type(Item),
+            location=self.get_type(Location),
+        )
+        self.tables_demo_search_tool_move.set_task(
+            self.tables_demo,
+            self.tables_demo_search_tool_move.tool,
+            self.tables_demo_search_tool_move.box,
+            self.tables_demo_search_tool_move.location,
+        )
+        self.tables_demo_search_tool_move.add_precondition(
+            Not(self.believe_item_at(self.tables_demo_search_tool_move.box, self.anywhere))
+        )
+        self.tables_demo_search_tool_move.add_precondition(
+            Not(self.believe_item_at(self.tables_demo_search_tool_move.box, self.tables_demo_search_tool_move.location))
+        )
+        self.tables_demo_search_tool_move.add_subtask(
+            self.search_tool, self.robot, self.tables_demo_search_tool_move.tool
+        )
+        self.tables_demo_search_tool_move.add_subtask(self.get_item, self.tables_demo_search_tool_move.tool)
+        self.tables_demo_search_tool_move.add_subtask(
+            self.insert_item, self.tables_demo_search_tool_move.tool, self.tables_demo_search_tool_move.box
+        )
+        self.tables_demo_search_tool_move.add_subtask(
+            self.move_item, self.tables_demo_search_tool_move.box, self.tables_demo_search_tool_move.location
+        )
+
+        # tool location already known
+        self.tables_demo_get_tool = Method(
+            "tables_demo_get_tool", tool=self.get_type(Item), box=self.get_type(Item), location=self.get_type(Location)
+        )
+        self.tables_demo_get_tool.set_task(
+            self.tables_demo,
+            self.tables_demo_get_tool.tool,
+            self.tables_demo_get_tool.box,
+            self.tables_demo_get_tool.location,
+        )
+        self.tables_demo_get_tool.add_precondition(
+            Not(self.believe_item_at(self.tables_demo_get_tool.tool, self.anywhere))
+        )
+        self.tables_demo_get_tool.add_subtask(self.get_item, self.tables_demo_get_tool.tool)
+        self.tables_demo_get_tool.add_subtask(self.search_box, self.robot)
+        self.tables_demo_get_tool.add_subtask(
+            self.insert_item, self.tables_demo_get_tool.tool, self.tables_demo_get_tool.box
+        )
+        self.tables_demo_get_tool.add_subtask(
+            self.move_item, self.tables_demo_get_tool.box, self.tables_demo_get_tool.location
+        )
+
+        # full tables demo
+        self.tables_demo_full = Method(
+            "tables_demo_full", tool=self.get_type(Item), box=self.get_type(Item), location=self.get_type(Location)
+        )
+        self.tables_demo_full.set_task(
+            self.tables_demo, self.tables_demo_full.tool, self.tables_demo_full.box, self.tables_demo_full.location
+        )
+        self.tables_demo_full.add_subtask(self.search_tool, self.robot, self.tables_demo_full.tool)
+        self.tables_demo_full.add_subtask(self.get_item, self.tables_demo_full.tool)
+        self.tables_demo_full.add_subtask(self.search_box, self.robot)
+        self.tables_demo_full.add_subtask(self.insert_item, self.tables_demo_full.tool, self.tables_demo_full.box)
+        self.tables_demo_full.add_subtask(self.move_item, self.tables_demo_full.box, self.tables_demo_full.location)
+
         self.problem = self.define_mobipick_problem(
             fluents=(
                 self.robot_at,
@@ -377,10 +590,21 @@ class HierarchicalDomain(TablesDemoAPIDomain):
                 self.bring_item_handover,
                 self.bring_item_drive,
                 self.bring_item_full,
+                self.search_item_noop,
+                self.search_item_full,
                 self.insert_item_noop,
                 self.insert_item_drive,
                 self.insert_item_store,
                 self.insert_item_full,
+                self.tables_demo_noop,
+                self.tables_demo_move_box,
+                self.tables_demo_insert_tool,
+                self.tables_demo_insert_tool_move,
+                self.tables_demo_get_tool,
+                self.tables_demo_search_box,
+                self.tables_demo_search_tool,
+                self.tables_demo_search_tool_move,
+                self.tables_demo_full,
             ),
             tasks=(
                 self.drive,
@@ -390,7 +614,9 @@ class HierarchicalDomain(TablesDemoAPIDomain):
                 self.put_item,
                 self.move_item,
                 self.bring_item,
+                self.search_item,
                 self.insert_item,
+                self.tables_demo,
             ),
         )
         self.problem.add_quality_metric(MinimizeSequentialPlanLength())
