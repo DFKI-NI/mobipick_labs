@@ -254,14 +254,15 @@ class HierarchicalDomain(TablesDemoAPIDomain):
         )
         self.insert_item_store.add_precondition(self.robot_has(self.insert_item_store.item))
         self.insert_item_store.add_precondition(self.robot_at(self.insert_item_store.box_pose))
-        self.insert_item_store.add_subtask(self.drive, self.insert_item_store.box_pose)
-        self.insert_item_store.add_subtask(
+        s1 = self.insert_item_store.add_subtask(self.drive, self.insert_item_store.box_pose)
+        s2 = self.insert_item_store.add_subtask(
             self.store_item,
             self.robot,
             self.insert_item_store.box_pose,
             self.insert_item_store.box_loc,
             self.insert_item_store.item,
         )
+        self.insert_item_store.set_ordered(s1, s2)
 
         # already holding item, move to box and insert
         self.insert_item_drive = Method(
@@ -277,14 +278,15 @@ class HierarchicalDomain(TablesDemoAPIDomain):
             self.pose_at(self.insert_item_drive.box_pose, self.insert_item_drive.box_loc)
         )
         self.insert_item_drive.add_precondition(self.robot_has(self.insert_item_drive.item))
-        self.insert_item_drive.add_subtask(self.drive, self.insert_item_drive.box_pose)
-        self.insert_item_drive.add_subtask(
+        s1 = self.insert_item_drive.add_subtask(self.drive, self.insert_item_drive.box_pose)
+        s2 = self.insert_item_drive.add_subtask(
             self.store_item,
             self.robot,
             self.insert_item_drive.box_pose,
             self.insert_item_drive.box_loc,
             self.insert_item_drive.item,
         )
+        self.insert_item_drive.set_ordered(s1, s2)
 
         # go to item location, pickup item, go to box location, store item in box
         self.insert_item_full = Method(
@@ -299,15 +301,16 @@ class HierarchicalDomain(TablesDemoAPIDomain):
         self.insert_item_full.add_precondition(
             self.pose_at(self.insert_item_full.box_pose, self.insert_item_full.box_loc)
         )
-        self.insert_item_full.add_subtask(self.get_item, self.insert_item_full.item)
-        self.insert_item_full.add_subtask(self.drive, self.insert_item_full.box_pose)
-        self.insert_item_full.add_subtask(
+        s1 = self.insert_item_full.add_subtask(self.get_item, self.insert_item_full.item)
+        s2 = self.insert_item_full.add_subtask(self.drive, self.insert_item_full.box_pose)
+        s3 = self.insert_item_full.add_subtask(
             self.store_item,
             self.robot,
             self.insert_item_full.box_pose,
             self.insert_item_full.box_loc,
             self.insert_item_full.item,
         )
+        self.insert_item_full.set_ordered(s1, s2, s3)
 
         # BRING ITEM
         # robot already has item and is at handover pose, hand item over, move arm to home pose
@@ -433,12 +436,13 @@ class HierarchicalDomain(TablesDemoAPIDomain):
         self.tables_demo_insert_tool_move.add_precondition(
             Not(self.believe_item_at(self.tables_demo_insert_tool_move.box, self.anywhere))
         )
-        self.tables_demo_insert_tool_move.add_subtask(
+        s1 = self.tables_demo_insert_tool_move.add_subtask(
             self.insert_item, self.tables_demo_insert_tool_move.tool, self.tables_demo_insert_tool_move.box
         )
-        self.tables_demo_insert_tool_move.add_subtask(
+        s2 = self.tables_demo_insert_tool_move.add_subtask(
             self.move_item, self.tables_demo_insert_tool_move.box, self.tables_demo_insert_tool_move.location
         )
+        self.tables_demo_insert_tool_move.set_ordered(s1, s2)
 
         # already holding tool
         self.tables_demo_search_box = Method(
@@ -457,13 +461,14 @@ class HierarchicalDomain(TablesDemoAPIDomain):
             self.believe_item_at(self.tables_demo_search_box.tool, self.on_robot)
         )
         self.tables_demo_search_box.add_precondition(self.robot_has(self.tables_demo_search_box.tool))
-        self.tables_demo_search_box.add_subtask(self.search_box, self.robot)
-        self.tables_demo_search_box.add_subtask(
+        s1 = self.tables_demo_search_box.add_subtask(self.search_box, self.robot)
+        s2 = self.tables_demo_search_box.add_subtask(
             self.insert_item, self.tables_demo_search_box.tool, self.tables_demo_search_box.box
         )
-        self.tables_demo_search_box.add_subtask(
+        s3 = self.tables_demo_search_box.add_subtask(
             self.move_item, self.tables_demo_search_box.box, self.tables_demo_search_box.location
         )
+        self.tables_demo_search_box.set_ordered(s1, s2, s3)
 
         # box location already known and on target table
         self.tables_demo_search_tool = Method(
@@ -481,11 +486,12 @@ class HierarchicalDomain(TablesDemoAPIDomain):
         self.tables_demo_search_tool.add_precondition(
             self.believe_item_at(self.tables_demo_search_tool.box, self.tables_demo_search_tool.location)
         )
-        self.tables_demo_search_tool.add_subtask(self.search_tool, self.robot, self.tables_demo_search_tool.tool)
-        self.tables_demo_search_tool.add_subtask(self.get_item, self.tables_demo_search_tool.tool)
-        self.tables_demo_search_tool.add_subtask(
+        s1 = self.tables_demo_search_tool.add_subtask(self.search_tool, self.robot, self.tables_demo_search_tool.tool)
+        s2 = self.tables_demo_search_tool.add_subtask(self.get_item, self.tables_demo_search_tool.tool)
+        s3 = self.tables_demo_search_tool.add_subtask(
             self.insert_item, self.tables_demo_search_tool.tool, self.tables_demo_search_tool.box
         )
+        self.tables_demo_search_tool.set_ordered(s1, s2, s3)
 
         # box location already known
         self.tables_demo_search_tool_move = Method(
@@ -506,16 +512,17 @@ class HierarchicalDomain(TablesDemoAPIDomain):
         self.tables_demo_search_tool_move.add_precondition(
             Not(self.believe_item_at(self.tables_demo_search_tool_move.box, self.tables_demo_search_tool_move.location))
         )
-        self.tables_demo_search_tool_move.add_subtask(
+        s1 = self.tables_demo_search_tool_move.add_subtask(
             self.search_tool, self.robot, self.tables_demo_search_tool_move.tool
         )
-        self.tables_demo_search_tool_move.add_subtask(self.get_item, self.tables_demo_search_tool_move.tool)
-        self.tables_demo_search_tool_move.add_subtask(
+        s2 = self.tables_demo_search_tool_move.add_subtask(self.get_item, self.tables_demo_search_tool_move.tool)
+        s3 = self.tables_demo_search_tool_move.add_subtask(
             self.insert_item, self.tables_demo_search_tool_move.tool, self.tables_demo_search_tool_move.box
         )
-        self.tables_demo_search_tool_move.add_subtask(
+        s4 = self.tables_demo_search_tool_move.add_subtask(
             self.move_item, self.tables_demo_search_tool_move.box, self.tables_demo_search_tool_move.location
         )
+        self.tables_demo_search_tool_move.set_ordered(s1, s2, s3, s4)
 
         # tool location already known
         self.tables_demo_get_tool = Method(
@@ -530,14 +537,15 @@ class HierarchicalDomain(TablesDemoAPIDomain):
         self.tables_demo_get_tool.add_precondition(
             Not(self.believe_item_at(self.tables_demo_get_tool.tool, self.anywhere))
         )
-        self.tables_demo_get_tool.add_subtask(self.get_item, self.tables_demo_get_tool.tool)
-        self.tables_demo_get_tool.add_subtask(self.search_box, self.robot)
-        self.tables_demo_get_tool.add_subtask(
+        s1 = self.tables_demo_get_tool.add_subtask(self.get_item, self.tables_demo_get_tool.tool)
+        s2 = self.tables_demo_get_tool.add_subtask(self.search_box, self.robot)
+        s3 = self.tables_demo_get_tool.add_subtask(
             self.insert_item, self.tables_demo_get_tool.tool, self.tables_demo_get_tool.box
         )
-        self.tables_demo_get_tool.add_subtask(
+        s4 = self.tables_demo_get_tool.add_subtask(
             self.move_item, self.tables_demo_get_tool.box, self.tables_demo_get_tool.location
         )
+        self.tables_demo_get_tool.set_ordered(s1, s2, s3, s4)
 
         # full tables demo
         self.tables_demo_full = Method(
@@ -546,11 +554,12 @@ class HierarchicalDomain(TablesDemoAPIDomain):
         self.tables_demo_full.set_task(
             self.tables_demo, self.tables_demo_full.tool, self.tables_demo_full.box, self.tables_demo_full.location
         )
-        self.tables_demo_full.add_subtask(self.search_tool, self.robot, self.tables_demo_full.tool)
-        self.tables_demo_full.add_subtask(self.get_item, self.tables_demo_full.tool)
-        self.tables_demo_full.add_subtask(self.search_box, self.robot)
-        self.tables_demo_full.add_subtask(self.insert_item, self.tables_demo_full.tool, self.tables_demo_full.box)
-        self.tables_demo_full.add_subtask(self.move_item, self.tables_demo_full.box, self.tables_demo_full.location)
+        s1 = self.tables_demo_full.add_subtask(self.search_tool, self.robot, self.tables_demo_full.tool)
+        s2 = self.tables_demo_full.add_subtask(self.get_item, self.tables_demo_full.tool)
+        s3 = self.tables_demo_full.add_subtask(self.search_box, self.robot)
+        s4 = self.tables_demo_full.add_subtask(self.insert_item, self.tables_demo_full.tool, self.tables_demo_full.box)
+        s5 = self.tables_demo_full.add_subtask(self.move_item, self.tables_demo_full.box, self.tables_demo_full.location)
+        self.tables_demo_full.set_ordered(s1, s2, s3, s4, s5)
 
         self.problem = self.define_mobipick_problem(
             fluents=(
@@ -889,7 +898,7 @@ class HierarchicalDomain(TablesDemoAPIDomain):
                 break
             if actions is None:
                 print("Execution ended because no plan could be found.")
-                return
+                break
 
         print("Demo complete.")
         if self.visualization:
