@@ -35,13 +35,16 @@
 
 """Addition of hierarchical methods and tasks to the Mobipick domain."""
 
-
-from typing import Iterable, Optional, Union
+import rospy
+from typing import Iterable, Optional, Union, Set, Dict, List
+from collections import defaultdict
 from geometry_msgs.msg import Pose
-from unified_planning.model import Fluent, InstantaneousAction, Object, Action
+from unified_planning.model import Fluent, InstantaneousAction, Object, Action, Problem
 from unified_planning.model.htn import HierarchicalProblem, Method, Task, Subtask
-from unified_planning.shortcuts import Equals, Not, Or
+from unified_planning.shortcuts import Equals, Not, Or, OneshotPlanner
+from unified_planning.plans import ActionInstance
 from unified_planning.model.metrics import MinimizeSequentialPlanLength
+from unified_planning.engines import OptimalityGuarantee
 from tables_demo_planning.mobipick_components import ArmPose, Item, Location
 from tables_demo_planning.tables_demo_api import TablesDemoAPIDomain
 
@@ -621,6 +624,44 @@ class HierarchicalDomain(TablesDemoAPIDomain):
         )
         self.problem.add_quality_metric(MinimizeSequentialPlanLength())
 
+        self.subproblem = self.define_mobipick_problem(
+            fluents=(
+                self.robot_at,
+                self.robot_arm_at,
+                self.robot_has,
+                self.believe_item_at,
+                self.searched_at,
+                self.pose_at,
+            ),
+            actions=(
+                self.move_base,
+                self.move_base_with_item,
+                self.move_arm,
+                self.search_at,
+            ),
+            methods=(
+                self.drive_noop,
+                self.drive_homeposture,
+                self.drive_transport,
+                self.adapt_arm_noop,
+                self.adapt_arm_full,
+                self.perceive_noop,
+                self.perceive_move_arm,
+                self.perceive_location,
+                self.perceive_full,
+                self.search_item_noop,
+                self.search_item_full,
+            ),
+            tasks=(
+                self.drive,
+                self.adapt_arm,
+                self.perceive,
+                self.search_item,
+                self.tables_demo,
+            ),
+        )
+        self.subproblem.add_quality_metric(MinimizeSequentialPlanLength())
+
     def define_mobipick_problem(
         self,
         fluents: Optional[Iterable[Fluent]] = None,
@@ -658,6 +699,200 @@ class HierarchicalDomain(TablesDemoAPIDomain):
 
         return problem
 
-    def set_task(self, task: Union[Task, Subtask, Action]) -> None:
+    def solve_problem(self, problem: Problem) -> Optional[List[ActionInstance]]:
+        """Solve planning problem and return plan."""
+        result = OneshotPlanner(
+            name="aries", problem_kind=problem.kind, optimality_guarantee=OptimalityGuarantee.SOLVED_OPTIMALLY
+        ).solve(problem)
+        if result.status and result.status.value > 2:
+            if result.log_messages:
+                rospy.logerr(f"Error during plan generation: {result.log_messages[0].message}")
+            else:
+                rospy.logerr(f"Error during plan generation: {result.status}")
+        return result.plan._actions if result.plan and result.plan._actions else None
+
+    def replan(self) -> Optional[List[ActionInstance]]:
+        """Print believed item locations, initialize UP problem, and solve it."""
+        self.env.print_believed_item_locations()
+        self.set_initial_values(self.problem)
+        return self.solve_problem(self.problem)
+
+    def set_task(self, problem: HierarchicalProblem, task: Union[Task, Subtask, Action]) -> None:
         """Set the task to be executed."""
-        self.problem.task_network.add_subtask(task)
+        problem.task_network.add_subtask(task)
+
+    def clear_tasks(self, problem: HierarchicalProblem) -> None:
+        problem.task_network._subtasks.clear()
+
+    def run(self, target_item: Object, target_box: Object, target_location: Object) -> None:
+        """Run the mobipick tables demo."""
+        executed_action_names: Set[str] = set()  # Note: For visualization purposes only.
+        retries_before_abortion = self.RETRIES_BEFORE_ABORTION
+        error_counts: Dict[str, int] = defaultdict(int)
+        # Solve overall problem.
+        self.clear_tasks(self.problem)
+        self.set_task(self.problem, self.tables_demo(target_item, target_box, target_location))
+        actions = self.replan()
+        if actions is None:
+            print("Execution ended because no plan could be found.")
+            return
+
+        # Loop action execution as long as there are actions.
+        while actions:
+            print("> Plan:")
+            print('\n'.join(map(str, actions)))
+            if self.visualization:
+                self.visualization.set_actions(
+                    [
+                        f"{number + len(executed_action_names)} {self.label(action)}"
+                        for number, action in enumerate(actions, start=1)
+                    ],
+                    preserve_actions=executed_action_names,
+                )
+            print("> Execution:")
+            for action in actions:
+                executable_action, parameters = self.get_executable_action(action)
+                action_name = f"{len(executed_action_names) + 1} {self.label(action)}"
+                print(action)
+                # Explicitly do not pick up box from target_table since planning does not handle it yet.
+                if action.action.name == "pick_item" and parameters[-1] == Item.box:
+                    assert isinstance(parameters[-2], Location)
+                    location = self.env.resolve_search_location(parameters[-2])
+                    if location == Location(target_location.name):
+                        print("Picking up box OBSOLETE.")
+                        if self.visualization:
+                            self.visualization.cancel(action_name)
+                        actions = self.replan()
+                        break
+
+                if self.visualization:
+                    self.visualization.execute(action_name)
+                if self.espeak_pub:
+                    self.espeak_pub.publish(self.label(action))
+
+                # Execute action.
+                result = executable_action(*parameters)
+                executed_action_names.add(action_name)
+                if rospy.is_shutdown():
+                    return
+
+                # Handle item search as an inner execution loop.
+                # Rationale: It has additional stop criteria, and might continue the outer loop.
+                if self.env.item_search:
+                    try:
+                        # Check whether an obsolete item search invalidates the previous plan.
+                        if self.env.believed_item_locations.get(self.env.item_search, self.anywhere) != self.anywhere:
+                            print(f"Search for {self.env.item_search.name} OBSOLETE.")
+                            if self.visualization:
+                                self.visualization.cancel(action_name)
+                            actions = self.replan()
+                            break
+
+                        # Search for item by creating and executing a subplan.
+                        self.clear_tasks(self.subproblem)
+                        self.set_initial_values(self.subproblem)
+                        self.set_task(self.subproblem, self.search_item(self.get_object(self.env.item_search)))
+                        subactions = self.solve_problem(self.subproblem)
+                        assert subactions, f"No solution for: {self.subproblem}"
+                        print("- Search plan:")
+                        print('\n'.join(map(str, subactions)))
+                        if self.visualization:
+                            self.visualization.set_actions(
+                                [
+                                    f"{len(executed_action_names)}{chr(number)} {self.label(subaction)}"
+                                    for number, subaction in enumerate(subactions, start=97)
+                                ],
+                                preserve_actions=executed_action_names,
+                                predecessor=action_name,
+                            )
+                        print("- Search execution:")
+                        subaction_execution_count = 0
+                        for subaction in subactions:
+                            executable_subaction, subparameters = self.get_executable_action(subaction)
+                            subaction_name = (
+                                f"{len(executed_action_names)}{chr(subaction_execution_count + 97)}"
+                                f" {self.label(subaction)}"
+                            )
+                            print(subaction)
+                            if self.visualization:
+                                self.visualization.execute(subaction_name)
+                            if self.espeak_pub:
+                                self.espeak_pub.publish(self.label(subaction))
+                            # Execute search action.
+                            result = executable_subaction(*subparameters)
+                            subaction_execution_count += 1
+                            if rospy.is_shutdown():
+                                return
+
+                            if result is not None:
+                                if result:
+                                    # Note: True result only means any subaction succeeded.
+                                    # Check if the search actually succeeded.
+                                    if (
+                                        self.env.item_search is None
+                                        and len(self.env.newly_perceived_item_locations) <= 1
+                                    ):
+                                        print("- Continue with plan.")
+                                        if self.visualization:
+                                            self.visualization.succeed(subaction_name)
+                                        break
+                                    # Check if the search found another item.
+                                    elif self.env.newly_perceived_item_locations:
+                                        self.env.newly_perceived_item_locations.clear()
+                                        print("- Found another item, search ABORTED.")
+                                        if self.visualization:
+                                            self.visualization.cancel(subaction_name)
+                                        if self.espeak_pub:
+                                            self.espeak_pub.publish("Found another item. Make a new plan.")
+                                        # Set result to None to trigger replanning.
+                                        result = None
+                                        break
+                                else:
+                                    if self.visualization:
+                                        self.visualization.fail(subaction_name)
+                                    break
+                        # Note: The conclude action at the end of any search always fails.
+                    finally:
+                        # Always end the search at this point.
+                        self.env.item_search = None
+
+                if result is not None:
+                    if result:
+                        if self.visualization:
+                            self.visualization.succeed(action_name)
+                        retries_before_abortion = self.RETRIES_BEFORE_ABORTION
+                    else:
+                        if self.visualization:
+                            self.visualization.fail(action_name)
+                        if self.espeak_pub:
+                            self.espeak_pub.publish("Action failed.")
+                        error_counts[self.label(action)] += 1
+                        # Note: This will also fail if two different failures occur successively.
+                        if retries_before_abortion <= 0 or any(count >= 3 for count in error_counts.values()):
+                            print("Task could not be completed even after retrying.")
+                            if self.visualization:
+                                self.visualization.add_node("Mission impossible", "red")
+                            if self.espeak_pub:
+                                self.espeak_pub.publish("Mission impossible!")
+                            return
+
+                        retries_before_abortion -= 1
+                        actions = self.replan()
+                        break
+                else:
+                    if self.visualization:
+                        self.visualization.cancel(action_name)
+                    retries_before_abortion = self.RETRIES_BEFORE_ABORTION
+                    actions = self.replan()
+                    break
+            else:
+                break
+            if actions is None:
+                print("Execution ended because no plan could be found.")
+                return
+
+        print("Demo complete.")
+        if self.visualization:
+            self.visualization.add_node("Demo complete", "green")
+        if self.espeak_pub:
+            self.espeak_pub.publish("Demo complete.")
