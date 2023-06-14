@@ -53,32 +53,34 @@ class HierarchicalDomain(TablesDemoAPIDomain):
     def __init__(self) -> None:
         super().__init__()
 
+        # UP types
+        type_pose = self.get_type(Pose)
+        type_arm_pose = self.get_type(ArmPose)
+        type_location = self.get_type(Location)
+        type_item = self.get_type(Item)
+
         # TASKS
-        self.drive = Task("drive", goal_pose=self.get_type(Pose))
-        self.adapt_arm = Task("adapt_arm", to_pose=self.get_type(ArmPose))
-        self.perceive = Task("perceive", location=self.get_type(Location))
-        self.get_item = Task("get_item", item=self.get_type(Item))
-        self.put_item = Task("put_item", item=self.get_type(Item), location=self.get_type(Location))
-        self.move_item = Task("move_item", item=self.get_type(Item), location=self.get_type(Location))
-        self.insert_item = Task("insert_item", item=self.get_type(Item), box=self.get_type(Item))
-        self.bring_item = Task("bring_item", item=self.get_type(Item))
-        self.search_item = Task("search_item", item=self.get_type(Item))
-        self.tables_demo = Task(
-            "tables_demo", tool=self.get_type(Item), box=self.get_type(Item), location=self.get_type(Location)
-        )
+        self.drive = Task("drive", goal_pose=type_pose)
+        self.adapt_arm = Task("adapt_arm", to_pose=type_arm_pose)
+        self.perceive = Task("perceive", location=type_location)
+        self.get_item = Task("get_item", item=type_item)
+        self.put_item = Task("put_item", item=type_item, location=type_location)
+        self.move_item = Task("move_item", item=type_item, location=type_location)
+        self.insert_item = Task("insert_item", item=type_item, box=type_item)
+        self.bring_item = Task("bring_item", item=type_item)
+        self.search_item = Task("search_item", item=type_item)
+        self.tables_demo = Task("tables_demo", tool=type_item, box=type_item, location=type_location)
 
         # METHODS
 
         # DRIVE
         # robot already at goal pose
-        self.drive_noop = Method("drive_noop", goal_pose=self.get_type(Pose))
+        self.drive_noop = Method("drive_noop", goal_pose=type_pose)
         self.drive_noop.set_task(self.drive, self.drive_noop.goal_pose)
         self.drive_noop.add_precondition(self.robot_at(self.drive_noop.goal_pose))
 
         # arm not holding anything, move arm to home pose and move base to goal location
-        self.drive_homeposture = Method(
-            "drive_homeposture", start_pose=self.get_type(Pose), goal_pose=self.get_type(Pose)
-        )
+        self.drive_homeposture = Method("drive_homeposture", start_pose=type_pose, goal_pose=type_pose)
         self.drive_homeposture.set_task(self.drive, self.drive_homeposture.goal_pose)
         self.drive_homeposture.add_precondition(self.robot_at(self.drive_homeposture.start_pose))
         self.drive_homeposture.add_precondition(self.robot_has(self.nothing))
@@ -89,9 +91,7 @@ class HierarchicalDomain(TablesDemoAPIDomain):
         self.drive_homeposture.set_ordered(s1, s2)
 
         # arm holding an item, move arm to transport pose and move base to goal location
-        self.drive_transport = Method(
-            "drive_transport", item=self.get_type(Item), start_pose=self.get_type(Pose), goal_pose=self.get_type(Pose)
-        )
+        self.drive_transport = Method("drive_transport", item=type_item, start_pose=type_pose, goal_pose=type_pose)
         self.drive_transport.set_task(self.drive, self.drive_transport.goal_pose)
         self.drive_transport.add_precondition(self.robot_at(self.drive_transport.start_pose))
         self.drive_transport.add_precondition(self.robot_has(self.drive_transport.item))
@@ -107,12 +107,12 @@ class HierarchicalDomain(TablesDemoAPIDomain):
 
         # ADAPT ARM
         # arm already in goal arm pose
-        self.adapt_arm_noop = Method("adapt_arm_noop", to_pose=self.get_type(ArmPose))
+        self.adapt_arm_noop = Method("adapt_arm_noop", to_pose=type_arm_pose)
         self.adapt_arm_noop.set_task(self.adapt_arm, self.adapt_arm_noop.to_pose)
         self.adapt_arm_noop.add_precondition(self.robot_arm_at(self.adapt_arm_noop.to_pose))
 
         # move arm to goal arm pose
-        self.adapt_arm_full = Method("adapt_arm_full", from_pose=self.get_type(ArmPose), to_pose=self.get_type(ArmPose))
+        self.adapt_arm_full = Method("adapt_arm_full", from_pose=type_arm_pose, to_pose=type_arm_pose)
         self.adapt_arm_full.set_task(self.adapt_arm, self.adapt_arm_full.to_pose)
         self.adapt_arm_full.add_precondition(self.robot_arm_at(self.adapt_arm_full.from_pose))
         self.adapt_arm_full.add_precondition(Not(Equals(self.adapt_arm_full.from_pose, self.adapt_arm_full.to_pose)))
@@ -122,12 +122,12 @@ class HierarchicalDomain(TablesDemoAPIDomain):
 
         # PERCEIVE LOCATION
         # already perceived location
-        self.perceive_noop = Method("perceive_noop", pose=self.get_type(Pose), location=self.get_type(Location))
+        self.perceive_noop = Method("perceive_noop", pose=type_pose, location=type_location)
         self.perceive_noop.set_task(self.perceive, self.perceive_noop.location)
         self.perceive_noop.add_precondition(self.searched_at(self.perceive_noop.location))
 
         # already at location, arm pose unknown
-        self.perceive_move_arm = Method("perceive_move_arm", pose=self.get_type(Pose), location=self.get_type(Location))
+        self.perceive_move_arm = Method("perceive_move_arm", pose=type_pose, location=type_location)
         self.perceive_move_arm.set_task(self.perceive, self.perceive_move_arm.location)
         self.perceive_move_arm.add_precondition(self.robot_at(self.perceive_move_arm.pose))
         self.perceive_move_arm.add_precondition(
@@ -140,7 +140,7 @@ class HierarchicalDomain(TablesDemoAPIDomain):
         self.perceive_move_arm.set_ordered(s1, s2)
 
         # already at location, perceive location
-        self.perceive_location = Method("perceive_location", pose=self.get_type(Pose), location=self.get_type(Location))
+        self.perceive_location = Method("perceive_location", pose=type_pose, location=type_location)
         self.perceive_location.set_task(self.perceive, self.perceive_location.location)
         self.perceive_location.add_precondition(self.robot_at(self.perceive_location.pose))
         self.perceive_location.add_subtask(
@@ -148,7 +148,7 @@ class HierarchicalDomain(TablesDemoAPIDomain):
         )
 
         # drive to location, perceive location
-        self.perceive_full = Method("perceive_full", pose=self.get_type(Pose), location=self.get_type(Location))
+        self.perceive_full = Method("perceive_full", pose=type_pose, location=type_location)
         self.perceive_full.set_task(self.perceive, self.perceive_full.location)
         s1 = self.perceive_full.add_subtask(self.drive, self.perceive_full.pose)
         s2 = self.perceive_full.add_subtask(
@@ -158,14 +158,12 @@ class HierarchicalDomain(TablesDemoAPIDomain):
 
         # GET ITEM
         # item already in robots gripper
-        self.get_item_noop = Method("get_item_noop", item=self.get_type(Item))
+        self.get_item_noop = Method("get_item_noop", item=type_item)
         self.get_item_noop.set_task(self.get_item, self.get_item_noop.item)
         self.get_item_noop.add_precondition(self.robot_has(self.get_item_noop.item))
 
         # not holding an item, robot already at item location, pick up item
-        self.get_item_pick = Method(
-            "get_item_pick", item=self.get_type(Item), location=self.get_type(Location), pose=self.get_type(Pose)
-        )
+        self.get_item_pick = Method("get_item_pick", item=type_item, location=type_location, pose=type_pose)
         self.get_item_pick.set_task(self.get_item, self.get_item_pick.item)
         self.get_item_pick.add_precondition(self.robot_at(self.get_item_pick.pose))
         self.get_item_pick.add_precondition(self.robot_has(self.nothing))
@@ -176,9 +174,7 @@ class HierarchicalDomain(TablesDemoAPIDomain):
         )
 
         # not holding an item, go to item location and pick up item
-        self.get_item_full = Method(
-            "get_item_full", item=self.get_type(Item), location=self.get_type(Location), pose=self.get_type(Pose)
-        )
+        self.get_item_full = Method("get_item_full", item=type_item, location=type_location, pose=type_pose)
         self.get_item_full.set_task(self.get_item, self.get_item_full.item)
         self.get_item_full.add_precondition(self.robot_has(self.nothing))
         self.get_item_full.add_precondition(self.believe_item_at(self.get_item_full.item, self.get_item_full.location))
@@ -191,9 +187,7 @@ class HierarchicalDomain(TablesDemoAPIDomain):
 
         # PUT ITEM
         # robot already at target pose, place item
-        self.put_item_place = Method(
-            "put_item_place", item=self.get_type(Item), location=self.get_type(Location), pose=self.get_type(Pose)
-        )
+        self.put_item_place = Method("put_item_place", item=type_item, location=type_location, pose=type_pose)
         self.put_item_place.set_task(self.put_item, self.put_item_place.item, self.put_item_place.location)
         self.put_item_place.add_precondition(self.robot_has(self.put_item_place.item))
         self.put_item_place.add_precondition(self.pose_at(self.put_item_place.pose, self.put_item_place.location))
@@ -207,9 +201,7 @@ class HierarchicalDomain(TablesDemoAPIDomain):
         )
 
         # robot drives to target pose and places item
-        self.put_item_full = Method(
-            "put_item_full", item=self.get_type(Item), location=self.get_type(Location), pose=self.get_type(Pose)
-        )
+        self.put_item_full = Method("put_item_full", item=type_item, location=type_location, pose=type_pose)
         self.put_item_full.set_task(self.put_item, self.put_item_full.item, self.put_item_full.location)
         self.put_item_full.add_precondition(self.robot_has(self.put_item_full.item))
         self.put_item_full.add_precondition(self.pose_at(self.put_item_full.pose, self.put_item_full.location))
@@ -221,7 +213,7 @@ class HierarchicalDomain(TablesDemoAPIDomain):
 
         # MOVE ITEM
         # move item from one location to another location
-        self.move_item_full = Method("move_item_full", item=self.get_type(Item), location=self.get_type(Location))
+        self.move_item_full = Method("move_item_full", item=type_item, location=type_location)
         self.move_item_full.set_task(self.move_item, self.move_item_full.item, self.move_item_full.location)
         s1 = self.move_item_full.add_subtask(self.get_item, self.move_item_full.item)
         s2 = self.move_item_full.add_subtask(self.put_item, self.move_item_full.item, self.move_item_full.location)
@@ -231,10 +223,10 @@ class HierarchicalDomain(TablesDemoAPIDomain):
         # item already in box
         self.insert_item_noop = Method(
             "insert_item_noop",
-            item=self.get_type(Item),
-            box=self.get_type(Item),
-            box_pose=self.get_type(Pose),
-            box_loc=self.get_type(Location),
+            item=type_item,
+            box=type_item,
+            box_pose=type_pose,
+            box_loc=type_location,
         )
         self.insert_item_noop.set_task(self.insert_item, self.insert_item_noop.item, self.insert_item_noop.box)
         self.insert_item_noop.add_precondition(self.believe_item_at(self.insert_item_noop.item, self.in_box))
@@ -242,10 +234,10 @@ class HierarchicalDomain(TablesDemoAPIDomain):
         # already at box location, store item
         self.insert_item_store = Method(
             "insert_item_store",
-            item=self.get_type(Item),
-            box=self.get_type(Item),
-            box_pose=self.get_type(Pose),
-            box_loc=self.get_type(Location),
+            item=type_item,
+            box=type_item,
+            box_pose=type_pose,
+            box_loc=type_location,
         )
         self.insert_item_store.set_task(self.insert_item, self.insert_item_store.item, self.insert_item_store.box)
         self.insert_item_store.add_precondition(Not(self.believe_item_at(self.insert_item_store.box, self.anywhere)))
@@ -267,10 +259,10 @@ class HierarchicalDomain(TablesDemoAPIDomain):
         # already holding item, move to box and insert
         self.insert_item_drive = Method(
             "insert_item_drive",
-            item=self.get_type(Item),
-            box=self.get_type(Item),
-            box_pose=self.get_type(Pose),
-            box_loc=self.get_type(Location),
+            item=type_item,
+            box=type_item,
+            box_pose=type_pose,
+            box_loc=type_location,
         )
         self.insert_item_drive.set_task(self.insert_item, self.insert_item_drive.item, self.insert_item_drive.box)
         self.insert_item_drive.add_precondition(Not(self.believe_item_at(self.insert_item_drive.box, self.anywhere)))
@@ -291,10 +283,10 @@ class HierarchicalDomain(TablesDemoAPIDomain):
         # go to item location, pickup item, go to box location, store item in box
         self.insert_item_full = Method(
             "insert_item_full",
-            item=self.get_type(Item),
-            box=self.get_type(Item),
-            box_pose=self.get_type(Pose),
-            box_loc=self.get_type(Location),
+            item=type_item,
+            box=type_item,
+            box_pose=type_pose,
+            box_loc=type_location,
         )
         self.insert_item_full.set_task(self.insert_item, self.insert_item_full.item, self.insert_item_full.box)
         self.insert_item_full.add_precondition(Not(self.believe_item_at(self.insert_item_full.box, self.anywhere)))
@@ -314,7 +306,7 @@ class HierarchicalDomain(TablesDemoAPIDomain):
 
         # BRING ITEM
         # robot already has item and is at handover pose, hand item over, move arm to home pose
-        self.bring_item_handover = Method("bring_item_handover", item=self.get_type(Item))
+        self.bring_item_handover = Method("bring_item_handover", item=type_item)
         self.bring_item_handover.set_task(self.bring_item, self.bring_item_handover.item)
         self.bring_item_handover.add_precondition(self.robot_has(self.bring_item_handover.item))
         self.bring_item_handover.add_precondition(self.robot_at(self.base_handover_pose))
@@ -325,7 +317,7 @@ class HierarchicalDomain(TablesDemoAPIDomain):
         self.bring_item_handover.set_ordered(s1, s2)
 
         # robot already has item, move to handover pose, hand item over, move arm to home pose
-        self.bring_item_drive = Method("bring_item_drive", item=self.get_type(Item))
+        self.bring_item_drive = Method("bring_item_drive", item=type_item)
         self.bring_item_drive.set_task(self.bring_item, self.bring_item_drive.item)
         self.bring_item_drive.add_precondition(self.robot_has(self.bring_item_drive.item))
         s1 = self.bring_item_drive.add_subtask(self.drive, self.base_handover_pose)
@@ -336,7 +328,7 @@ class HierarchicalDomain(TablesDemoAPIDomain):
         self.bring_item_drive.set_ordered(s1, s2, s3)
 
         # go to item location, pick up item, go to handover pose, hand item over, move arm to home pose
-        self.bring_item_full = Method("bring_item_full", item=self.get_type(Item))
+        self.bring_item_full = Method("bring_item_full", item=type_item)
         self.bring_item_full.set_task(self.bring_item, self.bring_item_full.item)
         s1 = self.bring_item_full.add_subtask(self.get_item, self.bring_item_full.item)
         s2 = self.bring_item_full.add_subtask(self.drive, self.base_handover_pose)
@@ -348,12 +340,12 @@ class HierarchicalDomain(TablesDemoAPIDomain):
 
         # SEARCH ITEM
         # item location already known, nothing to do
-        self.search_item_noop = Method("search_item_noop", item=self.get_type(Item))
+        self.search_item_noop = Method("search_item_noop", item=type_item)
         self.search_item_noop.set_task(self.search_item, self.search_item_noop.item)
         self.search_item_noop.add_precondition(Not(self.believe_item_at(self.search_item_noop.item, self.anywhere)))
 
         # full search
-        self.search_item_full = Method("search_item_full", item=self.get_type(Item))
+        self.search_item_full = Method("search_item_full", item=type_item)
         self.search_item_full.set_task(self.search_item, self.search_item_full.item)
         self.search_item_full.add_precondition(self.believe_item_at(self.search_item_full.item, self.anywhere))
         for location in self.TABLE_LOCATIONS:
@@ -361,9 +353,7 @@ class HierarchicalDomain(TablesDemoAPIDomain):
 
         # TABLES DEMO
         # tool in box on target table, nothing to do
-        self.tables_demo_noop = Method(
-            "tables_demo_noop", tool=self.get_type(Item), box=self.get_type(Item), location=self.get_type(Location)
-        )
+        self.tables_demo_noop = Method("tables_demo_noop", tool=type_item, box=type_item, location=type_location)
         self.tables_demo_noop.set_task(
             self.tables_demo, self.tables_demo_noop.tool, self.tables_demo_noop.box, self.tables_demo_noop.location
         )
@@ -375,7 +365,7 @@ class HierarchicalDomain(TablesDemoAPIDomain):
 
         # tool in box, move to target table
         self.tables_demo_move_box = Method(
-            "tables_demo_move_box", tool=self.get_type(Item), box=self.get_type(Item), location=self.get_type(Location)
+            "tables_demo_move_box", tool=type_item, box=type_item, location=type_location
         )
         self.tables_demo_move_box.set_task(
             self.tables_demo,
@@ -395,9 +385,9 @@ class HierarchicalDomain(TablesDemoAPIDomain):
         # already holding tool, box on target table
         self.tables_demo_insert_tool = Method(
             "tables_demo_insert_tool",
-            tool=self.get_type(Item),
-            box=self.get_type(Item),
-            location=self.get_type(Location),
+            tool=type_item,
+            box=type_item,
+            location=type_location,
         )
         self.tables_demo_insert_tool.set_task(
             self.tables_demo,
@@ -419,9 +409,9 @@ class HierarchicalDomain(TablesDemoAPIDomain):
         # already holding tool, box location known
         self.tables_demo_insert_tool_move = Method(
             "tables_demo_insert_tool_move",
-            tool=self.get_type(Item),
-            box=self.get_type(Item),
-            location=self.get_type(Location),
+            tool=type_item,
+            box=type_item,
+            location=type_location,
         )
         self.tables_demo_insert_tool_move.set_task(
             self.tables_demo,
@@ -447,9 +437,9 @@ class HierarchicalDomain(TablesDemoAPIDomain):
         # already holding tool
         self.tables_demo_search_box = Method(
             "tables_demo_search_box",
-            tool=self.get_type(Item),
-            box=self.get_type(Item),
-            location=self.get_type(Location),
+            tool=type_item,
+            box=type_item,
+            location=type_location,
         )
         self.tables_demo_search_box.set_task(
             self.tables_demo,
@@ -473,9 +463,9 @@ class HierarchicalDomain(TablesDemoAPIDomain):
         # box location already known and on target table
         self.tables_demo_search_tool = Method(
             "tables_demo_search_tool",
-            tool=self.get_type(Item),
-            box=self.get_type(Item),
-            location=self.get_type(Location),
+            tool=type_item,
+            box=type_item,
+            location=type_location,
         )
         self.tables_demo_search_tool.set_task(
             self.tables_demo,
@@ -496,9 +486,9 @@ class HierarchicalDomain(TablesDemoAPIDomain):
         # box location already known
         self.tables_demo_search_tool_move = Method(
             "tables_demo_search_tool_move",
-            tool=self.get_type(Item),
-            box=self.get_type(Item),
-            location=self.get_type(Location),
+            tool=type_item,
+            box=type_item,
+            location=type_location,
         )
         self.tables_demo_search_tool_move.set_task(
             self.tables_demo,
@@ -526,7 +516,7 @@ class HierarchicalDomain(TablesDemoAPIDomain):
 
         # tool location already known
         self.tables_demo_get_tool = Method(
-            "tables_demo_get_tool", tool=self.get_type(Item), box=self.get_type(Item), location=self.get_type(Location)
+            "tables_demo_get_tool", tool=type_item, box=type_item, location=type_location
         )
         self.tables_demo_get_tool.set_task(
             self.tables_demo,
@@ -548,9 +538,7 @@ class HierarchicalDomain(TablesDemoAPIDomain):
         self.tables_demo_get_tool.set_ordered(s1, s2, s3, s4)
 
         # full tables demo
-        self.tables_demo_full = Method(
-            "tables_demo_full", tool=self.get_type(Item), box=self.get_type(Item), location=self.get_type(Location)
-        )
+        self.tables_demo_full = Method("tables_demo_full", tool=type_item, box=type_item, location=type_location)
         self.tables_demo_full.set_task(
             self.tables_demo, self.tables_demo_full.tool, self.tables_demo_full.box, self.tables_demo_full.location
         )
@@ -558,7 +546,9 @@ class HierarchicalDomain(TablesDemoAPIDomain):
         s2 = self.tables_demo_full.add_subtask(self.get_item, self.tables_demo_full.tool)
         s3 = self.tables_demo_full.add_subtask(self.search_box, self.robot)
         s4 = self.tables_demo_full.add_subtask(self.insert_item, self.tables_demo_full.tool, self.tables_demo_full.box)
-        s5 = self.tables_demo_full.add_subtask(self.move_item, self.tables_demo_full.box, self.tables_demo_full.location)
+        s5 = self.tables_demo_full.add_subtask(
+            self.move_item, self.tables_demo_full.box, self.tables_demo_full.location
+        )
         self.tables_demo_full.set_ordered(s1, s2, s3, s4, s5)
 
         self.problem = self.define_mobipick_problem(
