@@ -85,7 +85,9 @@ The optional components above for speaker and visualization work in simulation a
 Tables demo using plexmo
 ----------------------------------
 
-To use plexmo instead of the original version of plan execution use `uplexmo_tables_demo_node.py` instead of `tables_demo_node.py` for starting the tables demo:
+To use plexmo instead of the original version of plan execution use
+`uplexmo_tables_demo_node.py` instead of `tables_demo_node.py` for starting the
+tables demo:
 
 ```bash
 rosrun tables_demo_planning uplexmo_tables_demo_node.py

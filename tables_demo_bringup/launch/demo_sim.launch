@@ -38,6 +38,7 @@
   <!-- navigation stack (move base) -->
   <include file="$(find mir_navigation)/launch/start_planner.launch">
     <arg name="map_file" value="$(find pbr_maps)/maps/tables_demo/tables_demo.yaml" />
+    <arg name="local_planner" value="rpp" />
     <arg name="virtual_walls_map_file" value="$(find pbr_maps)/maps/tables_demo/tables_demo_virtual_walls.yaml" />
     <arg name="prefix" value="mobipick/" />
   </include>
