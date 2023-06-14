@@ -96,13 +96,14 @@ class TablesDemoRobot(Robot, ABC, Generic[E]):
 
     def search_at(self, pose: Pose, location: Location) -> bool:
         """At pose, search for item_search at location."""
-        self.env.search_location = location
         item_locations = self.perceive(location)
-        item = self.env.item_search
-        assert item
-        if item in item_locations.keys():
-            print(f"Search for {item.name} SUCCESSFUL.")
-            self.env.item_search = None
+        if self.env.item_search is not None:
+            self.env.search_location = location
+            item = self.env.item_search
+            assert item
+            if item in item_locations.keys():
+                print(f"Search for {item.name} SUCCESSFUL.")
+                self.env.item_search = None
         return True
 
     def check_reset_search(self) -> None:

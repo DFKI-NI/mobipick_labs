@@ -184,8 +184,8 @@ class TablesDemoOrchestrator:
 
     def generate_and_execute_plan(self, target_location: Location) -> None:
         print(
-            "Scenario: Mobipick shall bring the box with the multimeter inside to"
-            f"{self._domain.objects[target_location.name]}."
+            "Scenario: Mobipick shall bring the box with the multimeter"
+            f" inside to {self._domain.objects[target_location.name]}."
         )
         self._executed_actions: Set[str] = set()
         # retries_before_abortion = self._domain.RETRIES_BEFORE_ABORTION  # FIXME Currently not used
