@@ -39,11 +39,7 @@
     <arg name="base_frame_id" value="mobipick/base_footprint" />
   </include>
   <!-- navigation stack (move base) -->
-  <include file="$(find mir_navigation)/launch/start_planner.launch">
-    <arg name="map_file" value="$(find pbr_maps)/maps/tables_demo/tables_demo.yaml" />
-    <arg name="virtual_walls_map_file" value="$(find pbr_maps)/maps/tables_demo/tables_demo_virtual_walls.yaml" />
-    <arg name="prefix" value="mobipick/" />
-  </include>
+  <include file="$(find tables_demo_bringup)/launch/includes/navigation/$(arg world_config).launch"/>
 
   <!-- ::::: Manipulation , MoveIt: arm movement ::::: -->
   <include file="$(find mobipick_moveit_config)/launch/moveit_planning_execution.launch">
