@@ -1,6 +1,7 @@
 <?xml version="1.0"?>
 <launch>
-  <arg name="world" default="moelk_tables" doc="Which environment to run (can be 'moelk_tables' or 'cic_tables' for now)" />
+  <arg name="world" default="pbr_moelk" doc="options: pbr_moelk, pbr_cic" />
+  <arg name="world_config" default="moelk_tables" doc="objects arrangement, options: moelk_tables, cic_tables, truck_assembly" />
 
   <!-- the pose where to spawn the robot in simulation -->
   <arg name="robot_x"   default="10.30" />
@@ -9,9 +10,11 @@
 
   <!-- tables demo gazebo simulation -->
   <include file="$(find mobipick_gazebo)/launch/mobipick/tables_demo.launch" >
-    <arg name="robot_x"   value="$(arg robot_x)" />
-    <arg name="robot_y"   value="$(arg robot_y)" />
-    <arg name="robot_yaw" value="$(arg robot_yaw)" />
+    <arg name="robot_x"      value="$(arg robot_x)" />
+    <arg name="robot_y"      value="$(arg robot_y)" />
+    <arg name="robot_yaw"    value="$(arg robot_yaw)" />
+    <arg name="world"        value="$(arg world)" />
+    <arg name="world_config" value="$(arg world_config)" />
   </include>
 
   <!-- automatically unpause gazebo simulation after some time -->
@@ -36,11 +39,7 @@
     <arg name="base_frame_id" value="mobipick/base_footprint" />
   </include>
   <!-- navigation stack (move base) -->
-  <include file="$(find mir_navigation)/launch/start_planner.launch">
-    <arg name="map_file" value="$(find pbr_maps)/maps/tables_demo/tables_demo.yaml" />
-    <arg name="virtual_walls_map_file" value="$(find pbr_maps)/maps/tables_demo/tables_demo_virtual_walls.yaml" />
-    <arg name="prefix" value="mobipick/" />
-  </include>
+  <include file="$(find tables_demo_bringup)/launch/includes/navigation/$(arg world_config).launch"/>
 
   <!-- ::::: Manipulation , MoveIt: arm movement ::::: -->
   <include file="$(find mobipick_moveit_config)/launch/moveit_planning_execution.launch">
@@ -49,6 +48,6 @@
 
   <include file="$(find tables_demo_bringup)/launch/bringup.launch" >
     <arg name="simulation" value="true" />
-    <arg name="world"      value="$(arg world)" />
+    <arg name="world_config" value="$(arg world_config)" />
   </include>
 </launch>
