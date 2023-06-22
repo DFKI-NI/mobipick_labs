@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <launch>
-  <arg name="world" default="pbr_moelk" doc="other option: pbr_cic" />
+  <arg name="world" default="pbr_moelk" doc="options: pbr_moelk, pbr_cic" />
   <arg name="world_config" default="moelk_tables" doc="objects arrangement, options: moelk_tables, cic_tables, truck_assembly" />
 
   <!-- the pose where to spawn the robot in simulation -->
