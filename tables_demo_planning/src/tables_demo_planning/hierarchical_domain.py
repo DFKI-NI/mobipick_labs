@@ -516,6 +516,7 @@ class HierarchicalDomain(TablesDemoAPIDomain):
                 self.insert_item_drive,
                 self.insert_item_store,
                 self.insert_item_full,
+                self.tables_demo_noop,
                 self.tables_demo_search_box,
                 self.tables_demo_search_tool,
                 self.tables_demo_move_item,
