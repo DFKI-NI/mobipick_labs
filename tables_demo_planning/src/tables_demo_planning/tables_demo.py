@@ -224,6 +224,7 @@ class TablesDemoDomain(Domain[E]):
         self.place_item.add_precondition(self.robot_has(item))
         self.place_item.add_precondition(self.believe_item_at(item, self.on_robot))
         self.place_item.add_precondition(self.pose_at(pose, location))
+        self.place_item.add_precondition(Not(Equals(location, self.anywhere)))
         self.place_item.add_effect(self.robot_has(item), False)
         self.place_item.add_effect(self.robot_has(self.nothing), True)
         for arm_pose in self.arm_poses:
