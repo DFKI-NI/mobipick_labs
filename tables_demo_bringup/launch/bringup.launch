@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <launch>
   <arg name="simulation" default="false" />
-  <arg name="objects_of_interest" default="[relay, screwdriver, multimeter, power_drill_with_grip, klt]"/>
   <arg name="world_config" default="moelk_tables" doc="objects arrangement, options: moelk_tables, cic_tables, truck_assembly" />
+  <arg name="objects_of_interest" default="[relay, screwdriver, multimeter, power_drill_with_grip, hot_glue_gun, klt]"/>
   <arg name="dope_converter_config" default="$(find pbr_objects)/config/class_ids.yaml" />
 
   <!-- please run separately! : -->

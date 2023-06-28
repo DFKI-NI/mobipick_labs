@@ -111,7 +111,7 @@ class RqtTablesDemo(Plugin):
         self.wait_for_services = rospy.get_param('wait_for_services', 2.0)
 
         # adding demo objects to pose selector class query and others
-        objects_of_interest = ['multimeter', 'klt', 'power_drill_with_grip', 'relay', 'screwdriver']
+        objects_of_interest = ['multimeter', 'klt', 'power_drill_with_grip', 'relay', 'screwdriver', 'hot_glue_gun']
         self.objects_of_interest = rospy.get_param('objects_of_interest', objects_of_interest)
         self._widget.comboPerceptionPSClassQuery.addItems(self.objects_of_interest)
         self._widget.comboPickObj.addItems(self.objects_of_interest)
