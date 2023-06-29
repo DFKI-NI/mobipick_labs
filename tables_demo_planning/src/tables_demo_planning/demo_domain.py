@@ -64,6 +64,7 @@ class Domain(Bridge, Generic[E]):
     BASE_TABLE_1_POSE_NAME = "base_table_1_pose"
     BASE_TABLE_2_POSE_NAME = "base_table_2_pose"
     BASE_TABLE_3_POSE_NAME = "base_table_3_pose"
+    BASE_TABLE_4_POSE_NAME = "base_table_4_pose"
     TOOL_SEARCH_POSE_NAME = "tool_search_pose"
     BOX_SEARCH_POSE_NAME = "box_search_pose"
     UNKNOWN_POSE_NAME = "unknown_pose"
@@ -101,6 +102,7 @@ class Domain(Bridge, Generic[E]):
         self.base_table_1_pose = self.objects[self.BASE_TABLE_1_POSE_NAME]
         self.base_table_2_pose = self.objects[self.BASE_TABLE_2_POSE_NAME]
         self.base_table_3_pose = self.objects[self.BASE_TABLE_3_POSE_NAME]
+        self.base_table_4_pose = self.objects[self.BASE_TABLE_4_POSE_NAME]
         self.tool_search_pose = self.create_object(self.TOOL_SEARCH_POSE_NAME, Pose())
         self.box_search_pose = self.create_object(self.BOX_SEARCH_POSE_NAME, Pose())
         self.unknown_pose = self.create_object(self.UNKNOWN_POSE_NAME, Pose())
@@ -118,12 +120,14 @@ class Domain(Bridge, Generic[E]):
         self.multimeter = self.objects[Item.multimeter.name]
         self.relay = self.objects[Item.relay.name]
         self.screwdriver = self.objects[Item.screwdriver.name]
+        self.hot_glue_gun = self.objects[Item.hot_glue_gun.name]
         self.locations = self.create_enum_objects(Location)
         self.anywhere = self.objects[Location.anywhere.name]
         self.table_1 = self.objects[Location.table_1.name]
         self.table_2 = self.objects[Location.table_2.name]
         self.table_3 = self.objects[Location.table_3.name]
-        self.tables = (self.table_1, self.table_2, self.table_3)
+        self.table_4 = self.objects[Location.table_4.name]
+        self.tables = (self.table_1, self.table_2, self.table_3, self.table_4)
         self.in_box = self.objects[Location.in_box.name]
         self.on_robot = self.objects[Location.on_robot.name]
         self.tool_search_location = self.objects[Location.tool_search_location.name]
@@ -164,6 +168,7 @@ class Domain(Bridge, Generic[E]):
             self.base_table_1_pose: "table_1",
             self.base_table_2_pose: "table_2",
             self.base_table_3_pose: "table_3",
+            self.base_table_4_pose: "table_4",
             self.tool_search_pose: "where tool has been found",
             self.box_search_pose: "where box has been found",
         }

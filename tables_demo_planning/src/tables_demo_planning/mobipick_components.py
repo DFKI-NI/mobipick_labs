@@ -39,6 +39,7 @@ class Item(Enum):
     multimeter = "multimeter_1"
     relay = "relay_1"
     screwdriver = "screwdriver_1"
+    hot_glue_gun = "hot_glue_gun_1"
     something = "something"
 
 
@@ -47,6 +48,7 @@ class Location(Enum):
     table_1 = "table_1"
     table_2 = "table_2"
     table_3 = "table_3"
+    table_4 = "table_4"
     in_box = "in_box"
     on_robot = "on_robot"
     tool_search_location = "tool_search_location"

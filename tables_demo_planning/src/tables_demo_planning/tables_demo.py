@@ -178,8 +178,8 @@ class TablesDemoEnv(EnvironmentRepresentation[R]):
 
 
 class TablesDemoDomain(Domain[E]):
-    DEMO_ITEMS = (Item.box, Item.multimeter)
-    TABLE_LOCATIONS = (Location.table_1, Location.table_2, Location.table_3)
+    DEMO_ITEMS = (Item.box, Item.multimeter, Item.hot_glue_gun, Item.power_drill)
+    TABLE_LOCATIONS = (Location.table_1, Location.table_2, Location.table_3, Location.table_4)
     RETRIES_BEFORE_ABORTION = 2
 
     def __init__(self, env: E) -> None:
@@ -188,6 +188,7 @@ class TablesDemoDomain(Domain[E]):
             self.base_table_1_pose: self.table_1,
             self.base_table_2_pose: self.table_2,
             self.base_table_3_pose: self.table_3,
+            self.base_table_4_pose: self.table_4,
             self.tool_search_pose: self.tool_search_location,
             self.box_search_pose: self.box_search_location,
         }
