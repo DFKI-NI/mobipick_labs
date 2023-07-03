@@ -1,65 +1,108 @@
 # a list of boxes to add to the planning scene
 #
-# map
-# +----> y
-# |
-# |
-# v
-# x
+#   +---------+
+#   |         |
+#   | table_4 |
+#   |         |
+#   +---------+
+#                 +-------+
+#                 |       |
+#                 |       |
+#                 |       |
+#                 |table_3|
+#                 |       |
+#                 |       |
+#                 |       |
+#                 +-------+
 #
-#                 +--------------+
-#                 |              |
-#                 | parts_table  |
-#                 |              |
-#                 +--------------+
-#
-#
-#
-#
-#
-#
-#
-#                 +--------------+
-#                 |              |
-#                 |assembly_table|
-#                 |              |
-#                 +--------------+
-#
+#                 +-------+
+#                 |       |
+#                 |       |
+#                 |       |
+#                 |table_2|
+#                 |       |
+#                 |       |
+#                 |       |
+#                 +-------+
+#   +---------+
+#   |         |
+#   | table_1 |
+#   |         |                   x
+#   +---------+                   ^
+#                                 |
+#                                 |
+#                          y <----+ map
 
 planning_scene_boxes:
-  - scene_name: 'parts_table'
+  - scene_name: 'table_1'
     frame_id: 'map'
-    box_x_dimension: 0.7
-    box_y_dimension: 1.4
+    box_x_dimension: 0.8
+    box_y_dimension: 0.8
     box_z_dimension: 0.72
-    box_position_x: 19.735
-    box_position_y: 15.37
+    box_position_x: 18.3
+    box_position_y: 15.18
     box_position_z: 0.36
     box_orientation_x: 0.0
     box_orientation_y: 0.0
-    box_orientation_z: 0.00499998
-    box_orientation_w: 0.9999875
-  - scene_name: 'assembly_table'
+    box_orientation_z: 0.0
+    box_orientation_w: 1.0
+  - scene_name: 'table_2'
     frame_id: 'map'
-    box_x_dimension: 0.7
-    box_y_dimension: 1.4
+    box_x_dimension: 1.6
+    box_y_dimension: 0.8
+    box_z_dimension: 0.715
+    box_position_x: 19.565
+    box_position_y: 13.76
+    box_position_z: 0.3575
+    box_orientation_x: 0.0
+    box_orientation_y: 0.0
+    box_orientation_z: 0.0
+    box_orientation_w: 1.0
+  - scene_name: 'table_3'
+    frame_id: 'map'
+    box_x_dimension: 1.6
+    box_y_dimension: 0.8
+    box_z_dimension: 0.715
+    box_position_x: 21.265
+    box_position_y: 13.84
+    box_position_z: 0.3575
+    box_orientation_x: 0.0
+    box_orientation_y: 0.0
+    box_orientation_z: 0.0
+    box_orientation_w: 1.0
+  - scene_name: 'table_4'
+    frame_id: 'map'
+    box_x_dimension: 0.8
+    box_y_dimension: 0.8
     box_z_dimension: 0.72
-    box_position_x: 23.22
-    box_position_y: 15.37
+    box_position_x: 22.7
+    box_position_y: 15.04
     box_position_z: 0.36
     box_orientation_x: 0.0
     box_orientation_y: 0.0
-    box_orientation_z: 0.00499998
-    box_orientation_w: 0.9999875
-  - scene_name: 'side_wall'
+    box_orientation_z: 0.0
+    box_orientation_w: 1.0
+  - scene_name: 'back_wall'
     frame_id: 'map'
-    box_x_dimension: 7.0
-    box_y_dimension: 0.6
-    box_z_dimension: 2.0
-    box_position_x: 19.5
-    box_position_y: 16.45
-    box_position_z: 1.0
+    box_x_dimension: 5.3
+    box_y_dimension: 0.48
+    box_z_dimension: 2.34
+    box_position_x: 20.45
+    box_position_y: 16.16
+    box_position_z: 1.17
     box_orientation_x: 0.0
     box_orientation_y: 0.0
-    box_orientation_z: 0.00399999
-    box_orientation_w: 0.999992
+    box_orientation_z: 0.0
+    box_orientation_w: 1.0
+  - scene_name: 'roof'
+    frame_id: 'map'
+    box_x_dimension: 5.4
+    box_y_dimension: 2.9
+    box_z_dimension: 0.1
+    box_position_x: 20.5
+    box_position_y: 14.96
+    box_position_z: 2.335
+    box_orientation_x: 0.0
+    box_orientation_y: 0.0
+    box_orientation_z: 0.0
+    box_orientation_w: 1.0
