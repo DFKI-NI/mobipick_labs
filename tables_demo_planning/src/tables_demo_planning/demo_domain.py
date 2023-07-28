@@ -59,8 +59,6 @@ E = TypeVar('E', bound=EnvironmentRepresentation)
 class Domain(Bridge, Generic[E]):
     BASE_HANDOVER_POSE_NAME = "base_handover_pose"
     BASE_HOME_POSE_NAME = "base_home_pose"
-    BASE_PICK_POSE_NAME = "base_pick_pose"
-    BASE_PLACE_POSE_NAME = "base_place_pose"
     BASE_TABLE_1_POSE_NAME = "base_table_1_pose"
     BASE_TABLE_2_POSE_NAME = "base_table_2_pose"
     BASE_TABLE_3_POSE_NAME = "base_table_3_pose"
@@ -83,11 +81,12 @@ class Domain(Bridge, Generic[E]):
         self.robot = self.create_object("mobipick", env.robot)
         rosparam_namespace = "/mobipick/tables_demo_planning"
         self.api_poses: Dict[str, Pose] = {}
-        for param_name in rosparam.list_params(rosparam_namespace):
-            assert isinstance(param_name, str)
-            param = rosparam.get_param(param_name)
+        for param_path in rosparam.list_params(rosparam_namespace):
+            assert isinstance(param_path, str)
+            param = rosparam.get_param(param_path)
+            param_name = param_path.rsplit('/', maxsplit=1)[-1]
             if is_instance(param, Sequence[Sequence[Union[float, int]]]) and tuple(map(len, param)) == (3, 4):
-                self.api_poses[param_name.rsplit('/', maxsplit=1)[-1]] = TuplePose.to_pose(param)
+                self.api_poses[param_name] = TuplePose.to_pose(param)
         if len({TuplePose.from_pose(pose) for pose in self.api_poses.values()}) < len(self.api_poses):
             rospy.logwarn(
                 f"Duplicate poses in rosparam namespace '{rosparam_namespace}'"
@@ -96,8 +95,6 @@ class Domain(Bridge, Generic[E]):
         self.poses = self.create_objects(self.api_poses)
         self.base_home_pose = self.objects[self.BASE_HOME_POSE_NAME]
         self.base_handover_pose = self.objects[self.BASE_HANDOVER_POSE_NAME]
-        self.base_pick_pose = self.objects[self.BASE_PICK_POSE_NAME]
-        self.base_place_pose = self.objects[self.BASE_PLACE_POSE_NAME]
         self.base_table_1_pose = self.objects[self.BASE_TABLE_1_POSE_NAME]
         self.base_table_2_pose = self.objects[self.BASE_TABLE_2_POSE_NAME]
         self.base_table_3_pose = self.objects[self.BASE_TABLE_3_POSE_NAME]
@@ -159,8 +156,6 @@ class Domain(Bridge, Generic[E]):
         self.parameter_labels: Dict[Object, str] = {
             self.base_home_pose: "home",
             self.base_handover_pose: "handover",
-            self.base_pick_pose: "pick",
-            self.base_place_pose: "place",
             self.base_table_1_pose: "table_1",
             self.base_table_2_pose: "table_2",
             self.base_table_3_pose: "table_3",
