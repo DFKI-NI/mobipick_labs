@@ -28,7 +28,7 @@
 
   <!-- node to publish the camera frustum as visualisation marker -->
   <node pkg="mobipick_pick_n_place" type="camera_marker_publisher" name="camera_marker_publisher" output="screen" >
-    <param name="camera_frame" value="mobipick/gripper_astra_depth_frame" />
+    <param name="camera_frame" value="mobipick/eef_main_cam_depth_frame" />
   </node>
 
   <!-- ::::: Navigation ::::: -->

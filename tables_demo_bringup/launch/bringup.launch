@@ -22,7 +22,7 @@
       <param name="debug" value="false" />
       <param name="global_reference_frame" value="map" />
       <rosparam param="objects_of_interest" subst_value="True">$(arg objects_of_interest)</rosparam>
-      <remap from="/logical_image" to="/mobipick/gripper_astra/rgb/logical_image"/>
+      <remap from="/logical_image" to="/mobipick/eef_main_cam/rgb/logical_image"/>
     </node>
 
     <!-- force torque observer -->
