@@ -19,4 +19,4 @@ mobipick/install-deps.sh
 pip3 install 'unified-planning[tamer,fast-downward]==0.5.0.438.dev1'
 
 # Install Unified Planning Embedded Systems Bridge
-pip install up-esb==0.0.136
+pip install up-esb==0.0.177

@@ -47,8 +47,8 @@ from unified_planning.shortcuts import OneshotPlanner, Problem
 from unified_planning.engines import OptimalityGuarantee
 from unified_planning.model import UPState
 from unified_planning.model.metrics import MinimizeSequentialPlanLength
-from up_esb.plexmo import SequentialPlanDispatcher
-from up_esb.plexmo import SequentialPlanMonitor
+from up_esb.plexmo import PlanDispatcher
+from up_esb.plexmo import PlanMonitor
 
 
 class PickAndPlaceOrchestrator:
@@ -67,7 +67,7 @@ class PickAndPlaceOrchestrator:
         action_name = f"{len(self._executed_actions) + 1} {self._domain.label(action)}"
 
         self._domain.set_initial_values(self._problem)
-        monitor = SequentialPlanMonitor(self._problem)
+        monitor = PlanMonitor(self._problem)
         state = UPState(self._problem.initial_values)
         unsatisfied = monitor.check_preconditions(action, state)[1]
         if len(unsatisfied) > 0:
@@ -108,7 +108,7 @@ class PickAndPlaceOrchestrator:
 
         # execute the plan
         print("> Execution:")
-        dispatcher = SequentialPlanDispatcher()
+        dispatcher = PlanDispatcher()
         dispatcher.set_dispatch_callback(self.dispatch_cb)
         dispatcher_result = dispatcher.execute_plan(plan)
         print(">Dispatcher finished with result " + str(dispatcher_result))

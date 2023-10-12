@@ -51,7 +51,7 @@ from tables_demo_planning.subplan_visualization import SubPlanVisualization
 from unified_planning.plans import Plan, ActionInstance
 from unified_planning.shortcuts import OneshotPlanner, Problem
 from unified_planning.engines import OptimalityGuarantee
-from up_esb.plexmo import SequentialPlanMonitor, SequentialPlanDispatcher
+from up_esb.plexmo import PlanMonitor, PlanDispatcher
 from unified_planning.model import UPState
 
 
@@ -75,7 +75,7 @@ class TablesDemoOrchestrator:
 
         # check preconditions
         self._domain.set_initial_values(self._domain.problem)
-        monitor = SequentialPlanMonitor(self._domain.problem)
+        monitor = PlanMonitor(self._domain.problem)
         state = UPState(self._domain.problem.initial_values)
         unsatisfied = monitor.check_preconditions(action, state)[1]
         if len(unsatisfied) > 0:
@@ -208,9 +208,9 @@ class TablesDemoOrchestrator:
             # Execute the plan
             print("> Execution:")
 
-            dispatcher = SequentialPlanDispatcher()
+            dispatcher = PlanDispatcher()
             dispatcher.set_dispatch_callback(self.dispatch_cb)
-            dispatcher_result = dispatcher.execute_plan(plan)
+            dispatcher_result = dispatcher.execute_plan(plan, self._domain.get_executable_graph(plan))
             print(">Dispatcher finished with result " + str(dispatcher_result))
             if self._trigger_replanning:
                 print("Replanning")
