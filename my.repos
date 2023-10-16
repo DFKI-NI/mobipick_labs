@@ -10,7 +10,7 @@ repositories:
   grasplan:
     type: git
     url: https://github.com/aprilprojecteu/grasplan.git
-    version: tables-demo
+    version: noetic
   mobipick:
     type: git
     url: https://github.com/DFKI-NI/mobipick.git
