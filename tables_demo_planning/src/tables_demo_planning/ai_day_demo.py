@@ -5,38 +5,16 @@ from unified_planning.model import MinimizeSequentialPlanLength, Problem
 from unified_planning.plans import ActionInstance
 from unified_planning.shortcuts import Not, OneshotPlanner
 from up_esb import Bridge
-
-
-# Generic item class
-class Item:
-    def __init__(self, name: str) -> None:
-        self.name = name
-
-
-# Simple environment representation
-# TODO Replace with fact generator.
-class Env:
-    robot_items: Dict[str, Item] = {}
-
-
-# Robot action to get item
-# TODO Call actual robot command within.
-def get(item: Item) -> None:
-    Env.robot_items[item.name] = item
-    print(f"Get {item.name}.")
-
-
-# Fluent which returns whether robot has item
-def robot_has(item: Item) -> bool:
-    return item in Env.robot_items.values()
+from tables_demo_planning.robot_control import Item, Mobipick
 
 
 class DemoDayDomain(Bridge):
     def __init__(self) -> None:
         super().__init__()
         self.create_types([Pose, Item])
-        self.robot_has = self.create_fluent_from_function(robot_has)
-        self.get, (item,) = self.create_action_from_function(get)
+        self.robot_arm_at = self.create_fluent_from_function(Mobipick.get_robot_arm_at)
+        self.robot_has = self.create_fluent_from_function(Mobipick.get_robot_has)
+        self.get, (item,) = self.create_action_from_function(Mobipick.get)
         self.get.add_precondition(Not(self.robot_has(item)))
         self.get.add_effect(self.robot_has(item), True)
 
