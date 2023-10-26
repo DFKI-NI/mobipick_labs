@@ -76,14 +76,14 @@ class TablesDemoAPIRobot(TablesDemoRobot['TablesDemoAPIEnv'], APIRobot):
 
         self.on_fact_generator = OnGenerator(
             fact_name='on',
-            objects_of_interest=[item.value for item in TablesDemoAPIDomain.DEMO_ITEMS],
+            objects_of_interest=[name for name in TablesDemoAPIDomain.DEMO_ITEMS.keys()],
             container_objects=['klt'],
             query_srv_str="/pick_pose_selector_node/pose_selector_class_query",
             planning_scene_param="/mobipick/pick_object_node/planning_scene_boxes",
         )
         # Clear all demo items' poses already on the pose_selector from previous observations.
-        for item in TablesDemoAPIDomain.DEMO_ITEMS:
-            class_id, instance_id = item.value.rsplit("_", 1)
+        for name in TablesDemoAPIDomain.DEMO_ITEMS.keys():
+            class_id, instance_id = name.rsplit("_", 1)
             self.pose_selector_delete(PoseDeleteRequest(class_id=class_id, instance_id=int(instance_id)))
 
     def pick_item(self, pose: Pose, location: Location, item: Item) -> bool:
@@ -97,31 +97,31 @@ class TablesDemoAPIRobot(TablesDemoRobot['TablesDemoAPIEnv'], APIRobot):
         location = self.env.resolve_search_location(location)
         perceived_item_locations = self.perceive(location)
         if item not in perceived_item_locations.keys():
-            rospy.logwarn(f"Cannot find {item.value} at {location.name}. Pick up FAILED!")
+            rospy.logwarn(f"Cannot find {item.name} at {location.name}. Pick up FAILED!")
             return False
 
         if perceived_item_locations[item] != location:
-            rospy.logwarn(f"Found {item.value} but not on {location.name}. Pick up FAILED!")
+            rospy.logwarn(f"Found {item.name} but not on {location.name}. Pick up FAILED!")
             return False
 
-        self.pick_object_goal.object_name = item.value
+        self.pick_object_goal.object_name = item.name
         self.pick_object_goal.support_surface_name = location.name
         self.pick_object_goal.ignore_object_list = [
-            item.value
-            for item in TablesDemoDomain.DEMO_ITEMS
+            item.name
+            for item in TablesDemoDomain.DEMO_ITEMS.values()
             if self.env.believed_item_locations.get(item) == Location.in_box
         ]
-        rospy.loginfo(f"Sending pick '{item.value}' goal to pick object action server: {self.pick_object_goal}")
+        rospy.loginfo(f"Sending pick '{item.name}' goal to pick object action server: {self.pick_object_goal}")
         self.pick_object_action_client.send_goal(self.pick_object_goal)
         rospy.loginfo("Wait for result from pick object action server.")
         if not self.pick_object_action_client.wait_for_result(timeout=rospy.Duration(50.0)):
-            rospy.logwarn(f"Pick up {item.value} at {location.name} FAILED due to timeout!")
+            rospy.logwarn(f"Pick up {item.name} at {location.name} FAILED due to timeout!")
             return False
 
         result = self.pick_object_action_client.get_result()
         rospy.loginfo(f"The pick object server is done with execution, resuĺt was: '{result}'")
         if not result or not result.success:
-            rospy.logwarn(f"Pick up {item.value} at {location.name} FAILED!")
+            rospy.logwarn(f"Pick up {item.name} at {location.name} FAILED!")
             return False
 
         TablesDemoRobot.pick_item(self, pose, location, item)
@@ -136,25 +136,25 @@ class TablesDemoAPIRobot(TablesDemoRobot['TablesDemoAPIEnv'], APIRobot):
             return False
 
         rospy.loginfo("Found place object action server.")
-        observe_before_place = self.env.believed_item_locations.get(Item.box) != Location.on_robot or all(
+        observe_before_place = self.env.believed_item_locations.get(Item.get("box")) != Location.on_robot or all(
             self.env.believed_item_locations.get(check_item) != Location.in_box
-            for check_item in TablesDemoDomain.DEMO_ITEMS
+            for check_item in TablesDemoDomain.DEMO_ITEMS.values()
         )
         if observe_before_place:
             self.perceive(location)
         self.place_object_goal.support_surface_name = location.name
         self.place_object_goal.observe_before_place = observe_before_place
-        rospy.loginfo(f"Sending place '{item.value}' goal to place object action server: {self.place_object_goal}")
+        rospy.loginfo(f"Sending place '{item.name}' goal to place object action server: {self.place_object_goal}")
         self.place_object_action_client.send_goal(self.place_object_goal)
         rospy.loginfo("Wait for result from place object action server.")
         if not self.place_object_action_client.wait_for_result(timeout=rospy.Duration(50.0)):
-            rospy.logwarn(f"Place {item.value} at {location.name} FAILED due to timeout!")
+            rospy.logwarn(f"Place {item.name} at {location.name} FAILED due to timeout!")
             return False
 
         result = self.place_object_action_client.get_result()
         rospy.loginfo(f"The place object server is done with execution, result was: '{result}'")
         if not result or not result.success:
-            rospy.logwarn(f"Place {item.value} at {location.name} FAILED!")
+            rospy.logwarn(f"Place {item.name} at {location.name} FAILED!")
             return False
 
         TablesDemoRobot.place_item(self, pose, location, item)
@@ -170,19 +170,19 @@ class TablesDemoAPIRobot(TablesDemoRobot['TablesDemoAPIEnv'], APIRobot):
 
         rospy.loginfo("Found insert object action server.")
         self.perceive(location)
-        self.insert_object_goal.support_surface_name = Item.box.value
+        self.insert_object_goal.support_surface_name = "box"
         self.insert_object_goal.observe_before_insert = True
-        rospy.loginfo(f"Sending insert '{item.value}' goal to insert object action server: {self.insert_object_goal}")
+        rospy.loginfo(f"Sending insert '{item.name}' goal to insert object action server: {self.insert_object_goal}")
         self.insert_object_action_client.send_goal(self.insert_object_goal)
         rospy.loginfo("Wait for result from insert object action server.")
         if not self.insert_object_action_client.wait_for_result(timeout=rospy.Duration(50.0)):
-            rospy.logwarn(f"Insert {item.value} into box at {location.name} FAILED due to timeout!")
+            rospy.logwarn(f"Insert {item.name} into box at {location.name} FAILED due to timeout!")
             return False
 
         result = self.insert_object_action_client.get_result()
         rospy.loginfo(f"The insert object server is done with execution, result was: '{result}'")
         if not result or not result.success:
-            rospy.logwarn(f"Insert {item.value} into box at {location.name} FAILED!")
+            rospy.logwarn(f"Insert {item.name} into box at {location.name} FAILED!")
             return False
 
         TablesDemoRobot.store_item(self, pose, location, item)
@@ -213,7 +213,7 @@ class TablesDemoAPIRobot(TablesDemoRobot['TablesDemoAPIEnv'], APIRobot):
         rospy.loginfo(f"Clear facts for {location.name}.")
         for believed_item, believed_location in self.env.believed_item_locations.items():
             if believed_location == location:
-                class_id, instance_id = believed_item.value.rsplit("_", 1)
+                class_id, instance_id = believed_item.name.rsplit("_", 1)
                 self.pose_selector_delete(PoseDeleteRequest(class_id=class_id, instance_id=int(instance_id)))
         self.pose_selector_activate(True)
         rospy.sleep(5)
@@ -227,28 +227,28 @@ class TablesDemoAPIRobot(TablesDemoRobot['TablesDemoAPIEnv'], APIRobot):
                 fact_item_name, fact_location_name = fact.values
                 rospy.loginfo(f"{fact_item_name} on {fact_location_name} returned by pose_selector and fact_generator.")
                 if (
-                    fact_item_name in [item.value for item in TablesDemoDomain.DEMO_ITEMS]
+                    fact_item_name in [name for name in TablesDemoDomain.DEMO_ITEMS.keys()]
                     and fact_location_name == location.name
                 ):
                     rospy.loginfo(f"{fact_item_name} is perceived as on {fact_location_name}.")
-                    perceived_item_locations[Item(fact_item_name)] = location
+                    perceived_item_locations[Item.get(fact_item_name)] = location
                     # Remove item from offered_items dict to be able to repeat the handover
                     # action with that item, if it is perceived again in the scene.
-                    self.env.offered_items.discard(Item(fact_item_name))
+                    self.env.offered_items.discard(Item.get(fact_item_name))
         # Also perceive facts for items in box if it is perceived on table location.
         for fact in facts:
             if fact.name == "in":
                 fact_item_name, fact_location_name = fact.values
                 if (
-                    fact_item_name in [item.value for item in TablesDemoDomain.DEMO_ITEMS]
-                    and fact_location_name == Item.box.value
-                    and perceived_item_locations.get(Item.box) == location
+                    fact_item_name in [name for name in TablesDemoDomain.DEMO_ITEMS.keys()]
+                    and fact_location_name == "box"
+                    and perceived_item_locations.get(Item.get("box")) == location
                 ):
                     rospy.loginfo(f"{fact_item_name} is perceived as on {fact_location_name}.")
-                    perceived_item_locations[Item(fact_item_name)] = Location.in_box
+                    perceived_item_locations[Item.get(fact_item_name)] = Location.in_box
                     # Remove item from offered_items dict to be able to repeat the handover
                     # action with that item, if it is perceived again in the scene.
-                    self.env.offered_items.discard(Item(fact_item_name))
+                    self.env.offered_items.discard(Item.get(fact_item_name))
         # Determine newly perceived items and their locations.
         self.env.newly_perceived_item_locations.clear()
         for perceived_item, perceived_location in perceived_item_locations.items():

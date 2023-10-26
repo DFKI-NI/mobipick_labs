@@ -82,11 +82,11 @@ class TaskServerNode:
         # TODO OLD still using items and locations from castle demo
         # HACK hardcoded initial object locations
         initial_item_locations = {}
-        initial_item_locations[Item.multimeter] = Location.table_3
-        initial_item_locations[Item.relay] = Location.table_3
-        initial_item_locations[Item.screwdriver] = Location.table_3
-        initial_item_locations[Item.box] = Location.table_2
-        initial_item_locations[Item.power_drill] = Location.table_2
+        initial_item_locations[Item.get("multimeter")] = Location.table_3
+        initial_item_locations[Item.get("relay")] = Location.table_3
+        initial_item_locations[Item.get("screwdriver")] = Location.table_3
+        initial_item_locations[Item.get("box")] = Location.table_2
+        initial_item_locations[Item.get("power_drill")] = Location.table_2
         # add only items, which are not already set to avoid overriding perceived locations
         for item in list(initial_item_locations.keys()):
             if item in self._domain.env.believed_item_locations:

@@ -16,11 +16,11 @@ class TablesDemoSimRobot(TablesDemoRobot['TablesDemoSimEnv']):
         location = self.env.resolve_search_location(location)
         perceived_item_locations = self.perceive(location)
         if perceived_item_locations.get(item) != location:
-            print(f"Cannot find {item.value} at {location.name}. Pick item FAILED!")
+            print(f"Cannot find {item.name} at {location.name}. Pick item FAILED!")
             return False
 
         if self.env.actual_item_locations[item] != location:
-            print(f"Pick up {item.value} at {location.name} FAILED!")
+            print(f"Pick up {item.name} at {location.name} FAILED!")
             return False
 
         self.env.actual_item_locations[item] = Location.on_robot
@@ -29,11 +29,11 @@ class TablesDemoSimRobot(TablesDemoRobot['TablesDemoSimEnv']):
     def place_item(self, pose: Pose, location: Location, item: Item) -> bool:
         location = self.env.resolve_search_location(location)
         if item != self.env.robot.item:
-            print(f"Item {item.value} is not on the robot. Place item FAILED!")
+            print(f"Item {item.name} is not on the robot. Place item FAILED!")
             return False
 
         if self.env.actual_item_locations[item] != Location.on_robot:
-            print(f"Place down {item.value} at {location.name} FAILED!")
+            print(f"Place down {item.name} at {location.name} FAILED!")
             return False
 
         self.env.actual_item_locations[item] = location
@@ -42,15 +42,15 @@ class TablesDemoSimRobot(TablesDemoRobot['TablesDemoSimEnv']):
     def store_item(self, pose: Pose, location: Location, item: Item) -> bool:
         location = self.env.resolve_search_location(location)
         perceived_item_locations = self.perceive(location)
-        if perceived_item_locations.get(Item.box) != location:
-            print(f"Cannot find {Item.box.value} at {location.name}. Store item FAILED!")
+        if perceived_item_locations.get(Item.get("box")) != location:
+            print(f"Cannot find box at {location.name}. Store item FAILED!")
             return False
 
         if (
             self.env.actual_item_locations[item] != Location.on_robot
-            or self.env.actual_item_locations[Item.box] != location
+            or self.env.actual_item_locations[Item.get("box")] != location
         ):
-            print(f"Store {item.value} into {Item.box.value} at {location.name} FAILED!")
+            print(f"Store {item.name} into box at {location.name} FAILED!")
             return False
 
         return TablesDemoRobot.store_item(self, pose, location, item)
@@ -99,7 +99,7 @@ class TablesDemoSimDomain(TablesDemoDomain[TablesDemoSimEnv]):
     def __init__(self, item_locations: Dict[Item, Location]) -> None:
         super().__init__(TablesDemoSimEnv(item_locations))
         home_pose = self.api_poses[self.BASE_HOME_POSE_NAME]
-        self.env.robot.initialize(home_pose, home_pose, ArmPose.unknown, Item.nothing)
+        self.env.robot.initialize(home_pose, home_pose, ArmPose.unknown, Item.NOTHING)
         self.set_fluent_functions((self.get_robot_at,))
         self.set_api_actions(
             (
@@ -120,10 +120,10 @@ def test_tables_demo() -> None:
     unified_planning.shortcuts.get_environment().credits_stream = None
     # Define environment values.
     item_locations = {
-        Item.multimeter: Location.table_3,
-        Item.relay: Location.table_3,
-        Item.screwdriver: Location.table_2,
-        Item.box: Location.table_1,
+        Item.get("multimeter"): Location.table_3,
+        Item.get("relay"): Location.table_3,
+        Item.get("screwdriver"): Location.table_2,
+        Item.get("box"): Location.table_1,
     }
     # Define goal.
     target_location = Location.table_2

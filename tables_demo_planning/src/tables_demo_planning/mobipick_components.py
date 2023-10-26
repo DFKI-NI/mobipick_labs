@@ -32,14 +32,21 @@ class ArmPose(Enum):
         return ArmPose.unknown
 
 
-class Item(Enum):
-    nothing = "nothing"
-    power_drill = "power_drill_with_grip_1"
-    box = "klt_1"
-    multimeter = "multimeter_1"
-    relay = "relay_1"
-    screwdriver = "screwdriver_1"
-    something = "something"
+class Item:
+    items: Dict[str, 'Item'] = {}
+    NOTHING: 'Item'
+
+    def __init__(self, name: str) -> None:
+        assert name not in Item.items.keys(), f"Item with name '{name}' already exists!"
+        self.name = name
+        Item.items[name] = self
+
+    @staticmethod
+    def get(name: str) -> 'Item':
+        return Item.items[name] if name in Item.items.keys() else Item(name)
+
+
+Item.NOTHING = Item("nothing")
 
 
 class Location(Enum):
@@ -108,9 +115,9 @@ class APIRobot(Robot, robot_api.Robot):
         return ArmPose.get_by_value(self.arm.get_pose_name())
 
     def get_item(self) -> Item:
-        """Return Item.something if robot arm has an object attached, else Item.nothing."""
+        """Return Item 'something' if robot arm has an object attached, else Item.NOTHING."""
         self.arm.execute("HasAttachedObjects")
-        return Item.something if self.arm.get_result().result else Item.nothing
+        return Item.get("something") if self.arm.get_result().result else Item.NOTHING
 
     def get(self) -> Tuple[Pose, ArmPose, Item]:
         """Return current state of robot."""
