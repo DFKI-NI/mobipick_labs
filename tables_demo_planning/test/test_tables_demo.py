@@ -3,10 +3,11 @@
 """This test script tests planning, re-planning, and visualization without Gazebo simulation."""
 
 
-from typing import Dict
+from typing import Dict, List, Optional
 import unified_planning
 from geometry_msgs.msg import Pose
 from unified_planning.model import Object
+from unified_planning.plans import ActionInstance
 from tables_demo_planning.mobipick_components import ArmPose, Item, Location
 from tables_demo_planning.tables_demo import TablesDemoDomain, TablesDemoEnv, TablesDemoRobot
 
@@ -114,6 +115,52 @@ class TablesDemoSimDomain(TablesDemoDomain[TablesDemoSimEnv]):
 
     def get_robot_at(self, pose: Object) -> bool:
         return pose.name in self.api_poses.keys() and self.api_poses[pose.name] == self.env.robot.pose
+
+    def replan(self) -> Optional[List[ActionInstance]]:
+        # Remember and delete locations for outdated items.
+        actual_item_locations: Dict[str, Location] = {}
+        believed_item_locations: Dict[str, Location] = {}
+        for name, item in list(Item.items.items()):
+            if item != Item.NOTHING:
+                del self._objects[name]
+                del self._api_objects[name]
+                del Item.items[name]
+                if item in self.env.actual_item_locations.keys():
+                    actual_item_locations[name] = self.env.actual_item_locations[item]
+                    del self.env.actual_item_locations[item]
+                if item in self.env.believed_item_locations.keys():
+                    believed_item_locations[name] = self.env.believed_item_locations[item]
+                    del self.env.believed_item_locations[item]
+        # Create new items.
+        items = {
+            item.name: item
+            for item in [
+                Item.get("power_drill"),
+                Item.get("box"),
+                Item.get("multimeter"),
+                Item.get("relay"),
+                Item.get("screwdriver"),
+            ]
+        }
+        self.items = self.create_objects(items)
+        self.power_drill = self.objects["power_drill"]
+        self.box = self.objects["box"]
+        self.multimeter = self.objects["multimeter"]
+        self.relay = self.objects["relay"]
+        self.screwdriver = self.objects["screwdriver"]
+        # Update DEMO_ITEMS for visualization.
+        TablesDemoDomain.DEMO_ITEMS = {item.name: item for item in (Item.get("box"), Item.get("multimeter"))}
+        # Update item locations from previously remembered locations.
+        for name, location in actual_item_locations.items():
+            if name in items.keys():
+                self.env.actual_item_locations[items[name]] = location
+        for name, location in believed_item_locations.items():
+            if name in items.keys():
+                self.env.believed_item_locations[items[name]] = location
+        # Reset goals using the new items.
+        target_location = Location.table_2
+        self.set_goals(target_location)
+        return super().replan()
 
 
 def test_tables_demo() -> None:
