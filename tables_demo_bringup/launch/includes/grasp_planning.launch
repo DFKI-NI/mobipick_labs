@@ -26,6 +26,7 @@
     <param name="pose_selector_get_all_poses_srv_name" type="string" value="/pick_pose_selector_node/pose_selector_get_all" />
     <param name="pose_selector_delete_srv_name" type="string" value="/pick_pose_selector_node/pose_selector_delete" />
     <param name="detach_all_objects" value="true" />
+    <param name="clear_octomap" type="bool" value="true"/>
     <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/pick_params.yaml" command="load" />
     <rosparam file="$(arg planning_scene_config)" command="load" />
     <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/grasp_planning_core_params.yaml" command="load" />
@@ -44,6 +45,7 @@
               command="load" ns="handcoded_grasp_planner_transforms" />
     <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/object_grasps/handcoded_grasp_planner_hot_glue_gun.yaml"
               command="load" ns="handcoded_grasp_planner_transforms" />
+     <rosparam param="clear_octomap"> $(arg clear_octomap)</rosparam>
   </node>
 
 </launch>
