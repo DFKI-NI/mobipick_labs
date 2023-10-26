@@ -25,46 +25,46 @@ planning_scene_boxes:
     box_x_dimension: 0.8
     box_y_dimension: 0.84
     box_z_dimension: 0.76
-    box_position_x: 16.85
-    box_position_y: 20.90
+    box_position_x: 10.16
+    box_position_y: 2.66
     box_position_z: 0.38
     box_orientation_x: 0.0
     box_orientation_y: 0.0
     box_orientation_z: 0.0
     box_orientation_w: 1.0
-  - scene_name: 'assembly_table'
-    frame_id: 'map'
+  - box_orientation_w: 1.0
+    box_orientation_x: 0.0
+    box_orientation_y: 0.0
+    box_orientation_z: 0.0
+    box_position_x: 16.56
+    box_position_y: 1.82
+    box_position_z: 0.51
     box_x_dimension: 1.65
     box_y_dimension: 0.8
     box_z_dimension: 1.02
-    box_position_x: 10.75
-    box_position_y: 21.61
-    box_position_z: 0.51
+    frame_id: map
+    scene_name: assembly_table
+  - box_orientation_w: 1.0
     box_orientation_x: 0.0
     box_orientation_y: 0.0
     box_orientation_z: 0.0
-    box_orientation_w: 1.0
-  - scene_name: 'assembly_boxes'
-    frame_id: 'map'
+    box_position_x: 16.06
+    box_position_y: 1.7
+    box_position_z: 1.26
     box_x_dimension: 0.6
     box_y_dimension: 0.35
     box_z_dimension: 0.48
-    box_position_x: 11.24
-    box_position_y: 21.73
-    box_position_z: 1.26
+    frame_id: map
+    scene_name: assembly_boxes
+  - box_orientation_w: 1.0
     box_orientation_x: 0.0
     box_orientation_y: 0.0
     box_orientation_z: 0.0
-    box_orientation_w: 1.0
-  - scene_name: 'assembly_wall'
-    frame_id: 'map'
+    box_position_x: 16.54
+    box_position_y: 1.45
+    box_position_z: 1.15
     box_x_dimension: 1.6
     box_y_dimension: 0.3
     box_z_dimension: 2.3
-    box_position_x: 10.78
-    box_position_y: 21.98
-    box_position_z: 1.15
-    box_orientation_x: 0.0
-    box_orientation_y: 0.0
-    box_orientation_z: 0.0
-    box_orientation_w: 1.0
+    frame_id: map
+    scene_name: assembly_wall
