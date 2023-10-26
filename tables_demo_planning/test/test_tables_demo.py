@@ -148,8 +148,6 @@ class TablesDemoSimDomain(TablesDemoDomain[TablesDemoSimEnv]):
         self.multimeter = self.objects["multimeter"]
         self.relay = self.objects["relay"]
         self.screwdriver = self.objects["screwdriver"]
-        # Update DEMO_ITEMS for visualization.
-        TablesDemoDomain.DEMO_ITEMS = {item.name: item for item in (Item.get("box"), Item.get("multimeter"))}
         # Update item locations from previously remembered locations.
         for name, location in actual_item_locations.items():
             if name in items.keys():
@@ -158,6 +156,8 @@ class TablesDemoSimDomain(TablesDemoDomain[TablesDemoSimEnv]):
             if name in items.keys():
                 self.env.believed_item_locations[items[name]] = location
         # Reset goals using the new items.
+        target_item = Item.get("multimeter")
+        TablesDemoDomain.DEMO_ITEMS = {item.name: item for item in (Item.get("box"), target_item)}
         target_location = Location.table_2
         self.set_goals(target_location)
         return super().replan()
