@@ -45,6 +45,8 @@
               command="load" ns="handcoded_grasp_planner_transforms" />
     <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/object_grasps/handcoded_grasp_planner_hot_glue_gun.yaml"
               command="load" ns="handcoded_grasp_planner_transforms" />
+    <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/object_grasps/handcoded_grasp_planner_materialbox.yaml"
+              command="load" ns="handcoded_grasp_planner_transforms" />
      <rosparam param="clear_octomap"> $(arg clear_octomap)</rosparam>
   </node>
 
