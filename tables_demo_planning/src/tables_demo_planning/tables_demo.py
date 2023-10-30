@@ -77,11 +77,12 @@ class TablesDemoRobot(Robot, ABC, Generic[E]):
         self.arm_pose = ArmPose.home
         return True
 
-    def store_item(self, pose: Pose, location: Location, item: Item) -> bool:
+    def store_item(self, pose: Pose, location: Location, item: Item, klt: Item) -> bool:
         """At pose, store item into box at location, the move arm to home pose."""
-        print(f"Successfully inserted {item.name} into box.")
+        print(f"Successfully inserted {item.name} into box {klt.name}.")
         self.item = Item.NOTHING
         self.env.believed_item_locations[item] = Location.in_box
+        # TODO add new in_box fluent
         self.arm_pose = ArmPose.home
         return True
 
@@ -231,13 +232,13 @@ class TablesDemoDomain(Domain[E]):
             self.place_item.add_effect(self.robot_arm_at(arm_pose), arm_pose == self.arm_pose_home)
         self.place_item.add_effect(self.believe_item_at(item, self.on_robot), False)
         self.place_item.add_effect(self.believe_item_at(item, location), True)
-        self.store_item, (_, pose, location, item) = self.create_action_from_function(
+        self.store_item, (_, pose, location, item, klt) = self.create_action_from_function(
             TablesDemoRobot.store_item, set_callable=False
         )
         self.store_item.add_precondition(self.robot_at(pose))
         self.store_item.add_precondition(self.robot_has(item))
         self.store_item.add_precondition(self.believe_item_at(item, self.on_robot))
-        self.store_item.add_precondition(self.believe_item_at(self.box, location))
+        self.store_item.add_precondition(self.believe_item_at(klt, location))
         self.store_item.add_precondition(self.pose_at(pose, location))
         self.store_item.add_precondition(Not(Equals(location, self.anywhere)))
         self.store_item.add_effect(self.robot_has(item), False)
@@ -246,6 +247,7 @@ class TablesDemoDomain(Domain[E]):
             self.store_item.add_effect(self.robot_arm_at(arm_pose), arm_pose == self.arm_pose_home)
         self.store_item.add_effect(self.believe_item_at(item, self.on_robot), False)
         self.store_item.add_effect(self.believe_item_at(item, self.in_box), True)
+        # TODO add new Fluent in_box
         self.handover_item, (_, pose, item) = self.create_action_from_function(
             TablesDemoRobot.hand_over_item, set_callable=False
         )

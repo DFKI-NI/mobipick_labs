@@ -161,7 +161,7 @@ class TablesDemoAPIRobot(TablesDemoRobot['TablesDemoAPIEnv'], APIRobot):
         self.arm.move("home")
         return True
 
-    def store_item(self, pose: Pose, location: Location, item: Item) -> bool:
+    def store_item(self, pose: Pose, location: Location, item: Item, klt: Item) -> bool:
         """At pose, store item into box at location, then move arm to home pose."""
         rospy.loginfo("Waiting for insert object action server.")
         if not self.insert_object_action_client.wait_for_server(timeout=rospy.Duration(10.0)):
@@ -170,7 +170,8 @@ class TablesDemoAPIRobot(TablesDemoRobot['TablesDemoAPIEnv'], APIRobot):
 
         rospy.loginfo("Found insert object action server.")
         self.perceive(location)
-        self.insert_object_goal.support_surface_name = "klt_1"
+        assert(klt.name.startswith("klt_"))
+        self.insert_object_goal.support_surface_name = klt.name
         self.insert_object_goal.observe_before_insert = True
         rospy.loginfo(f"Sending insert '{item.name}' goal to insert object action server: {self.insert_object_goal}")
         self.insert_object_action_client.send_goal(self.insert_object_goal)
@@ -185,7 +186,7 @@ class TablesDemoAPIRobot(TablesDemoRobot['TablesDemoAPIEnv'], APIRobot):
             rospy.logwarn(f"Insert {item.name} into box at {location.name} FAILED!")
             return False
 
-        TablesDemoRobot.store_item(self, pose, location, item)
+        TablesDemoRobot.store_item(self, pose, location, item, klt)
         self.arm.move("home")
         return True
 

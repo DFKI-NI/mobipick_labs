@@ -40,21 +40,22 @@ class TablesDemoSimRobot(TablesDemoRobot['TablesDemoSimEnv']):
         self.env.actual_item_locations[item] = location
         return TablesDemoRobot.place_item(self, pose, location, item)
 
-    def store_item(self, pose: Pose, location: Location, item: Item) -> bool:
+    def store_item(self, pose: Pose, location: Location, item: Item, klt: Item) -> bool:
         location = self.env.resolve_search_location(location)
         perceived_item_locations = self.perceive(location)
-        if perceived_item_locations.get(Item.get("klt_1")) != location:
-            print(f"Cannot find box at {location.name}. Store item FAILED!")
+        assert(klt.name.startswith("klt_"))
+        if perceived_item_locations.get(klt) != location:
+            print(f"Cannot find box {klt.name} at {location.name}. Store item FAILED!")
             return False
 
         if (
             self.env.actual_item_locations[item] != Location.on_robot
-            or self.env.actual_item_locations[Item.get("klt_1")] != location
+            or self.env.actual_item_locations[klt] != location
         ):
-            print(f"Store {item.name} into box at {location.name} FAILED!")
+            print(f"Store {item.name} into box {klt.name} at {location.name} FAILED!")
             return False
 
-        return TablesDemoRobot.store_item(self, pose, location, item)
+        return TablesDemoRobot.store_item(self, pose, location, item, klt)
 
     def perceive(self, location: Location) -> Dict[Item, Location]:
         # Determine newly perceived items and their locations.
