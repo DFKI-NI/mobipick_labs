@@ -136,7 +136,7 @@ class TablesDemoAPIRobot(TablesDemoRobot['TablesDemoAPIEnv'], APIRobot):
             return False
 
         rospy.loginfo("Found place object action server.")
-        observe_before_place = self.env.believed_item_locations.get(Item.get("box")) != Location.on_robot or all(
+        observe_before_place = self.env.believed_item_locations.get(Item.get("box_1")) != Location.on_robot or all(
             self.env.believed_item_locations.get(check_item) != Location.in_box
             for check_item in TablesDemoDomain.DEMO_ITEMS.values()
         )
@@ -170,7 +170,7 @@ class TablesDemoAPIRobot(TablesDemoRobot['TablesDemoAPIEnv'], APIRobot):
 
         rospy.loginfo("Found insert object action server.")
         self.perceive(location)
-        self.insert_object_goal.support_surface_name = "box"
+        self.insert_object_goal.support_surface_name = "box_1"
         self.insert_object_goal.observe_before_insert = True
         rospy.loginfo(f"Sending insert '{item.name}' goal to insert object action server: {self.insert_object_goal}")
         self.insert_object_action_client.send_goal(self.insert_object_goal)
@@ -241,8 +241,8 @@ class TablesDemoAPIRobot(TablesDemoRobot['TablesDemoAPIEnv'], APIRobot):
                 fact_item_name, fact_location_name = fact.values
                 if (
                     fact_item_name in [name for name in TablesDemoDomain.DEMO_ITEMS.keys()]
-                    and fact_location_name == "box"
-                    and perceived_item_locations.get(Item.get("box")) == location
+                    and fact_location_name == "box_1"
+                    and perceived_item_locations.get(Item.get("box_1")) == location
                 ):
                     rospy.loginfo(f"{fact_item_name} is perceived as on {fact_location_name}.")
                     perceived_item_locations[Item.get(fact_item_name)] = Location.in_box

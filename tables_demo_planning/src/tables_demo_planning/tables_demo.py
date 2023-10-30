@@ -119,7 +119,7 @@ class TablesDemoRobot(Robot, ABC, Generic[E]):
 
     def search_box(self) -> bool:
         """Initiate search for box."""
-        self.env.item_search = Item.get("box")
+        self.env.item_search = Item.get("box_1")
         self.check_reset_search()
         return True
 
@@ -178,7 +178,7 @@ class TablesDemoEnv(EnvironmentRepresentation[R]):
 
 
 class TablesDemoDomain(Domain[E]):
-    DEMO_ITEMS = {item.name: item for item in (Item.get("box"), Item.get("multimeter"))}
+    DEMO_ITEMS = {item.name: item for item in (Item.get("box_1"), Item.get("multimeter_1"))}
     TABLE_LOCATIONS = (Location.table_1, Location.table_2, Location.table_3)
     RETRIES_BEFORE_ABORTION = 2
 
@@ -369,20 +369,20 @@ class TablesDemoDomain(Domain[E]):
     def set_goals(self, target_location: Location) -> None:
         """Set the goals for the overall demo."""
         self.problem.clear_goals()
-        if "box" in self.DEMO_ITEMS.keys():
-            if "multimeter" in self.DEMO_ITEMS.keys():
+        if "box_1" in self.DEMO_ITEMS.keys():
+            if "multimeter_1" in self.DEMO_ITEMS.keys():
                 self.problem.add_goal(self.believe_item_at(self.multimeter, self.in_box))
-            if "relay" in self.DEMO_ITEMS.keys():
+            if "relay_1" in self.DEMO_ITEMS.keys():
                 self.problem.add_goal(self.believe_item_at(self.relay, self.in_box))
-            if "screwdriver" in self.DEMO_ITEMS.keys():
+            if "screwdriver_1" in self.DEMO_ITEMS.keys():
                 self.problem.add_goal(self.believe_item_at(self.screwdriver, self.in_box))
             self.problem.add_goal(self.believe_item_at(self.box, self.objects[target_location.name]))
         else:
-            if "multimeter" in self.DEMO_ITEMS.keys():
+            if "multimeter_1" in self.DEMO_ITEMS.keys():
                 self.problem.add_goal(self.believe_item_at(self.multimeter, self.objects[target_location.name]))
-            if "relay" in self.DEMO_ITEMS.keys():
+            if "relay_1" in self.DEMO_ITEMS.keys():
                 self.problem.add_goal(self.believe_item_at(self.relay, self.objects[target_location.name]))
-            if "screwdriver" in self.DEMO_ITEMS.keys():
+            if "screwdriver_1" in self.DEMO_ITEMS.keys():
                 self.problem.add_goal(self.believe_item_at(self.screwdriver, self.objects[target_location.name]))
 
     def set_search_goals(self) -> None:
@@ -391,7 +391,7 @@ class TablesDemoDomain(Domain[E]):
         self.subproblem.clear_goals()
         self.subproblem.add_goal(
             self.believe_item_at(self.box, self.box_search_location)
-            if self.env.item_search == Item.get("box")
+            if self.env.item_search == Item.get("box_1")
             else self.believe_item_at(self.objects[self.env.item_search.name], self.tool_search_location)
         )
 
@@ -436,7 +436,7 @@ class TablesDemoDomain(Domain[E]):
                 action_name = f"{len(executed_action_names) + 1} {self.label(action)}"
                 print(action)
                 # Explicitly do not pick up box from target_table since planning does not handle it yet.
-                if action.action.name == "pick_item" and parameters[-1] == Item.get("box"):
+                if action.action.name == "pick_item" and parameters[-1] == Item.get("box_1"):
                     assert isinstance(parameters[-2], Location)
                     location = self.env.resolve_search_location(parameters[-2])
                     if location == target_location:
