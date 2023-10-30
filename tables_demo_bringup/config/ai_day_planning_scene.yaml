@@ -1,0 +1,108 @@
+# a list of boxes to add to the planning scene
+#
+#     +---------+
+#     |         |
+#     | table_4 |
+#     |         |
+#     +---------+
+#                           +-------+
+#                           |       |
+#                           |       |
+#                           |       |
+#                           |table_3|
+#                           |       |
+#                           |       |
+#                           |       |
+#                           +-------+
+#
+#                           +-------+
+#                           |       |
+#                           |       |
+#                           |       |
+#                           |table_2|
+#                           |       |
+#                           |       |
+#                           |       |
+#                           +-------+
+#   +--------------+
+#   |              |
+#   |    table_1   |
+#   |              |                x
+#   +--------------+                ^
+#                                   |
+#                                   |
+#                            y <----+ map
+
+planning_scene_boxes:
+- box_orientation_w: 1.0
+  box_orientation_x: 0.0
+  box_orientation_y: 0.0
+  box_orientation_z: 0.0
+  box_position_x: 19.0
+  box_position_y: 15.16
+  box_position_z: 0.36
+  box_x_dimension: 0.8
+  box_y_dimension: 1.6
+  box_z_dimension: 0.72
+  frame_id: map
+  scene_name: table_1
+- box_orientation_w: 1.0
+  box_orientation_x: 0.0
+  box_orientation_y: 0.0
+  box_orientation_z: 0.0
+  box_position_x: 19.9
+  box_position_y: 13.29
+  box_position_z: 0.3575
+  box_x_dimension: 0.8
+  box_y_dimension: 0.8
+  box_z_dimension: 0.715
+  frame_id: map
+  scene_name: table_2
+- box_orientation_w: 1.0
+  box_orientation_x: 0.0
+  box_orientation_y: 0.0
+  box_orientation_z: 0.0
+  box_position_x: 20.84
+  box_position_y: 13.29
+  box_position_z: 0.3575
+  box_x_dimension: 0.8
+  box_y_dimension: 0.8
+  box_z_dimension: 0.715
+  frame_id: map
+  scene_name: table_3
+- box_orientation_w: 1.0
+  box_orientation_x: 0.0
+  box_orientation_y: 0.0
+  box_orientation_z: 0.0
+  box_position_x: 22.14
+  box_position_y: 15.23
+  box_position_z: 0.36
+  box_x_dimension: 0.8
+  box_y_dimension: 0.8
+  box_z_dimension: 0.72
+  frame_id: map
+  scene_name: table_4
+- box_orientation_w: 1.0
+  box_orientation_x: 0.0
+  box_orientation_y: 0.0
+  box_orientation_z: 0.0
+  box_position_x: 20.45
+  box_position_y: 16.25
+  box_position_z: 1.17
+  box_x_dimension: 5.3
+  box_y_dimension: 0.48
+  box_z_dimension: 2.34
+  frame_id: map
+  scene_name: back_wall
+- box_orientation_w: 1.0
+  box_orientation_x: 0.0
+  box_orientation_y: 0.0
+  box_orientation_z: 0.0
+  box_position_x: 20.5
+  box_position_y: 14.5
+  box_position_z: 2.335
+  box_x_dimension: 5.4
+  box_y_dimension: 2.9
+  box_z_dimension: 0.1
+  frame_id: map
+  scene_name: roof
