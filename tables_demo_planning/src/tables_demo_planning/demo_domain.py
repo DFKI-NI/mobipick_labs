@@ -112,6 +112,7 @@ class Domain(Bridge, Generic[E]):
             Item.NOTHING,
             Item.get("power_drill_with_grip_1"),
             Item.get("klt_1"),
+            Item.get("klt_2"),
             Item.get("multimeter_1"),
             Item.get("relay_1"),
             Item.get("screwdriver_1"),

@@ -178,7 +178,7 @@ class TablesDemoEnv(EnvironmentRepresentation[R]):
 
 
 class TablesDemoDomain(Domain[E]):
-    DEMO_ITEMS = {item.name: item for item in (Item.get("klt_1"), Item.get("multimeter_1"))}
+    DEMO_ITEMS = {item.name: item for item in (Item.get("klt_1"), Item.get("klt_2"), Item.get("multimeter_1"))}
     TABLE_LOCATIONS = (Location.table_1, Location.table_2, Location.table_3)
     RETRIES_BEFORE_ABORTION = 2
 
@@ -391,7 +391,7 @@ class TablesDemoDomain(Domain[E]):
         self.subproblem.clear_goals()
         self.subproblem.add_goal(
             self.believe_item_at(self.box, self.box_search_location)
-            if self.env.item_search == Item.get("klt_1")
+            if self.env.item_search == Item.get("klt_1")  # TODO should probably be adapted for other klts
             else self.believe_item_at(self.objects[self.env.item_search.name], self.tool_search_location)
         )
 

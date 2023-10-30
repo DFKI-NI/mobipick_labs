@@ -197,6 +197,7 @@ class TablesDemoOrchestrator:
             # Plan
             self._domain.set_initial_values(self._domain.problem)
             self._domain.set_goals(target_location)
+            print(self._domain.problem)
             plan = self.solve_problem(self._domain.problem)
             if not plan:
                 print("Could not find a plan. Exiting.")
