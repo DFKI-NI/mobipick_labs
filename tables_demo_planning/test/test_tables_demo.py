@@ -43,13 +43,13 @@ class TablesDemoSimRobot(TablesDemoRobot['TablesDemoSimEnv']):
     def store_item(self, pose: Pose, location: Location, item: Item) -> bool:
         location = self.env.resolve_search_location(location)
         perceived_item_locations = self.perceive(location)
-        if perceived_item_locations.get(Item.get("box")) != location:
+        if perceived_item_locations.get(Item.get("klt_1")) != location:
             print(f"Cannot find box at {location.name}. Store item FAILED!")
             return False
 
         if (
             self.env.actual_item_locations[item] != Location.on_robot
-            or self.env.actual_item_locations[Item.get("box")] != location
+            or self.env.actual_item_locations[Item.get("klt_1")] != location
         ):
             print(f"Store {item.name} into box at {location.name} FAILED!")
             return False
@@ -135,19 +135,19 @@ class TablesDemoSimDomain(TablesDemoDomain[TablesDemoSimEnv]):
         items = {
             item.name: item
             for item in [
-                Item.get("power_drill"),
-                Item.get("box"),
-                Item.get("multimeter"),
-                Item.get("relay"),
-                Item.get("screwdriver"),
+                Item.get("power_drill_with_grip_1"),
+                Item.get("klt_1"),
+                Item.get("multimeter_1"),
+                Item.get("relay_1"),
+                Item.get("screwdriver_1"),
             ]
         }
         self.items = self.create_objects(items)
-        self.power_drill = self.objects["power_drill"]
-        self.box = self.objects["box"]
-        self.multimeter = self.objects["multimeter"]
-        self.relay = self.objects["relay"]
-        self.screwdriver = self.objects["screwdriver"]
+        self.power_drill = self.objects["power_drill_with_grip_1"]
+        self.box = self.objects["klt_1"]
+        self.multimeter = self.objects["multimeter_1"]
+        self.relay = self.objects["relay_1"]
+        self.screwdriver = self.objects["screwdriver_1"]
         # Update item locations from previously remembered locations.
         for name, location in actual_item_locations.items():
             if name in items.keys():
@@ -156,8 +156,8 @@ class TablesDemoSimDomain(TablesDemoDomain[TablesDemoSimEnv]):
             if name in items.keys():
                 self.env.believed_item_locations[items[name]] = location
         # Reset goals using the new items.
-        target_item = Item.get("multimeter")
-        TablesDemoDomain.DEMO_ITEMS = {item.name: item for item in (Item.get("box"), target_item)}
+        target_item = Item.get("multimeter_1")
+        TablesDemoDomain.DEMO_ITEMS = {item.name: item for item in (Item.get("klt_1"), target_item)}
         target_location = Location.table_2
         self.set_goals(target_location)
         return super().replan()
@@ -167,10 +167,10 @@ def test_tables_demo() -> None:
     unified_planning.shortcuts.get_environment().credits_stream = None
     # Define environment values.
     item_locations = {
-        Item.get("multimeter"): Location.table_3,
-        Item.get("relay"): Location.table_3,
-        Item.get("screwdriver"): Location.table_2,
-        Item.get("box"): Location.table_1,
+        Item.get("multimeter_1"): Location.table_3,
+        Item.get("relay_1"): Location.table_3,
+        Item.get("screwdriver_1"): Location.table_2,
+        Item.get("klt_1"): Location.table_1,
     }
     # Define goal.
     target_location = Location.table_2

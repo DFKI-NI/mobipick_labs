@@ -86,8 +86,8 @@ if __name__ == '__main__':
             else:
                 rospy.logwarn(f"Unknown parameter '{parameter}', using default table.")
 
-        target_item = Item.get("multimeter")
-        target_box = Item.get("box")
+        target_item = Item.get("multimeter_1")
+        target_box = Item.get("klt_1")
         HierarchicalDemoOrchestrator().generate_and_execute_plan(target_item, target_box, target_location)
     except rospy.ROSInterruptException:
         pass

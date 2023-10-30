@@ -49,9 +49,9 @@ class PickAndPlaceRobot(APIRobot):
         self.env = env
 
     def get_item(self) -> Item:
-        """Return power_drill if robot arm has an object attached, else Item.NOTHING."""
+        """Return power drill if robot arm has an object attached, else Item.NOTHING."""
         self.arm.execute("HasAttachedObjects")
-        return Item.get("power_drill") if self.arm.get_result().result else Item.NOTHING
+        return Item.get("power_drill_with_grip_1") if self.arm.get_result().result else Item.NOTHING
 
     def pick_power_drill(self) -> bool:
         """Pick up power drill."""
@@ -62,7 +62,7 @@ class PickAndPlaceRobot(APIRobot):
         if not self.arm.get_result().result:
             return False
 
-        self.item = Item.get("power_drill")
+        self.item = Item.get("power_drill_with_grip_1")
         return True
 
     def place_power_drill(self) -> bool:

@@ -110,19 +110,19 @@ class Domain(Bridge, Generic[E]):
         self.arm_pose_unknown = self.objects[ArmPose.unknown.name]
         items = [
             Item.NOTHING,
-            Item.get("power_drill"),
-            Item.get("box"),
-            Item.get("multimeter"),
-            Item.get("relay"),
-            Item.get("screwdriver"),
+            Item.get("power_drill_with_grip_1"),
+            Item.get("klt_1"),
+            Item.get("multimeter_1"),
+            Item.get("relay_1"),
+            Item.get("screwdriver_1"),
         ]
         self.items = self.create_objects({item.name: item for item in items})
         self.nothing = self.objects["nothing"]
-        self.power_drill = self.objects["power_drill"]
-        self.box = self.objects["box"]
-        self.multimeter = self.objects["multimeter"]
-        self.relay = self.objects["relay"]
-        self.screwdriver = self.objects["screwdriver"]
+        self.power_drill = self.objects["power_drill_with_grip_1"]
+        self.box = self.objects["klt_1"]
+        self.multimeter = self.objects["multimeter_1"]
+        self.relay = self.objects["relay_1"]
+        self.screwdriver = self.objects["screwdriver_1"]
         self.locations = self.create_enum_objects(Location)
         self.anywhere = self.objects[Location.anywhere.name]
         self.table_1 = self.objects[Location.table_1.name]
