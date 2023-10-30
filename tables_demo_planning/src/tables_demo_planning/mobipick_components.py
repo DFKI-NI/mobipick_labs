@@ -45,6 +45,8 @@ class Item:
     def get(name: str) -> 'Item':
         return Item.items[name] if name in Item.items.keys() else Item(name)
 
+    def __str__(self) -> str:
+        return self.name
 
 Item.NOTHING = Item("nothing")
 

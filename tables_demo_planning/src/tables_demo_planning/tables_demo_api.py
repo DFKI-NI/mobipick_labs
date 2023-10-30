@@ -162,7 +162,7 @@ class TablesDemoAPIRobot(TablesDemoRobot['TablesDemoAPIEnv'], APIRobot):
         return True
 
     def store_item(self, pose: Pose, location: Location, item: Item) -> bool:
-        """At pose, store item into box at location, the move arm to home pose."""
+        """At pose, store item into box at location, then move arm to home pose."""
         rospy.loginfo("Waiting for insert object action server.")
         if not self.insert_object_action_client.wait_for_server(timeout=rospy.Duration(10.0)):
             rospy.logerr("Insert Object action server not available!")
@@ -241,14 +241,15 @@ class TablesDemoAPIRobot(TablesDemoRobot['TablesDemoAPIEnv'], APIRobot):
                 fact_item_name, fact_location_name = fact.values
                 if (
                     fact_item_name in [name for name in TablesDemoDomain.DEMO_ITEMS.keys()]
-                    and fact_location_name == "klt_1"
-                    and perceived_item_locations.get(Item.get("klt_1")) == location
+                    and fact_location_name.startswith("klt_")
+                    and perceived_item_locations.get(Item.get(fact_location_name)) == location
                 ):
                     rospy.loginfo(f"{fact_item_name} is perceived as on {fact_location_name}.")
                     perceived_item_locations[Item.get(fact_item_name)] = Location.in_box
                     # Remove item from offered_items dict to be able to repeat the handover
                     # action with that item, if it is perceived again in the scene.
                     self.env.offered_items.discard(Item.get(fact_item_name))
+                    # TODO set new in_box fluent
         # Determine newly perceived items and their locations.
         self.env.newly_perceived_item_locations.clear()
         for perceived_item, perceived_location in perceived_item_locations.items():
@@ -257,7 +258,7 @@ class TablesDemoAPIRobot(TablesDemoRobot['TablesDemoAPIEnv'], APIRobot):
                 or self.env.believed_item_locations[perceived_item] != location
             ):
                 self.env.newly_perceived_item_locations[perceived_item] = perceived_location
-        rospy.loginfo(f"Newly perceived items: {self.env.newly_perceived_item_locations.keys()}")
+        rospy.loginfo(f"Newly perceived items: {[str(i) for i in self.env.newly_perceived_item_locations.keys()]}")
         # Remove all previously perceived items at location.
         for check_item, check_location in list(self.env.believed_item_locations.items()):
             if check_location == location:
