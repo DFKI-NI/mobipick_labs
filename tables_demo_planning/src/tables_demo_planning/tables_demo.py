@@ -47,7 +47,7 @@ from geometry_msgs.msg import Pose
 from unified_planning.model import Object
 from unified_planning.model.metrics import MinimizeSequentialPlanLength
 from unified_planning.plans import ActionInstance
-from unified_planning.shortcuts import Equals, Not, Or
+from unified_planning.shortcuts import Equals, Not, Or, Exists, Variable, And
 from tables_demo_planning.demo_domain import Domain
 from tables_demo_planning.mobipick_components import ArmPose, EnvironmentRepresentation, Item, Location, Robot
 from tables_demo_planning.subplan_visualization import SubPlanVisualization
@@ -386,6 +386,28 @@ class TablesDemoDomain(Domain[E]):
                 self.problem.add_goal(self.believe_item_at(self.relay, self.objects[target_location.name]))
             if "screwdriver_1" in self.DEMO_ITEMS.keys():
                 self.problem.add_goal(self.believe_item_at(self.screwdriver, self.objects[target_location.name]))
+        
+        # Using any klt in goal:
+        # Option1: Using OR in goals:
+        # this does not work with fast-downward, if optimality-guarantee is set when calling the solver
+        # Goal until we have in_box-fluent:
+        # multimeter_1 is in box and one klt is on the target location
+        # klts = [item for (name, item) in self.DEMO_ITEMS.items() if name.startswith('klt_')]
+        # subgoals_klt_on = []
+        # for klt_item in klts:
+        #     klt_up_obj = self.objects[klt_item.name]    
+        #     # subgoals_klt_on.append(self.believe_item_at(klt_up_obj, self.objects[target_location.name]))
+        #     subgoals_klt_on.append(self.believe_item_at(klt_up_obj, self.anywhere))
+        # if klts:
+        #     self.problem.add_goal(Or(subgoals_klt_on))
+
+        # Option2: Trying to set the goal using existential quantifier:
+        # for some reason this does not work, i.e., it cannot find a plan even for the most simple goal:
+        # However, it works with fast-downward if we don't set the optimality_guarantee when calling the solver
+        # k = Variable("k", self.get_type(Item))
+        # self.problem.add_goal(Exists(self.believe_item_at(k, self.objects[target_location.name]), k))
+        # # strangely, it finds a plan if we just use 'klt_1' in the expression, instead of the variable:
+        # # self.problem.add_goal(Exists(self.believe_item_at(self.box, self.objects[target_location.name]), k))
 
     def set_search_goals(self) -> None:
         """Set the goals for the current item_search subproblem."""
