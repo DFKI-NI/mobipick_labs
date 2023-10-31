@@ -138,6 +138,7 @@ class TablesDemoSimDomain(TablesDemoDomain[TablesDemoSimEnv]):
             for item in [
                 Item.get("power_drill_with_grip_1"),
                 Item.get("klt_1"),
+                Item.get("klt_2"),
                 Item.get("multimeter_1"),
                 Item.get("relay_1"),
                 Item.get("screwdriver_1"),
@@ -158,7 +159,7 @@ class TablesDemoSimDomain(TablesDemoDomain[TablesDemoSimEnv]):
                 self.env.believed_item_locations[items[name]] = location
         # Reset goals using the new items.
         target_item = Item.get("multimeter_1")
-        TablesDemoDomain.DEMO_ITEMS = {item.name: item for item in (Item.get("klt_1"), target_item)}
+        TablesDemoDomain.DEMO_ITEMS = {item.name: item for item in (Item.get("klt_1"), Item.get("klt_2"), target_item)}
         target_location = Location.table_2
         self.set_goals(target_location)
         return super().replan()
@@ -172,6 +173,7 @@ def test_tables_demo() -> None:
         Item.get("relay_1"): Location.table_3,
         Item.get("screwdriver_1"): Location.table_2,
         Item.get("klt_1"): Location.table_1,
+        Item.get("klt_2"): Location.table_3,
     }
     # Define goal.
     target_location = Location.table_2
