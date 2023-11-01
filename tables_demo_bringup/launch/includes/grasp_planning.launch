@@ -2,6 +2,14 @@
 <launch>
   <arg name="planning_scene_config" default="$(find tables_demo_bringup)/config/moelk_tables_planning_scene.yaml" />
 
+  <!-- visualize grasplan planning scene, allow to ignore some elements -->
+  <arg name="world_config" default="ai_day" doc="objects arrangement, options: moelk_tables, cic_tables, truck_assembly, ai_day" />
+  <arg name="ignore_set" default="[roof]" />
+  <include file="$(find grasplan)/launch/planning_scene/planning_scene_visualization.launch">
+    <arg name="yaml_path_to_read" value="$(find tables_demo_bringup)/config/$(arg world_config)_planning_scene.yaml" />
+    <arg name="ignore_set" value="$(arg ignore_set)" />
+  </include>
+
   <!-- visualise the poses inside the pose selector as textured meshes -->
   <arg name="object_color_rgba_pick" value="[0,0,0,0]"/>
   <node pkg="pose_selector" type="pose_selector_visualizer.py" name="pick_pose_selector_visualiser" output="screen">

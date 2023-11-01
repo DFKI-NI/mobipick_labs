@@ -47,8 +47,11 @@
   </group>
 
   <!-- ::::: Grasp planning ::::: -->
+  <arg name="ignore_set" default="[roof]" /> <!-- don't display some elements from the planning scene for visualization purposes -->
   <include file="$(find tables_demo_bringup)/launch/includes/grasp_planning.launch">
     <arg name="planning_scene_config" value="$(find tables_demo_bringup)/config/$(arg world_config)_planning_scene.yaml" />
+    <arg name="world_config" value="$(arg world_config)" />
+    <arg name="ignore_set" value="$(arg ignore_set)" />
   </include>
 
   <!-- ::::: Place object ::::: -->
