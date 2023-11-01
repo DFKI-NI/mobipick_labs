@@ -45,6 +45,8 @@
   <include file="$(find mobipick_moveit_config)/launch/moveit_planning_execution.launch">
     <arg name="use_pointcloud" value="false"/>
   </include>
+  <!-- publish tf from world to mobipick/base_link so moveit doesn't go crazy... (only for simulation) -->
+  <node pkg="grasplan" type="publish_tf_world_to_robot" name="tf_to_world_pub" output="screen" />
 
   <include file="$(find tables_demo_bringup)/launch/bringup.launch" >
     <arg name="simulation" value="true" />
