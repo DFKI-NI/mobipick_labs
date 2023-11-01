@@ -47,7 +47,7 @@ from geometry_msgs.msg import Pose
 from unified_planning.model import Object
 from unified_planning.model.metrics import MinimizeSequentialPlanLength
 from unified_planning.plans import ActionInstance
-from unified_planning.shortcuts import Equals, Not, Or, Exists, Variable, And
+from unified_planning.shortcuts import Equals, Not, Or
 from tables_demo_planning.demo_domain import Domain
 from tables_demo_planning.mobipick_components import ArmPose, EnvironmentRepresentation, Item, Location, Robot
 from tables_demo_planning.subplan_visualization import SubPlanVisualization
@@ -432,7 +432,6 @@ class TablesDemoDomain(Domain[E]):
         """Print believed item locations, initialize UP problem, and solve it."""
         self.env.print_believed_item_locations()
         self.set_initial_values(self.problem)
-        print(self.problem)
         return self.solve(self.problem)
 
     def run(self, target_location: Location) -> None:
