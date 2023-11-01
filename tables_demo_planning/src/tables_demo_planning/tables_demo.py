@@ -157,7 +157,7 @@ class TablesDemoEnv(EnvironmentRepresentation[R]):
         """Return fluent value wheter the item is in the klt."""
         if not klt.name.startswith("klt"):
             return False
-        return item in self.believed_box_contents.get(klt)
+        return item in self.believed_box_contents[klt]
 
     def get_item_offered(self, item: Item) -> bool:
         return item in self.offered_items
