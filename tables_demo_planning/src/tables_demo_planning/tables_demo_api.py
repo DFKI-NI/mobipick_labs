@@ -136,9 +136,13 @@ class TablesDemoAPIRobot(TablesDemoRobot['TablesDemoAPIEnv'], APIRobot):
             return False
 
         rospy.loginfo("Found place object action server.")
-        observe_before_place = self.env.believed_item_locations.get(Item.get("klt_1")) != Location.on_robot or all(
-            self.env.believed_item_locations.get(check_item) != Location.in_box
-            for check_item in TablesDemoDomain.DEMO_ITEMS.values()
+        observe_before_place = (
+            not item.name.startswith("klt_")
+            or self.env.believed_item_locations.get(item) != Location.on_robot
+            or all(
+                self.env.believed_item_locations.get(check_item) != Location.in_box
+                for check_item in TablesDemoDomain.DEMO_ITEMS.values()
+            )
         )
         if observe_before_place:
             self.perceive(location)
@@ -170,7 +174,7 @@ class TablesDemoAPIRobot(TablesDemoRobot['TablesDemoAPIEnv'], APIRobot):
 
         rospy.loginfo("Found insert object action server.")
         self.perceive(location)
-        assert(klt.name.startswith("klt_"))
+        assert klt.name.startswith("klt_")
         self.insert_object_goal.support_surface_name = klt.name
         self.insert_object_goal.observe_before_insert = True
         rospy.loginfo(f"Sending insert '{item.name}' goal to insert object action server: {self.insert_object_goal}")

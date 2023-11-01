@@ -78,15 +78,15 @@ class TablesDemoRobot(Robot, ABC, Generic[E]):
         return True
 
     def store_item(self, pose: Pose, location: Location, item: Item, klt: Item) -> bool:
-            """At pose, store item into box at location, then move arm to home pose."""
-            print(f"Successfully inserted {item.name} into box {klt.name}.")
-            self.item = Item.NOTHING
-            self.env.believed_item_locations[item] = Location.in_box
-            if klt not in self.env.believe_klt_contains:
-                self.env.believe_klt_contains[klt] = set()
-            self.env.believe_klt_contains[klt].add(item)
-            self.arm_pose = ArmPose.home
-            return True
+        """At pose, store item into box at location, then move arm to home pose."""
+        print(f"Successfully inserted {item.name} into box {klt.name}.")
+        self.item = Item.NOTHING
+        self.env.believed_item_locations[item] = Location.in_box
+        if klt not in self.env.believe_klt_contains:
+            self.env.believe_klt_contains[klt] = set()
+        self.env.believe_klt_contains[klt].add(item)
+        self.arm_pose = ArmPose.home
+        return True
 
     def hand_over_item(self, pose: Pose, item: Item) -> bool:
         """At pose, hand over item held to a person."""
@@ -121,7 +121,7 @@ class TablesDemoRobot(Robot, ABC, Generic[E]):
         return True
 
     def search_box(self) -> bool:
-        """Initiate search for box."""
+        """Initiate search for box."""  # Note: Only implemented for klt_1.
         self.env.item_search = Item.get("klt_1")
         self.check_reset_search()
         return True
@@ -382,7 +382,7 @@ class TablesDemoDomain(Domain[E]):
     def set_goals(self, target_location: Location) -> None:
         """Set the goals for the overall demo."""
         self.problem.clear_goals()
-        if "klt_1" in self.DEMO_ITEMS.keys():
+        if any(name.startswith("klt_") for name in self.DEMO_ITEMS.keys()):
             if "multimeter_1" in self.DEMO_ITEMS.keys():
                 self.problem.add_goal(self.believe_item_at(self.multimeter, self.in_box))
             if "relay_1" in self.DEMO_ITEMS.keys():
@@ -397,7 +397,7 @@ class TablesDemoDomain(Domain[E]):
                 self.problem.add_goal(self.believe_item_at(self.relay, self.objects[target_location.name]))
             if "screwdriver_1" in self.DEMO_ITEMS.keys():
                 self.problem.add_goal(self.believe_item_at(self.screwdriver, self.objects[target_location.name]))
-        
+
         # Using any klt in goal:
         # Option1: Using OR in goals:
         # this does not work with fast-downward, if optimality-guarantee is set when calling the solver
@@ -406,7 +406,7 @@ class TablesDemoDomain(Domain[E]):
         # klts = [item for (name, item) in self.DEMO_ITEMS.items() if name.startswith('klt_')]
         # subgoals_klt_on = []
         # for klt_item in klts:
-        #     klt_up_obj = self.objects[klt_item.name]    
+        #     klt_up_obj = self.objects[klt_item.name]
         #     # subgoals_klt_on.append(self.believe_item_at(klt_up_obj, self.objects[target_location.name]))
         #     subgoals_klt_on.append(self.believe_item_at(klt_up_obj, self.anywhere))
         # if klts:
@@ -426,7 +426,7 @@ class TablesDemoDomain(Domain[E]):
         self.subproblem.clear_goals()
         self.subproblem.add_goal(
             self.believe_item_at(self.box, self.box_search_location)
-            if self.env.item_search == Item.get("klt_1")  # TODO should probably be adapted for other klts
+            if self.env.item_search.name.startswith("klt_")
             else self.believe_item_at(self.objects[self.env.item_search.name], self.tool_search_location)
         )
 
@@ -472,7 +472,7 @@ class TablesDemoDomain(Domain[E]):
                 action_name = f"{len(executed_action_names) + 1} {self.label(action)}"
                 print(action)
                 # Explicitly do not pick up box from target_table since planning does not handle it yet.
-                if action.action.name == "pick_item" and parameters[-1] == Item.get("klt_1"):
+                if action.action.name == "pick_item" and parameters[-1].name.startswith("klt_"):
                     assert isinstance(parameters[-2], Location)
                     location = self.env.resolve_search_location(parameters[-2])
                     if location == target_location:
