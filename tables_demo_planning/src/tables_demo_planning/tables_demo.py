@@ -47,7 +47,7 @@ from geometry_msgs.msg import Pose
 from unified_planning.model import Object
 from unified_planning.model.metrics import MinimizeSequentialPlanLength
 from unified_planning.plans import ActionInstance
-from unified_planning.shortcuts import And, Equals, Not, Or
+from unified_planning.shortcuts import Equals, Not, Or
 from tables_demo_planning.demo_domain import Domain
 from tables_demo_planning.mobipick_components import ArmPose, EnvironmentRepresentation, Item, Location, Robot
 from tables_demo_planning.subplan_visualization import SubPlanVisualization
@@ -380,25 +380,13 @@ class TablesDemoDomain(Domain[E]):
         self.problem.clear_goals()
         target = self.objects[target_location.name]
         if any(name.startswith("klt_") for name in self.DEMO_ITEMS.keys()):
-            boxes = [self.objects[name] for name in self.DEMO_ITEMS.keys() if name.startswith("klt_")]
             if "multimeter_1" in self.DEMO_ITEMS.keys():
-                self.problem.add_goal(
-                    Or(
-                        And(self.believe_item_in(self.multimeter, box), self.believe_item_at(box, target))
-                        for box in boxes
-                    )
-                )
+                self.problem.add_goal(self.believe_item_in(self.multimeter, self.box))
             if "relay_1" in self.DEMO_ITEMS.keys():
-                self.problem.add_goal(
-                    Or(And(self.believe_item_in(self.relay, box), self.believe_item_at(box, target)) for box in boxes)
-                )
+                self.problem.add_goal(self.believe_item_in(self.relay, self.box))
             if "screwdriver_1" in self.DEMO_ITEMS.keys():
-                self.problem.add_goal(
-                    Or(
-                        And(self.believe_item_in(self.screwdriver, box), self.believe_item_at(box, target))
-                        for box in boxes
-                    )
-                )
+                self.problem.add_goal(self.believe_item_in(self.screwdriver, self.box))
+            self.problem.add_goal(self.believe_item_at(self.box, target))
         else:
             if "multimeter_1" in self.DEMO_ITEMS.keys():
                 self.problem.add_goal(self.believe_item_at(self.multimeter, target))
