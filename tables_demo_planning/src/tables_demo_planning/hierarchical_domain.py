@@ -266,6 +266,7 @@ class HierarchicalDomain(TablesDemoAPIDomain):
             self.insert_item_store.box_pose,
             self.insert_item_store.box_loc,
             self.insert_item_store.item,
+            self.insert_item_store.box,
         )
         self.insert_item_store.set_ordered(s1, s2)
 
@@ -290,6 +291,7 @@ class HierarchicalDomain(TablesDemoAPIDomain):
             self.insert_item_drive.box_pose,
             self.insert_item_drive.box_loc,
             self.insert_item_drive.item,
+            self.insert_item_drive.box,
         )
         self.insert_item_drive.set_ordered(s1, s2)
 
@@ -314,6 +316,7 @@ class HierarchicalDomain(TablesDemoAPIDomain):
             self.insert_item_full.box_pose,
             self.insert_item_full.box_loc,
             self.insert_item_full.item,
+            self.insert_item_full.box,
         )
         self.insert_item_full.set_ordered(s1, s2, s3)
 
@@ -476,6 +479,7 @@ class HierarchicalDomain(TablesDemoAPIDomain):
                 self.pose_at,
                 self.item_offered,
                 self.searched_at,
+                self.is_in_klt,
             ),
             actions=(
                 self.move_base,
