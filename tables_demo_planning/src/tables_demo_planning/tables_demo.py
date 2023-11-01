@@ -47,7 +47,7 @@ from geometry_msgs.msg import Pose
 from unified_planning.model import Object
 from unified_planning.model.metrics import MinimizeSequentialPlanLength
 from unified_planning.plans import ActionInstance
-from unified_planning.shortcuts import Equals, Not, Or
+from unified_planning.shortcuts import And, Equals, Not, Or
 from tables_demo_planning.demo_domain import Domain
 from tables_demo_planning.mobipick_components import ArmPose, EnvironmentRepresentation, Item, Location, Robot
 from tables_demo_planning.subplan_visualization import SubPlanVisualization
@@ -153,18 +153,16 @@ class TablesDemoEnv(EnvironmentRepresentation[R]):
         self.search_location = Location.anywhere
         self.offered_items: Set[Item] = set()
 
-    def get_is_in_klt(self, item: Item, klt: Item) -> bool:
-        """Return fluent value wheter the item is in the klt."""
-        if not klt.name.startswith("klt"):
-            return False
-        return item in self.believed_box_contents[klt]
-
     def get_item_offered(self, item: Item) -> bool:
         return item in self.offered_items
 
     def get_believe_item_at(self, item: Item, location: Location) -> bool:
         """Return fluent value whether item is believed to be at location."""
         return location == self.believed_item_locations.get(item, Location.anywhere)
+
+    def get_believe_item_in(self, item: Item, box: Item) -> bool:
+        """Return fluent value whether item is believed to be in box."""
+        return item in self.believed_box_contents[box]
 
     def get_searched_at(self, location: Location) -> bool:
         """Return fluent value whether robot has already searched at location."""
@@ -201,10 +199,10 @@ class TablesDemoDomain(Domain[E]):
         }
 
         self.believe_item_at = self.create_fluent_from_function(self.env.get_believe_item_at)
+        self.believe_item_in = self.create_fluent_from_function(self.env.get_believe_item_in)
         self.searched_at = self.create_fluent_from_function(self.env.get_searched_at)
         self.pose_at = self.create_fluent("get_pose_at", pose=Pose, location=Location)
         self.item_offered = self.create_fluent_from_function(self.env.get_item_offered)
-        self.is_in_klt = self.create_fluent_from_function(self.env.get_is_in_klt)
         self.set_fluent_functions((self.get_pose_at,))
 
         self.pick_item, (_, pose, location, item) = self.create_action_from_function(
@@ -240,13 +238,13 @@ class TablesDemoDomain(Domain[E]):
             self.place_item.add_effect(self.robot_arm_at(arm_pose), arm_pose == self.arm_pose_home)
         self.place_item.add_effect(self.believe_item_at(item, self.on_robot), False)
         self.place_item.add_effect(self.believe_item_at(item, location), True)
-        self.store_item, (_, pose, location, item, klt) = self.create_action_from_function(
+        self.store_item, (_, pose, location, item, box) = self.create_action_from_function(
             TablesDemoRobot.store_item, set_callable=False
         )
         self.store_item.add_precondition(self.robot_at(pose))
         self.store_item.add_precondition(self.robot_has(item))
         self.store_item.add_precondition(self.believe_item_at(item, self.on_robot))
-        self.store_item.add_precondition(self.believe_item_at(klt, location))
+        self.store_item.add_precondition(self.believe_item_at(box, location))
         self.store_item.add_precondition(self.pose_at(pose, location))
         self.store_item.add_precondition(Not(Equals(location, self.anywhere)))
         self.store_item.add_effect(self.robot_has(item), False)
@@ -255,7 +253,7 @@ class TablesDemoDomain(Domain[E]):
             self.store_item.add_effect(self.robot_arm_at(arm_pose), arm_pose == self.arm_pose_home)
         self.store_item.add_effect(self.believe_item_at(item, self.on_robot), False)
         self.store_item.add_effect(self.believe_item_at(item, self.in_box), True)
-        self.store_item.add_effect(self.is_in_klt(item, klt), True)
+        self.store_item.add_effect(self.believe_item_in(item, box), True)
         self.handover_item, (_, pose, item) = self.create_action_from_function(
             TablesDemoRobot.hand_over_item, set_callable=False
         )
@@ -320,9 +318,9 @@ class TablesDemoDomain(Domain[E]):
                 self.robot_arm_at,
                 self.robot_has,
                 self.believe_item_at,
+                self.believe_item_in,
                 self.pose_at,
                 self.item_offered,
-                self.is_in_klt,
             ),
             actions=(
                 self.move_base,
@@ -380,21 +378,34 @@ class TablesDemoDomain(Domain[E]):
     def set_goals(self, target_location: Location) -> None:
         """Set the goals for the overall demo."""
         self.problem.clear_goals()
+        target = self.objects[target_location.name]
         if any(name.startswith("klt_") for name in self.DEMO_ITEMS.keys()):
+            boxes = [self.objects[name] for name in self.DEMO_ITEMS.keys() if name.startswith("klt_")]
             if "multimeter_1" in self.DEMO_ITEMS.keys():
-                self.problem.add_goal(self.believe_item_at(self.multimeter, self.in_box))
+                self.problem.add_goal(
+                    Or(
+                        And(self.believe_item_in(self.multimeter, box), self.believe_item_at(box, target))
+                        for box in boxes
+                    )
+                )
             if "relay_1" in self.DEMO_ITEMS.keys():
-                self.problem.add_goal(self.believe_item_at(self.relay, self.in_box))
+                self.problem.add_goal(
+                    Or(And(self.believe_item_in(self.relay, box), self.believe_item_at(box, target)) for box in boxes)
+                )
             if "screwdriver_1" in self.DEMO_ITEMS.keys():
-                self.problem.add_goal(self.believe_item_at(self.screwdriver, self.in_box))
-            self.problem.add_goal(self.believe_item_at(self.box, self.objects[target_location.name]))
+                self.problem.add_goal(
+                    Or(
+                        And(self.believe_item_in(self.screwdriver, box), self.believe_item_at(box, target))
+                        for box in boxes
+                    )
+                )
         else:
             if "multimeter_1" in self.DEMO_ITEMS.keys():
-                self.problem.add_goal(self.believe_item_at(self.multimeter, self.objects[target_location.name]))
+                self.problem.add_goal(self.believe_item_at(self.multimeter, target))
             if "relay_1" in self.DEMO_ITEMS.keys():
-                self.problem.add_goal(self.believe_item_at(self.relay, self.objects[target_location.name]))
+                self.problem.add_goal(self.believe_item_at(self.relay, target))
             if "screwdriver_1" in self.DEMO_ITEMS.keys():
-                self.problem.add_goal(self.believe_item_at(self.screwdriver, self.objects[target_location.name]))
+                self.problem.add_goal(self.believe_item_at(self.screwdriver, target))
 
         # Using any klt in goal:
         # Option1: Using OR in goals:
