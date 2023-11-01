@@ -255,9 +255,7 @@ class TablesDemoAPIRobot(TablesDemoRobot['TablesDemoAPIEnv'], APIRobot):
                     # action with that item, if it is perceived again in the scene.
                     self.env.offered_items.discard(Item.get(fact_item_name))
                     klt = Item.get(fact_location_name)
-                    if klt not in self.env.believe_klt_contains:
-                        self.env.believe_klt_contains[klt] = set()
-                    self.env.believe_klt_contains[klt].add(Item.get(fact_item_name))
+                    self.env.believed_box_contents[klt].add(Item.get(fact_item_name))
         # Determine newly perceived items and their locations.
         self.env.newly_perceived_item_locations.clear()
         for perceived_item, perceived_location in perceived_item_locations.items():

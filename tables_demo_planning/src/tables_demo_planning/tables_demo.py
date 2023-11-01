@@ -82,9 +82,7 @@ class TablesDemoRobot(Robot, ABC, Generic[E]):
         print(f"Successfully inserted {item.name} into box {klt.name}.")
         self.item = Item.NOTHING
         self.env.believed_item_locations[item] = Location.in_box
-        if klt not in self.env.believe_klt_contains:
-            self.env.believe_klt_contains[klt] = set()
-        self.env.believe_klt_contains[klt].add(item)
+        self.env.believed_box_contents[klt].add(item)
         self.arm_pose = ArmPose.home
         return True
 
@@ -148,7 +146,7 @@ class TablesDemoEnv(EnvironmentRepresentation[R]):
     def __init__(self, robot: R) -> None:
         super().__init__(robot)
         self.believed_item_locations: Dict[Item, Location] = {}
-        self.believe_klt_contains: Dict[Item, Set[Item]] = {}
+        self.believed_box_contents: Dict[Item, Set[Item]] = defaultdict(set)
         self.newly_perceived_item_locations: Dict[Item, Location] = {}
         self.item_search: Optional[Item] = None
         self.searched_locations: Set[Location] = set()
@@ -159,7 +157,7 @@ class TablesDemoEnv(EnvironmentRepresentation[R]):
         """Return fluent value wheter the item is in the klt."""
         if not klt.name.startswith("klt"):
             return False
-        return item in self.believe_klt_contains.get(klt, [])
+        return item in self.believed_box_contents.get(klt)
 
     def get_item_offered(self, item: Item) -> bool:
         return item in self.offered_items
