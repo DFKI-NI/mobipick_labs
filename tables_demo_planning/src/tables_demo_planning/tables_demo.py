@@ -78,13 +78,15 @@ class TablesDemoRobot(Robot, ABC, Generic[E]):
         return True
 
     def store_item(self, pose: Pose, location: Location, item: Item, klt: Item) -> bool:
-        """At pose, store item into box at location, the move arm to home pose."""
-        print(f"Successfully inserted {item.name} into box {klt.name}.")
-        self.item = Item.NOTHING
-        self.env.believed_item_locations[item] = Location.in_box
-        # TODO add new in_box fluent
-        self.arm_pose = ArmPose.home
-        return True
+            """At pose, store item into box at location, then move arm to home pose."""
+            print(f"Successfully inserted {item.name} into box {klt.name}.")
+            self.item = Item.NOTHING
+            self.env.believed_item_locations[item] = Location.in_box
+            if klt not in self.env.believe_klt_contains:
+                self.env.believe_klt_contains[klt] = set()
+            self.env.believe_klt_contains[klt].add(item)
+            self.arm_pose = ArmPose.home
+            return True
 
     def hand_over_item(self, pose: Pose, item: Item) -> bool:
         """At pose, hand over item held to a person."""
@@ -146,11 +148,18 @@ class TablesDemoEnv(EnvironmentRepresentation[R]):
     def __init__(self, robot: R) -> None:
         super().__init__(robot)
         self.believed_item_locations: Dict[Item, Location] = {}
+        self.believe_klt_contains: Dict[Item, Set[Item]] = {}
         self.newly_perceived_item_locations: Dict[Item, Location] = {}
         self.item_search: Optional[Item] = None
         self.searched_locations: Set[Location] = set()
         self.search_location = Location.anywhere
         self.offered_items: Set[Item] = set()
+
+    def get_is_in_klt(self, item: Item, klt: Item) -> bool:
+        """Return fluent value wheter the item is in the klt."""
+        if not klt.name.startswith("klt"):
+            return False
+        return item in self.believe_klt_contains.get(klt, [])
 
     def get_item_offered(self, item: Item) -> bool:
         return item in self.offered_items
@@ -197,6 +206,7 @@ class TablesDemoDomain(Domain[E]):
         self.searched_at = self.create_fluent_from_function(self.env.get_searched_at)
         self.pose_at = self.create_fluent("get_pose_at", pose=Pose, location=Location)
         self.item_offered = self.create_fluent_from_function(self.env.get_item_offered)
+        self.is_in_klt = self.create_fluent_from_function(self.env.get_is_in_klt)
         self.set_fluent_functions((self.get_pose_at,))
 
         self.pick_item, (_, pose, location, item) = self.create_action_from_function(
@@ -247,7 +257,7 @@ class TablesDemoDomain(Domain[E]):
             self.store_item.add_effect(self.robot_arm_at(arm_pose), arm_pose == self.arm_pose_home)
         self.store_item.add_effect(self.believe_item_at(item, self.on_robot), False)
         self.store_item.add_effect(self.believe_item_at(item, self.in_box), True)
-        # TODO add new Fluent in_box
+        self.store_item.add_effect(self.is_in_klt(item, klt), True)
         self.handover_item, (_, pose, item) = self.create_action_from_function(
             TablesDemoRobot.hand_over_item, set_callable=False
         )
@@ -314,6 +324,7 @@ class TablesDemoDomain(Domain[E]):
                 self.believe_item_at,
                 self.pose_at,
                 self.item_offered,
+                self.is_in_klt,
             ),
             actions=(
                 self.move_base,
@@ -423,6 +434,7 @@ class TablesDemoDomain(Domain[E]):
         """Print believed item locations, initialize UP problem, and solve it."""
         self.env.print_believed_item_locations()
         self.set_initial_values(self.problem)
+        print(self.problem)
         return self.solve(self.problem)
 
     def run(self, target_location: Location) -> None:
