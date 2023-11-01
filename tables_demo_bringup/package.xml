@@ -12,6 +12,7 @@
   <author email="martin.guenther@dfki.de">Martin Günther</author>
 
   <buildtool_depend>catkin</buildtool_depend>
+  <exec_depend>daa_bringup</exec_depend>
   <exec_depend>espeak_ros</exec_depend>
   <exec_depend>grasplan</exec_depend>
   <exec_depend>mir_gazebo</exec_depend>
