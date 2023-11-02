@@ -68,6 +68,11 @@ class ItemClass(Enum):
     multimeter = "multimeter"
     screwdriver = "screwdriver"
     power_drill = "powerdrill"
+    yellow_part = "yellow_part"
+    bright_green_part = "bright_green_part"
+    dark_green_part = "dark_green_part"
+    purple_part = "purple_part"
+    magenta_part = "magenta_part"
     red_part = "red_part"
     blue_part = "blue_part"
 
