@@ -48,6 +48,7 @@ class Item:
     def __str__(self) -> str:
         return self.name
 
+
 Item.NOTHING = Item("nothing")
 
 
@@ -60,6 +61,15 @@ class Location(Enum):
     on_robot = "on_robot"
     tool_search_location = "tool_search_location"
     box_search_location = "box_search_location"
+
+
+class ItemClass(Enum):
+    klt = "klt"
+    multimeter = "multimeter"
+    screwdriver = "screwdriver"
+    power_drill = "powerdrill"
+    red_part = "red_part"
+    blue_part = "blue_part"
 
 
 class Robot:

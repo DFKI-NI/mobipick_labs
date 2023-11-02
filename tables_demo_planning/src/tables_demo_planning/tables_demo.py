@@ -49,7 +49,14 @@ from unified_planning.model.metrics import MinimizeSequentialPlanLength
 from unified_planning.plans import ActionInstance
 from unified_planning.shortcuts import Equals, Not, Or
 from tables_demo_planning.demo_domain import Domain
-from tables_demo_planning.mobipick_components import ArmPose, EnvironmentRepresentation, Item, Location, Robot
+from tables_demo_planning.mobipick_components import (
+    ArmPose,
+    EnvironmentRepresentation,
+    Item,
+    Location,
+    Robot,
+    ItemClass,
+)
 from tables_demo_planning.subplan_visualization import SubPlanVisualization
 
 
@@ -153,6 +160,9 @@ class TablesDemoEnv(EnvironmentRepresentation[R]):
         self.search_location = Location.anywhere
         self.offered_items: Set[Item] = set()
 
+    def has_class(self, item: Item, item_class: ItemClass) -> bool:
+        return item.name.startswith(item_class.name)
+
     def get_item_offered(self, item: Item) -> bool:
         return item in self.offered_items
 
@@ -203,6 +213,7 @@ class TablesDemoDomain(Domain[E]):
         self.searched_at = self.create_fluent_from_function(self.env.get_searched_at)
         self.pose_at = self.create_fluent("get_pose_at", pose=Pose, location=Location)
         self.item_offered = self.create_fluent_from_function(self.env.get_item_offered)
+        self.has_class = self.create_fluent_from_function(self.env.has_class)
         self.set_fluent_functions((self.get_pose_at,))
 
         self.pick_item, (_, pose, location, item) = self.create_action_from_function(

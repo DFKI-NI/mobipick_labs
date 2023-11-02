@@ -47,7 +47,14 @@ from unified_planning.model import Fluent, InstantaneousAction, Object, Problem
 from unified_planning.plans import ActionInstance
 from unified_planning.shortcuts import Equals, Not, OneshotPlanner
 from up_esb.bridge import Bridge
-from tables_demo_planning.mobipick_components import ArmPose, EnvironmentRepresentation, Item, Location, Robot
+from tables_demo_planning.mobipick_components import (
+    ArmPose,
+    EnvironmentRepresentation,
+    Item,
+    Location,
+    Robot,
+    ItemClass,
+)
 from robot_api import TuplePose, is_instance
 
 
@@ -70,7 +77,7 @@ class Domain(Bridge, Generic[E]):
         Bridge.__init__(self)
         self.env = env
         # Create types for planning based on class types.
-        self.create_types([Robot, Pose, ArmPose, Item, Location])
+        self.create_types([Robot, Pose, ArmPose, Item, Location, ItemClass])
 
         # Create fluents for planning.
         self.robot_at = self.create_fluent("get_robot_at", pose=Pose)
@@ -134,6 +141,7 @@ class Domain(Bridge, Generic[E]):
         self.on_robot = self.objects[Location.on_robot.name]
         self.tool_search_location = self.objects[Location.tool_search_location.name]
         self.box_search_location = self.objects[Location.box_search_location.name]
+        self.item_classes = self.create_enum_objects(ItemClass)
 
         # Create actions for planning based on class definitions.
         self.move_base, (_, x, y) = self.create_action_from_function(Robot.move_base, set_callable=False)
@@ -190,6 +198,7 @@ class Domain(Bridge, Generic[E]):
         poses: Optional[Iterable[Object]] = None,
         items: Optional[Iterable[Object]] = None,
         locations: Optional[Iterable[Object]] = None,
+        item_classes: Optional[Iterable[Object]] = None,
     ) -> Problem:
         """Define UP problem by its (potential subsets of) fluents, actions, and objects."""
         return self.define_problem(
@@ -201,6 +210,7 @@ class Domain(Bridge, Generic[E]):
                 + self.arm_poses
                 + (self.items if items is None else list(items))
                 + (self.locations if locations is None else list(locations))
+                + (self.item_classes if item_classes is None else list(item_classes))
             ),
         )
 

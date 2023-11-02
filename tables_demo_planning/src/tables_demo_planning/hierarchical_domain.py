@@ -31,7 +31,9 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 #
 #
-# Authors: Marc Vinci, DFKI
+# Authors:
+#   Marc Vinci, DFKI
+#   Sebastian Stock, DFKI
 
 """Addition of hierarchical methods and tasks to the Mobipick domain."""
 
@@ -480,6 +482,7 @@ class HierarchicalDomain(TablesDemoAPIDomain):
                 self.item_offered,
                 self.searched_at,
                 self.is_in_klt,
+                self.has_class,
             ),
             actions=(
                 self.move_base,
@@ -588,6 +591,7 @@ class HierarchicalDomain(TablesDemoAPIDomain):
         poses: Optional[Iterable[Object]] = None,
         items: Optional[Iterable[Object]] = None,
         locations: Optional[Iterable[Object]] = None,
+        item_classes: Optional[Iterable[Object]] = None,
     ) -> HierarchicalProblem:
         """Define hierarchical UP problem by its (potential subsets of) fluents, actions, tasks, methods and objects."""
         problem = HierarchicalProblem()
@@ -599,6 +603,7 @@ class HierarchicalDomain(TablesDemoAPIDomain):
             + self.arm_poses
             + (self.items if items is None else list(items))
             + (self.locations if locations is None else list(locations))
+            + (self.item_classes if item_classes is None else list(item_classes))
         )
         problem.add_objects(self._objects.values() if objects is None else objects)
         if tasks is not None:
