@@ -47,7 +47,7 @@ from unified_planning.shortcuts import Equals, Not, Or, OneshotPlanner
 from unified_planning.plans import ActionInstance
 from unified_planning.model.metrics import MinimizeSequentialPlanLength
 from unified_planning.engines import OptimalityGuarantee
-from tables_demo_planning.mobipick_components import ArmPose, Item, Location
+from tables_demo_planning.mobipick_components import ArmPose, Item, Location, ItemClass
 from tables_demo_planning.tables_demo_api import TablesDemoAPIDomain
 
 
@@ -60,6 +60,7 @@ class HierarchicalDomain(TablesDemoAPIDomain):
         type_arm_pose = self.get_type(ArmPose)
         type_location = self.get_type(Location)
         type_item = self.get_type(Item)
+        type_item_class = self.get_type(ItemClass)
 
         # TASKS
         self.drive = Task("drive", goal_pose=type_pose)
@@ -72,6 +73,7 @@ class HierarchicalDomain(TablesDemoAPIDomain):
         self.bring_item = Task("bring_item", item=type_item)
         self.search_item = Task("search_item", item=type_item)
         self.tables_demo = Task("tables_demo", tool=type_item, box=type_item, location=type_location)
+        self.bring_item_of_class = Task("bring_item_of_class", item_type=type_item_class, location=type_location)
 
         # METHODS
 
@@ -472,6 +474,30 @@ class HierarchicalDomain(TablesDemoAPIDomain):
         )
         self.tables_demo_full.set_ordered(s1, s2, s3, s4, s5)
 
+        # BRING_ITEM_OF_CLASS
+        self.m_bring_item_of_class_search = Method(
+            "m_bring_item_of_class_search",
+            item_class=type_item_class,
+            location=type_location,
+            search_table=type_location,
+        )
+        self.m_bring_item_of_class_search.set_task(
+            self.bring_item_of_class,
+            self.m_bring_item_of_class_search.item_class,
+            self.m_bring_item_of_class_search.location,
+        )
+        s1 = self.m_bring_item_of_class_search.add_subtask(
+            self.perceive, self.m_bring_item_of_class_search.search_table
+        )
+        self.perceive_noop.add_precondition(self.searched_at(self.perceive_noop.location))
+        self.m_bring_item_of_class_search.add_precondition(
+            Not(self.searched_at(self.m_bring_item_of_class_search.search_table))
+        )
+        s1 = self.m_bring_item_of_class_search.add_subtask(
+            self.perceive, self.m_bring_item_of_class_search.search_table
+        )
+        # s2 = self.m_bring_item_of_class_search.add_subtask(self.replan)
+
         self.problem = self.define_mobipick_problem(
             fluents=(
                 self.robot_at,
@@ -528,6 +554,7 @@ class HierarchicalDomain(TablesDemoAPIDomain):
                 self.tables_demo_search_tool,
                 self.tables_demo_move_item,
                 self.tables_demo_full,
+                self.m_bring_item_of_class_search,
             ),
             tasks=(
                 self.drive,
@@ -540,6 +567,7 @@ class HierarchicalDomain(TablesDemoAPIDomain):
                 self.search_item,
                 self.insert_item,
                 self.tables_demo,
+                self.bring_item_of_class,
             ),
         )
         self.problem.add_quality_metric(MinimizeSequentialPlanLength())
@@ -653,7 +681,8 @@ class HierarchicalDomain(TablesDemoAPIDomain):
         error_counts: Dict[str, int] = defaultdict(int)
         # Solve overall problem.
         self.clear_tasks(self.problem)
-        self.set_task(self.problem, self.tables_demo(target_item, target_box, target_location))
+        # self.set_task(self.problem, self.tables_demo(target_item, target_box, target_location))
+        self.set_task(self.problem, self.bring_item_of_class(self.get_object(ItemClass.multimeter), target_location))
         actions = self.replan()
         if actions is None:
             print("Execution ended because no plan could be found.")
