@@ -3,7 +3,6 @@
   <arg name="simulation" default="false" />
   <arg name="world_config" default="moelk_tables" doc="objects arrangement, options: moelk_tables, cic_tables, truck_assembly" />
   <arg name="objects_of_interest" default="[relay, screwdriver, multimeter, power_drill_with_grip, hot_glue_gun, klt]"/>
-  <arg name="dope_converter_config" default="$(find pbr_objects)/config/class_ids.yaml" />
 
   <!-- please run separately! : -->
   <!--roslaunch mobipick_bringup mobipick_bringup_both.launch -->
@@ -17,27 +16,11 @@
   </include>
 
   <group if="$(arg simulation)">
-    <!-- pose selector: DB to store object poses -->
-    <node pkg="pose_selector" type="pose_selector_node" name="pick_pose_selector_node" output="screen">
-      <param name="debug" value="false" />
-      <param name="global_reference_frame" value="map" />
-      <rosparam param="objects_of_interest" subst_value="True">$(arg objects_of_interest)</rosparam>
-      <remap from="/logical_image" to="/mobipick/eef_main_cam/rgb/logical_image"/>
-    </node>
-
     <!-- force torque observer -->
     <node name="ft_observer" pkg="mobipick_pick_n_place" type="ft_observer_sim.py" ns="mobipick" output="screen" />
   </group>
 
   <group unless="$(arg simulation)">
-    <!-- pose selector: DB to store object poses -->
-    <node pkg="pose_selector" type="pose_selector_node" name="pick_pose_selector_node" output="screen">
-      <param name="debug" value="false" />
-      <param name="global_reference_frame" value="map" />
-      <rosparam param="objects_of_interest" subst_value="True">$(arg objects_of_interest)</rosparam>
-      <remap from="/logical_image" to="/mobipick/object_list"/>  <!-- use output from anchoring -->
-    </node>
-
     <!-- force torque observer -->
     <node name="ft_observer" pkg="mobipick_pick_n_place" type="ft_observer.py" ns="mobipick" output="screen"/>
   </group>
