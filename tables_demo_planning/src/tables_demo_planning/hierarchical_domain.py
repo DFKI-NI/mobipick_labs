@@ -475,6 +475,7 @@ class HierarchicalDomain(TablesDemoAPIDomain):
         self.tables_demo_full.set_ordered(s1, s2, s3, s4, s5)
 
         # BRING_ITEM_OF_CLASS
+        # no object of type is known - search and replan
         self.m_bring_item_of_class_search = Method(
             "m_bring_item_of_class_search",
             item_class=type_item_class,
@@ -489,14 +490,67 @@ class HierarchicalDomain(TablesDemoAPIDomain):
         s1 = self.m_bring_item_of_class_search.add_subtask(
             self.perceive, self.m_bring_item_of_class_search.search_table
         )
-        self.perceive_noop.add_precondition(self.searched_at(self.perceive_noop.location))
         self.m_bring_item_of_class_search.add_precondition(
             Not(self.searched_at(self.m_bring_item_of_class_search.search_table))
         )
         s1 = self.m_bring_item_of_class_search.add_subtask(
             self.perceive, self.m_bring_item_of_class_search.search_table
         )
-        # s2 = self.m_bring_item_of_class_search.add_subtask(self.replan)
+        s2 = self.m_bring_item_of_class_search.add_subtask(self.trigger_replanning, self.robot)
+        self.m_bring_item_of_class_search.set_ordered(s1, s2)
+
+        # object is known - move it to the target
+        self.m_bring_item_of_class_move = Method(
+            "m_bring_item_of_class_move",
+            item_class=type_item_class,
+            location=type_location,
+            search_table=type_location,
+            item=type_item,
+            item_loc=type_location,
+        )
+        self.m_bring_item_of_class_move.set_task(
+            self.bring_item_of_class,
+            self.m_bring_item_of_class_move.item_class,
+            self.m_bring_item_of_class_move.location,
+        )
+        self.m_bring_item_of_class_move.add_precondition(
+            self.has_class(self.m_bring_item_of_class_move.item, self.m_bring_item_of_class_move.item_class)
+        )
+        self.m_bring_item_of_class_move.add_precondition(
+            self.believe_item_at(self.m_bring_item_of_class_move.item, self.m_bring_item_of_class_move.item_loc)
+        )
+        # TODO do we need to make sure that it is not 'anywhere'?
+        self.m_bring_item_of_class_move.add_subtask(
+            self.move_item, self.m_bring_item_of_class_move.item, self.m_bring_item_of_class_move.location
+        )
+
+        # object is in a klt - move klt to the target
+        self.m_bring_item_of_class_move_in_klt = Method(
+            "m_bring_item_of_class_move_in_klt",
+            item_class=type_item_class,
+            location=type_location,
+            search_table=type_location,
+            item=type_item,
+            klt=type_item,
+        )
+        self.m_bring_item_of_class_move_in_klt.set_task(
+            self.bring_item_of_class,
+            self.m_bring_item_of_class_move_in_klt.item_class,
+            self.m_bring_item_of_class_move_in_klt.location,
+        )
+        self.m_bring_item_of_class_move_in_klt.add_precondition(
+            self.has_class(
+                self.m_bring_item_of_class_move_in_klt.item, self.m_bring_item_of_class_move_in_klt.item_class
+            )
+        )
+        self.m_bring_item_of_class_move_in_klt.add_precondition(
+            self.believe_item_in(
+                self.m_bring_item_of_class_move_in_klt.item, self.m_bring_item_of_class_move_in_klt.klt
+            )
+        )
+        self.m_bring_item_of_class_move_in_klt.add_subtask(
+            self.move_item, self.m_bring_item_of_class_move_in_klt.klt, self.m_bring_item_of_class_move_in_klt.location
+        )
 
         self.problem = self.define_mobipick_problem(
             fluents=(
@@ -507,7 +561,7 @@ class HierarchicalDomain(TablesDemoAPIDomain):
                 self.pose_at,
                 self.item_offered,
                 self.searched_at,
-                self.is_in_klt,
+                self.believe_item_in,
                 self.has_class,
             ),
             actions=(
@@ -521,6 +575,7 @@ class HierarchicalDomain(TablesDemoAPIDomain):
                 self.search_tool,
                 self.search_box,
                 self.search_at,
+                self.trigger_replanning,
             ),
             methods=(
                 self.drive_noop,
@@ -555,6 +610,8 @@ class HierarchicalDomain(TablesDemoAPIDomain):
                 self.tables_demo_move_item,
                 self.tables_demo_full,
                 self.m_bring_item_of_class_search,
+                self.m_bring_item_of_class_move,
+                self.m_bring_item_of_class_move_in_klt,
             ),
             tasks=(
                 self.drive,
@@ -702,6 +759,9 @@ class HierarchicalDomain(TablesDemoAPIDomain):
                 )
             print("> Execution:")
             for action in actions:
+                if action.action.name == "trigger_replanning":
+                    actions = self.replan()
+                    break
                 executable_action, parameters = self.get_executable_action(action)
                 action_name = f"{len(executed_action_names) + 1} {self.label(action)}"
                 print(action)

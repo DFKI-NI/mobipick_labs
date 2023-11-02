@@ -131,6 +131,11 @@ class TablesDemoRobot(Robot, ABC, Generic[E]):
         self.check_reset_search()
         return True
 
+    def trigger_replanning(self) -> bool:
+        """Perform replanning."""
+        self.check_reset_search()
+        return True
+
     def conclude_tool_search(self, item: Item) -> bool:
         """Conclude tool search as failed. Success is determined in search_at()."""
         print(f"Search for {item.name} FAILED!")
@@ -322,6 +327,7 @@ class TablesDemoDomain(Domain[E]):
             self.conclude_box_search.add_precondition(self.searched_at(table))
         self.conclude_box_search.add_effect(self.believe_item_at(self.box, self.anywhere), False)
         self.conclude_box_search.add_effect(self.believe_item_at(self.box, self.box_search_location), True)
+        self.trigger_replanning, (_,) = self.create_action_from_function(TablesDemoRobot.trigger_replanning)
 
         self.problem = self.define_problem(
             fluents=(
@@ -377,6 +383,7 @@ class TablesDemoDomain(Domain[E]):
                 self.search_box: lambda _: "Search tables for the box",
                 self.conclude_tool_search: lambda parameters: f"Conclude search for {parameters[-1]}",
                 self.conclude_box_search: lambda _: "Conclude search for the box",
+                self.trigger_replanning: lambda _: "Replanning based on new information",
             }
         )
 
