@@ -716,7 +716,8 @@ class HierarchicalDomain(TablesDemoAPIDomain):
                 rospy.logerr(f"Error during plan generation: {result.log_messages[0].message}")
             else:
                 rospy.logerr(f"Error during plan generation: {result.status}")
-        return result.plan._actions if result.plan and result.plan._actions else None
+        print(result.plan.actions)
+        return result.plan.action_plan.actions if result.plan and result.plan.action_plan else None
 
     def replan(self) -> Optional[List[ActionInstance]]:
         """Print believed item locations, initialize UP problem, and solve it."""
