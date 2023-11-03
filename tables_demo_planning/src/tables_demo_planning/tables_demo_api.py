@@ -56,7 +56,7 @@ from symbolic_fact_generation.robot_facts_generator import RobotAtGenerator
 from tables_demo_planning.mobipick_components import APIRobot, ArmPose, Item, Location
 from tables_demo_planning.subplan_visualization import SubPlanVisualization
 from tables_demo_planning.tables_demo import TablesDemoDomain, TablesDemoEnv, TablesDemoRobot
-from pose_selector.srv import PoseDelete, PoseDeleteRequest
+from pose_selector.srv import PoseDelete
 
 
 class TablesDemoAPIRobot(TablesDemoRobot['TablesDemoAPIEnv'], APIRobot):
@@ -210,47 +210,31 @@ class TablesDemoAPIRobot(TablesDemoRobot['TablesDemoAPIEnv'], APIRobot):
         TablesDemoRobot.hand_over_item(self, pose, item)
         return True
 
-    def perceive(self, location: Location) -> Dict[Item, Location]:
-        """Move arm into observation pose and return all perceived items with their locations."""
-        self.arm.move("observe100cm_right")
-        self.arm_pose = ArmPose.observe
-        rospy.loginfo("Wait for pose selector service ...")
-        rospy.wait_for_service("/pick_pose_selector_node/pose_selector_activate", timeout=rospy.Duration(2.0))
-        rospy.loginfo(f"Clear facts for {location.name}.")
-        for believed_item, believed_location in self.env.believed_item_locations.items():
-            if believed_location == location:
-                class_id, instance_id = believed_item.name.rsplit("_", 1)
-                self.pose_selector_delete(PoseDeleteRequest(class_id=class_id, instance_id=int(instance_id)))
-        self.pose_selector_activate(True)
-        rospy.sleep(5)
+    def update_facts(self) -> Dict[Item, Location]:
+        """Query fact generator for current state to upate the environment representation."""
         rospy.loginfo("Get facts from fact generator.")
         facts = self.on_fact_generator.generate_facts()
-        self.pose_selector_activate(False)
         perceived_item_locations: Dict[Item, Location] = {}
-        # Perceive facts for items on table location.
+        # Get all on facts
         for fact in facts:
             if fact.name == "on":
                 fact_item_name, fact_location_name = fact.values
-                rospy.loginfo(f"{fact_item_name} on {fact_location_name} returned by pose_selector and fact_generator.")
-                if (
-                    fact_item_name in [name for name in TablesDemoDomain.DEMO_ITEMS.keys()]
-                    and fact_location_name == location.name
-                ):
+                rospy.loginfo(f"{fact_item_name} on {fact_location_name} returned by fact_generator.")
+                if fact_item_name in [name for name in TablesDemoDomain.DEMO_ITEMS.keys()]:
                     rospy.loginfo(f"{fact_item_name} is perceived as on {fact_location_name}.")
-                    perceived_item_locations[Item.get(fact_item_name)] = location
+                    perceived_item_locations[Item.get(fact_item_name)] = Location[fact_location_name]
                     # Remove item from offered_items dict to be able to repeat the handover
                     # action with that item, if it is perceived again in the scene.
                     self.env.offered_items.discard(Item.get(fact_item_name))
-        # Also perceive facts for items in box if it is perceived on table location.
+        # Get all in facts for objects in klts
         for fact in facts:
             if fact.name == "in":
                 fact_item_name, fact_location_name = fact.values
-                if (
-                    fact_item_name in [name for name in TablesDemoDomain.DEMO_ITEMS.keys()]
-                    and fact_location_name.startswith("klt_")
-                    and perceived_item_locations.get(Item.get(fact_location_name)) == location
-                ):
-                    rospy.loginfo(f"{fact_item_name} is perceived as on {fact_location_name}.")
+                rospy.loginfo(f"{fact_item_name} in {fact_location_name} returned by fact_generator.")
+                if fact_item_name in [
+                    name for name in TablesDemoDomain.DEMO_ITEMS.keys()
+                ] and fact_location_name.startswith("klt_"):
+                    rospy.loginfo(f"{fact_item_name} is perceived as in {fact_location_name}.")
                     perceived_item_locations[Item.get(fact_item_name)] = Location.in_box
                     # Remove item from offered_items dict to be able to repeat the handover
                     # action with that item, if it is perceived again in the scene.
@@ -262,18 +246,23 @@ class TablesDemoAPIRobot(TablesDemoRobot['TablesDemoAPIEnv'], APIRobot):
         for perceived_item, perceived_location in perceived_item_locations.items():
             if (
                 perceived_item not in self.env.believed_item_locations.keys()
-                or self.env.believed_item_locations[perceived_item] != location
+                or self.env.believed_item_locations[perceived_item] != perceived_location
             ):
                 self.env.newly_perceived_item_locations[perceived_item] = perceived_location
-        rospy.loginfo(f"Newly perceived items: {[str(i) for i in self.env.newly_perceived_item_locations.keys()]}")
-        # Remove all previously perceived items at location.
-        for check_item, check_location in list(self.env.believed_item_locations.items()):
-            if check_location == location:
-                del self.env.believed_item_locations[check_item]
+        rospy.loginfo(f"Newly perceived on-items: {[str(i) for i in self.env.newly_perceived_item_locations.keys()]}")
         # Add all currently perceived items at location.
+        self.env.believed_item_locations.clear()
         self.env.believed_item_locations.update(perceived_item_locations)
-        self.env.searched_locations.add(location)
         self.env.print_believed_item_locations()
+        return perceived_item_locations
+
+    def perceive(self, location: Location) -> Dict[Item, Location]:
+        """Move arm into observation pose and return all perceived items with their locations."""
+        self.arm.move("observe100cm_right")
+        self.arm_pose = ArmPose.observe
+        rospy.sleep(5)
+        perceived_item_locations: Dict[Item, Location] = self.update_facts()
+        self.env.searched_locations.add(location)
         return perceived_item_locations
 
 

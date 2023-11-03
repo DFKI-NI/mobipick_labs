@@ -741,6 +741,7 @@ class HierarchicalDomain(TablesDemoAPIDomain):
         self.clear_tasks(self.problem)
         # self.set_task(self.problem, self.tables_demo(target_item, target_box, target_location))
         self.set_task(self.problem, self.bring_item_of_class(self.get_object(ItemClass.multimeter), target_location))
+        self.env.robot.update_facts()
         actions = self.replan()
         if actions is None:
             print("Execution ended because no plan could be found.")
