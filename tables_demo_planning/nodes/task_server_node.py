@@ -3,17 +3,14 @@
 import rospy
 import unified_planning
 import actionlib
-from typing import List
-from unified_planning.plans import Plan
-from unified_planning.shortcuts import OneshotPlanner, Problem
-from unified_planning.engines import OptimalityGuarantee
+from collections import defaultdict
+from typing import Dict
 from up_esb.plexmo import PlanDispatcher
 from tables_demo_planning.msg import (
     PlanAndExecuteTaskAction,
     PlanAndExecuteTaskGoal,
     PlanAndExecuteTaskResult,
 )
-from tables_demo_planning.mobipick_components import Item, Location
 
 
 class TaskServerNode:
@@ -49,6 +46,8 @@ class TaskServerNode:
         self._domain.problem.clear_goals()
 
     def generate_and_execute_plan(self, request: PlanAndExecuteTaskGoal) -> None:
+        retries_before_abortion = 3
+        error_counts: Dict[str, int] = defaultdict(int)
         plan = self._domain.create_plan(request.task, request.parameters)
 
         if not plan:
@@ -61,19 +60,54 @@ class TaskServerNode:
         print("> Plan:")
         print("\n".join(map(str, plan.action_plan.actions)))
 
-        graph = self._domain.get_executable_graph(plan.action_plan)
+        actions = plan.action_plan.actions
 
-        # execute the plan
-        print("> Execution:")
-        dispatcher_result = self._dispatcher.execute_plan(plan.action_plan, graph)
-        print(">Dispatcher finished with result " + str(dispatcher_result))
-        dispatcher_result = True
-        if dispatcher_result:
-            self._task_server.set_succeeded(
-                PlanAndExecuteTaskResult(success=True, message="Successfully executed task!")
-            )
-        else:
-            self._task_server.set_aborted(PlanAndExecuteTaskResult(success=False, message="Plan execution failed!"))
+        # Loop action execution as long as there are actions.
+        while actions:
+            print("> Execution:")
+            for action in actions:
+                if action.action.name == "trigger_replanning":
+                    plan = self.create_plan(request.task, request.parameters)
+                    actions = plan.action_plan.actions
+                    break
+                executable_action, parameters = self._domain.get_executable_action(action)
+                print(action)
+
+                # Execute action.
+                result = executable_action(*parameters)
+                if rospy.is_shutdown():
+                    self._task_server.set_aborted(
+                        PlanAndExecuteTaskResult(success=False, message="Plan execution failed!")
+                    )
+                    return
+                if result is not None:
+                    if not result:
+                        error_counts[self._domain.label(action)] += 1
+                        # Note: This will also fail if two different failures occur successively.
+                        if retries_before_abortion <= 0 or any(count >= 3 for count in error_counts.values()):
+                            print("Task could not be completed even after retrying.")
+                            return
+
+                        retries_before_abortion -= 1
+                        plan = self._domain.create_plan(request.task, request.parameters)
+                        actions = plan.action_plan.actions
+                        break
+                else:
+                    retries_before_abortion = 3
+                    plan = self._domain.create_plan(request.task, request.parameters)
+                    actions = plan.action_plan.actions
+                    break
+            else:
+                self._task_server.set_aborted(PlanAndExecuteTaskResult(success=False, message="Plan execution failed!"))
+                break
+            if actions is None:
+                print("Execution ended because no plan could be found.")
+                self._task_server.set_aborted(PlanAndExecuteTaskResult(success=False, message="Plan execution failed!"))
+                break
+
+        print("Demo complete.")
+
+        self._task_server.set_succeeded(PlanAndExecuteTaskResult(success=True, message="Successfully executed task!"))
 
 
 if __name__ == "__main__":
