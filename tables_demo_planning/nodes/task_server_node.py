@@ -24,8 +24,8 @@ class TaskServerNode:
             default="/mobipick/task_planning",
         )
 
-        domain_class = rospy.get_param("~domain_class", default="DemoDayDomain")
-        domain_module = rospy.get_param("~domain_module", default="tables_demo_planning.ai_day_demo")
+        domain_class = rospy.get_param("~domain_class", default="HierarchicalDomain")
+        domain_module = rospy.get_param("~domain_module", default="tables_demo_planning.hierarchical_domain")
 
         try:
             # Initialize domain by importing python class and calling __init__ without arguments
@@ -101,12 +101,7 @@ class TaskServerNode:
         return self.solve_problem(self._domain.problem)
 
     def generate_and_execute_plan(self, request: PlanAndExecuteTaskGoal) -> None:
-        # HACK setting initial item locations
-        # self.set_item_locations()
-
-        # TODO replace with function provided by domain to generate a plan
-        # plan = self.generate_plan(request)
-        plan = self._domain.calculate_plan_to_get_all_items(["Item_1", "Item_2"])
+        plan = self._domain.create_plan(request.task, request.parameters)
 
         if not plan:
             print("Could not find a plan. Exiting.")
@@ -116,16 +111,14 @@ class TaskServerNode:
             return
 
         print("> Plan:")
-        print("\n".join(map(str, plan)))
+        print("\n".join(map(str, plan.action_plan.actions)))
 
-        # TODO Uncomment execution, change as needed for new domain
+        graph = self._domain.get_executable_graph(plan.action_plan)
 
-        # graph = self._domain.get_executable_graph(plan)
-
-        # # execute the plan
-        # print("> Execution:")
-        # dispatcher_result = self._dispatcher.execute_plan(plan, graph)
-        # print(">Dispatcher finished with result " + str(dispatcher_result))
+        # execute the plan
+        print("> Execution:")
+        dispatcher_result = self._dispatcher.execute_plan(plan.action_plan, graph)
+        print(">Dispatcher finished with result " + str(dispatcher_result))
         dispatcher_result = True
         if dispatcher_result:
             self._task_server.set_succeeded(
