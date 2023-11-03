@@ -40,7 +40,7 @@ from typing import Dict
 import rospy
 import actionlib
 from std_msgs.msg import String
-from std_srvs.srv import Empty, SetBool
+from std_srvs.srv import Empty
 from geometry_msgs.msg import Pose
 from grasplan.msg import (
     InsertObjectAction,
@@ -56,7 +56,6 @@ from symbolic_fact_generation.robot_facts_generator import RobotAtGenerator
 from tables_demo_planning.mobipick_components import APIRobot, ArmPose, Item, Location
 from tables_demo_planning.subplan_visualization import SubPlanVisualization
 from tables_demo_planning.tables_demo import TablesDemoDomain, TablesDemoEnv, TablesDemoRobot
-from pose_selector.srv import PoseDelete
 
 
 class TablesDemoAPIRobot(TablesDemoRobot['TablesDemoAPIEnv'], APIRobot):
@@ -64,8 +63,6 @@ class TablesDemoAPIRobot(TablesDemoRobot['TablesDemoAPIEnv'], APIRobot):
         APIRobot.__init__(self, namespace)
         TablesDemoRobot.__init__(self, env)
 
-        self.pose_selector_activate = rospy.ServiceProxy("/pick_pose_selector_node/pose_selector_activate", SetBool)
-        self.pose_selector_delete = rospy.ServiceProxy("/pick_pose_selector_node/pose_selector_delete", PoseDelete)
         self.open_gripper = rospy.ServiceProxy("/mobipick/pose_teacher/open_gripper", Empty)
         self.pick_object_action_client = actionlib.SimpleActionClient("/mobipick/pick_object", PickObjectAction)
         self.pick_object_goal = PickObjectGoal()
@@ -81,11 +78,6 @@ class TablesDemoAPIRobot(TablesDemoRobot['TablesDemoAPIEnv'], APIRobot):
             query_srv_str="/pick_pose_selector_node/pose_selector_class_query",
             planning_scene_param="/mobipick/pick_object_node/planning_scene_boxes",
         )
-        # Clear all demo items' poses already on the pose_selector from previous observations.
-        # NOTE commented out for new version of tables demo
-        # for name in TablesDemoAPIDomain.DEMO_ITEMS.keys():
-        #     class_id, instance_id = name.rsplit("_", 1)
-        #     self.pose_selector_delete(PoseDeleteRequest(class_id=class_id, instance_id=int(instance_id)))
 
     def pick_item(self, pose: Pose, location: Location, item: Item) -> bool:
         """At pose, look for item at location, pick it up, then move arm to transport pose."""
