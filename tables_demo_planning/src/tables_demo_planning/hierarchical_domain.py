@@ -45,7 +45,7 @@ from geometry_msgs.msg import Pose
 from unified_planning.model import Fluent, InstantaneousAction, Object, Action, Problem
 from unified_planning.model.htn import HierarchicalProblem, Method, Task, Subtask
 from unified_planning.shortcuts import Equals, Not, Or, OneshotPlanner
-from unified_planning.plans import ActionInstance
+from unified_planning.plans import HierarchicalPlan
 from unified_planning.model.metrics import MinimizeSequentialPlanLength
 from unified_planning.engines import OptimalityGuarantee
 from tables_demo_planning.mobipick_components import ArmPose, Item, Location, ItemClass
@@ -707,7 +707,7 @@ class HierarchicalDomain(TablesDemoAPIDomain):
 
         return problem
 
-    def solve_problem(self, problem: Problem) -> Optional[List[ActionInstance]]:
+    def solve_problem(self, problem: Problem) -> Optional[HierarchicalPlan]:
         """Solve planning problem and return plan."""
         result = OneshotPlanner(
             name="aries", problem_kind=problem.kind, optimality_guarantee=OptimalityGuarantee.SOLVED_OPTIMALLY
@@ -718,7 +718,8 @@ class HierarchicalDomain(TablesDemoAPIDomain):
             else:
                 rospy.logerr(f"Error during plan generation: {result.status}")
         print(result.plan.actions)
-        return result.plan.action_plan.actions if result.plan and result.plan.action_plan else None
+        # return result.plan.action_plan.actions if result.plan and result.plan.action_plan else None
+        return result.plan if result.plan else None
 
     def write_problem(self) -> None:
         """Write problem into file with current timestamp"""
@@ -728,7 +729,7 @@ class HierarchicalDomain(TablesDemoAPIDomain):
         with open(filename, "w") as f:
             f.write(str(self.problem))
 
-    def replan(self) -> Optional[List[ActionInstance]]:
+    def replan(self) -> Optional[HierarchicalPlan]:
         """Print believed item locations, initialize UP problem, and solve it."""
         self.env.print_believed_item_locations()
         self.set_initial_values(self.problem)
@@ -742,6 +743,22 @@ class HierarchicalDomain(TablesDemoAPIDomain):
     def clear_tasks(self, problem: HierarchicalProblem) -> None:
         problem.task_network._subtasks.clear()
 
+    def create_task_from_string(self, task_name: str, parameters: List[str]) -> Task:
+        param_objs = [self.objects[param] for param in parameters]
+        task = self.problem.get_task(task_name)
+        return task(*param_objs)
+
+    def create_plan(self, task_name: str, parameters: List[str]):
+        """Create a plan that can be used in the task server"""
+        self.clear_tasks(self.problem)
+        self.create_task_from_string(task_name, parameters)
+        self.set_task(self.problem, self.create_task_from_string(task_name, parameters))
+        self.env.robot.update_facts()
+        return self.replan()
+
+    def initlize_state(self):
+        self.env.robot.update_facts()
+
     def run(self, target_item: Object, target_box: Object, target_location: Object) -> None:
         """Run the mobipick tables demo."""
         executed_action_names: Set[str] = set()  # Note: For visualization purposes only.
@@ -752,10 +769,15 @@ class HierarchicalDomain(TablesDemoAPIDomain):
         # self.set_task(self.problem, self.tables_demo(target_item, target_box, target_location))
         self.set_task(self.problem, self.bring_item_of_class(self.get_object(ItemClass.multimeter), target_location))
         self.env.robot.update_facts()
-        actions = self.replan()
-        if actions is None:
+        hierarchical_plan = self.replan()
+        if (
+            hierarchical_plan is None
+            or hierarchical_plan.action_plan is None
+            or hierarchical_plan.action_plan.actions is None
+        ):
             print("Execution ended because no plan could be found.")
             return
+        actions = hierarchical_plan.action_plan.actions
 
         # Loop action execution as long as there are actions.
         while actions:
