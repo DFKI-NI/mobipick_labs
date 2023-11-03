@@ -43,15 +43,12 @@ class TablesDemoSimRobot(TablesDemoRobot['TablesDemoSimEnv']):
     def store_item(self, pose: Pose, location: Location, item: Item, klt: Item) -> bool:
         location = self.env.resolve_search_location(location)
         perceived_item_locations = self.perceive(location)
-        assert(klt.name.startswith("klt_"))
+        assert klt.name.startswith("klt_")
         if perceived_item_locations.get(klt) != location:
             print(f"Cannot find box {klt.name} at {location.name}. Store item FAILED!")
             return False
 
-        if (
-            self.env.actual_item_locations[item] != Location.on_robot
-            or self.env.actual_item_locations[klt] != location
-        ):
+        if self.env.actual_item_locations[item] != Location.on_robot or self.env.actual_item_locations[klt] != location:
             print(f"Store {item.name} into box {klt.name} at {location.name} FAILED!")
             return False
 
