@@ -67,7 +67,7 @@ class TaskServerNode:
             print("> Execution:")
             for action in actions:
                 if action.action.name == "trigger_replanning":
-                    plan = self.create_plan(request.task, request.parameters)
+                    plan = self._domain.create_plan(request.task, request.parameters)
                     actions = plan.action_plan.actions
                     break
                 executable_action, parameters = self._domain.get_executable_action(action)
