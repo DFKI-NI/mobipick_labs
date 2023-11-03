@@ -40,6 +40,7 @@
 import rospy
 from typing import Iterable, Optional, Union, Set, Dict, List
 from collections import defaultdict
+import datetime
 from geometry_msgs.msg import Pose
 from unified_planning.model import Fluent, InstantaneousAction, Object, Action, Problem
 from unified_planning.model.htn import HierarchicalProblem, Method, Task, Subtask
@@ -719,10 +720,19 @@ class HierarchicalDomain(TablesDemoAPIDomain):
         print(result.plan.actions)
         return result.plan.action_plan.actions if result.plan and result.plan.action_plan else None
 
+    def write_problem(self) -> None:
+        """Write problem into file with current timestamp"""
+        # Write self.problem to file with current timestamp as filename
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        filename = f"/tmp/problem_{timestamp}.txt"
+        with open(filename, "w") as f:
+            f.write(str(self.problem))
+
     def replan(self) -> Optional[List[ActionInstance]]:
         """Print believed item locations, initialize UP problem, and solve it."""
         self.env.print_believed_item_locations()
         self.set_initial_values(self.problem)
+        self.write_problem()
         return self.solve_problem(self.problem)
 
     def set_task(self, problem: HierarchicalProblem, task: Union[Task, Subtask, Action]) -> None:
