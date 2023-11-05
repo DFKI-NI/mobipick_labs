@@ -33,5 +33,6 @@ catkin_install_python(PROGRAMS
   nodes/uplexmo_tables_demo_node.py
   nodes/hierarchical_demo_node.py
   nodes/task_server_node.py
+  nodes/task_server_client.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
