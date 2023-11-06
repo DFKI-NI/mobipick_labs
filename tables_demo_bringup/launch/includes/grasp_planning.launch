@@ -5,10 +5,12 @@
   <!-- visualize grasplan planning scene, allow to ignore some elements -->
   <arg name="world_config" default="ai_day" doc="objects arrangement, options: moelk_tables, cic_tables, truck_assembly, ai_day" />
   <arg name="ignore_set" default="[roof]" />
+  <!-- commented out because file is missing
   <include file="$(find grasplan)/launch/planning_scene/planning_scene_visualization.launch">
     <arg name="yaml_path_to_read" value="$(find tables_demo_bringup)/config/$(arg world_config)_planning_scene.yaml" />
     <arg name="ignore_set" value="$(arg ignore_set)" />
   </include>
+  -->
 
   <!-- visualise the poses inside the pose selector as textured meshes -->
   <arg name="object_color_rgba_pick" value="[0,0,0,0]"/>
