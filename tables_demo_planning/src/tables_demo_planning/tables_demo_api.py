@@ -252,7 +252,7 @@ class TablesDemoAPIRobot(TablesDemoRobot['TablesDemoAPIEnv'], APIRobot):
         """Move arm into observation pose and return all perceived items with their locations."""
         self.arm.move("observe100cm_right")
         self.arm_pose = ArmPose.observe
-        rospy.sleep(5)
+        rospy.sleep(10)
         perceived_item_locations: Dict[Item, Location] = self.update_facts()
         self.env.searched_locations.add(location)
         return perceived_item_locations
