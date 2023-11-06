@@ -272,6 +272,7 @@ class TablesDemoDomain(Domain[E]):
         self.search_at.add_precondition(Or(Equals(location, table) for table in self.tables))
         self.search_at.add_precondition(self.pose_at(pose, location))
         self.search_at.add_effect(self.searched_at(location), True)
+        self.search_at.add_effect(self.robot_arm_at(self.arm_pose_observe))
         self.search_tool, (_, item) = self.create_action_from_function(TablesDemoRobot.search_tool)
         self.search_tool.add_precondition(Not(self.robot_at(self.tool_search_pose)))
         self.search_tool.add_precondition(self.robot_has(self.nothing))
