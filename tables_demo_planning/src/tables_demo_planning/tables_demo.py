@@ -395,7 +395,6 @@ class TablesDemoDomain(Domain[E]):
         return location == (self.pose_locations[pose] if pose in self.pose_locations.keys() else self.anywhere)
 
     def set_goal_by_str(self, goal_str: str) -> bool:
-        self.problem.clear_goals()
         (goal_fluent_name, params) = parse_goal(goal_str)
 
         if goal_fluent_name in self.fluent_name_alternatives.keys():
@@ -444,10 +443,14 @@ class TablesDemoDomain(Domain[E]):
     def run(self, goal_strs: List[str] = None) -> None:
         """Run the mobipick tables demo."""
 
+        print("Goals:")
+        print(goal_strs)
+
         executed_action_names: Set[str] = set()  # Note: For visualization purposes only.
         retries_before_abortion = self.RETRIES_BEFORE_ABORTION
         error_counts: Dict[str, int] = defaultdict(int)
         target_location = Location.table_2
+        self.problem.clear_goals()
         # Solve overall problem.
         if goal_strs:
             perform_default_demo = False
