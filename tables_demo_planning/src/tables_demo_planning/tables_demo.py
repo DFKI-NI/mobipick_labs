@@ -39,15 +39,17 @@ These Mobipick components connect the planning domain with the application domai
 """
 
 
-from typing import Dict, Generic, List, Optional, Set, TypeVar
+from typing import Dict, Generic, List, Optional, Set, TypeVar, Tuple
 from abc import ABC, abstractmethod
 from collections import defaultdict
+import re
 import rospy
 from geometry_msgs.msg import Pose
 from unified_planning.model import Object
 from unified_planning.model.metrics import MinimizeSequentialPlanLength
 from unified_planning.plans import ActionInstance
 from unified_planning.shortcuts import Equals, Not, Or
+from unified_planning.exceptions import UPValueError
 from tables_demo_planning.demo_domain import Domain
 from tables_demo_planning.mobipick_components import ArmPose, EnvironmentRepresentation, Item, Location, Robot
 from tables_demo_planning.subplan_visualization import SubPlanVisualization
@@ -175,6 +177,19 @@ class TablesDemoEnv(EnvironmentRepresentation[R]):
         print("The believed item locations are:")
         for item in TablesDemoDomain.DEMO_ITEMS:
             print(f"- {item.name}:", self.believed_item_locations.get(item, Location.anywhere).name)
+
+
+def parse_goal(goal_str: str) -> Tuple[str, List[str]]:
+    # goal should have the format fluent_name(param1, param2, ..., paramn)
+    regex = r"(\w+)\((\w+(?:,\s*\w+)*)\)"
+    match = re.match(regex, goal_str)
+    if match:
+        goal_name = match.group(1)
+        params_str = match.group(2)
+        params = [param.strip() for param in params_str.split(',')]
+        return goal_name, params
+    else:
+        raise ValueError(f"Invalid goal string: {goal_str}")
 
 
 class TablesDemoDomain(Domain[E]):
@@ -365,8 +380,31 @@ class TablesDemoDomain(Domain[E]):
         self.visualization: Optional[SubPlanVisualization] = None
         self.espeak_pub: Optional[rospy.Publisher] = None
 
+        self.fluent_name_alternatives = {}
+        self.fluent_name_alternatives["robot_at"] = "get_robot_at"
+        self.fluent_name_alternatives["robot_arm_at"] = "get_robot_arm_at"
+        self.fluent_name_alternatives["arm_at"] = "get_robot_arm_at"
+        self.fluent_name_alternatives["robot_has"] = "get_robot_has"
+        self.fluent_name_alternatives["has"] = "get_robot_has"
+        self.fluent_name_alternatives["believe_item_at"] = "get_believe_item_at"
+        self.fluent_name_alternatives["item_at"] = "get_believe_item_at"
+        self.fluent_name_alternatives["item_offered"] = "get_item_offered"
+        self.fluent_name_alternatives["offered"] = "get_item_offered"
+
     def get_pose_at(self, pose: Object, location: Object) -> bool:
         return location == (self.pose_locations[pose] if pose in self.pose_locations.keys() else self.anywhere)
+
+    def set_goal_by_str(self, goal_str: str) -> bool:
+        self.problem.clear_goals()
+        (goal_fluent_name, params) = parse_goal(goal_str)
+
+        if goal_fluent_name in self.fluent_name_alternatives.keys():
+            goal_fluent_name = self.fluent_name_alternatives[goal_fluent_name]
+
+        if self.problem.has_fluent(goal_fluent_name):
+            goal_fluent = self.problem.fluent(goal_fluent_name)
+        param_objs = [self.problem.object(param) for param in params]
+        self.problem.add_goal(goal_fluent(*param_objs))
 
     def set_goals(self, target_location: Location) -> None:
         """Set the goals for the overall demo."""
@@ -403,18 +441,36 @@ class TablesDemoDomain(Domain[E]):
         self.set_initial_values(self.problem)
         return self.solve(self.problem)
 
-    def run(self, target_location: Location) -> None:
+    def run(self, goal_strs: List[str] = None) -> None:
         """Run the mobipick tables demo."""
-        print(
-            "Scenario: Mobipick shall bring the box with the multimeter inside to"
-            f" {self.objects[target_location.name]}."
-        )
 
         executed_action_names: Set[str] = set()  # Note: For visualization purposes only.
         retries_before_abortion = self.RETRIES_BEFORE_ABORTION
         error_counts: Dict[str, int] = defaultdict(int)
+        target_location = Location.table_2
         # Solve overall problem.
-        self.set_goals(target_location)
+        if goal_strs:
+            perform_default_demo = False
+            for goal_str in goal_strs:
+                try:
+                    self.set_goal_by_str(goal_str)
+                except ValueError as e:
+                    print(e)
+                    print("Goal should have the format fluent_name(param1, param2, ..., paramn).")
+                    return
+                except UPValueError as e:
+                    rospy.logerr("Could not set the goal for the goal string.")
+                    print(e)
+                    print("Available fluents: %s" % self.problem.fluents)
+                    print("Available parameters: %s" % self.problem.all_objects)
+                    return
+        else:  # use default goal:
+            perform_default_demo = True
+            print(
+                "Scenario: Mobipick shall bring the box with the multimeter inside to"
+                f" {self.objects[target_location.name]}."
+            )
+            self.set_goals(target_location)
         actions = self.replan()
         if actions is None:
             print("Execution ended because no plan could be found.")
@@ -441,7 +497,7 @@ class TablesDemoDomain(Domain[E]):
                 if action.action.name == "pick_item" and parameters[-1] == Item.box:
                     assert isinstance(parameters[-2], Location)
                     location = self.env.resolve_search_location(parameters[-2])
-                    if location == target_location:
+                    if location == target_location and perform_default_demo:
                         print("Picking up box OBSOLETE.")
                         if self.visualization:
                             self.visualization.cancel(action_name)
