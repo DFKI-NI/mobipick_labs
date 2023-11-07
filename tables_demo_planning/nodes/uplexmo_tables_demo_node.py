@@ -58,7 +58,7 @@ from unified_planning.model import UPState
 class TablesDemoOrchestrator:
     def __init__(self) -> None:
         self._domain = TablesDemoAPIDomain()
-        self.visualization: Optional[SubPlanVisualization] = None
+        self.visualization = SubPlanVisualization()
         self.espeak_pub: Optional[rospy.Publisher] = None
         self._trigger_replanning = False  # Temporary solution until it is provided by dispatcher
 
