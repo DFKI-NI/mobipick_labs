@@ -193,7 +193,7 @@ def parse_goal(goal_str: str) -> Tuple[str, List[str]]:
 
 
 class TablesDemoDomain(Domain[E]):
-    DEMO_ITEMS = (Item.box, Item.multimeter)
+    DEMO_ITEMS = (Item.box, Item.multimeter, Item.power_drill)
     TABLE_LOCATIONS = (Location.table_1, Location.table_2, Location.table_3)
     RETRIES_BEFORE_ABORTION = 2
 
@@ -294,7 +294,7 @@ class TablesDemoDomain(Domain[E]):
         self.search_tool.add_precondition(self.robot_has(self.nothing))
         self.search_tool.add_precondition(self.believe_item_at(item, self.anywhere))
         self.search_tool.add_precondition(
-            Or(Equals(item, tool) for tool in (self.multimeter, self.relay, self.screwdriver))
+            Or(Equals(item, tool) for tool in (self.multimeter, self.relay, self.screwdriver, self.power_drill))
         )
         for pose in self.poses:
             self.search_tool.add_effect(self.robot_at(pose), pose == self.tool_search_pose)
