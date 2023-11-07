@@ -21,7 +21,7 @@
   </node>
 
   <!-- visualise grasps ( draws multiple brown grippers :1 per grasp ; as mesh in rviz using visualisation marker array ) -->
-  <node pkg="grasplan" type="rviz_gripper_visualiser.py" name="rviz_gripper_visualiser" output="screen">
+  <node pkg="grasplan" type="rviz_gripper_visualizer.py" name="rviz_gripper_visualizer" output="screen">
     <param name="global_reference_frame" type="string" value="map" />
     <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/gripper_open_transformations.yaml" command="load" ns="gripper_transformations"/>
     <remap from="pose_array" to="/mobipick/pick_object_node/grasp_poses"/>
