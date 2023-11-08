@@ -194,7 +194,9 @@ class TablesDemoAPIRobot(TablesDemoRobot['TablesDemoAPIEnv'], APIRobot):
         At pose, hand over item to person, observe force torque feedback
         until item is taken by person, then move arm to home pose.
         """
-        self.arm.move("handover")
+        self.arm.execute("MoveArmToHandover")
+        if not self.arm.get_result().result:
+            return False
         self.arm_pose = ArmPose.handover
         # observe force torque sensor using treshold 5.0 and a timeout of 25.0 seconds
         if not self.arm.observe_force_torque(5.0, 25.0):
