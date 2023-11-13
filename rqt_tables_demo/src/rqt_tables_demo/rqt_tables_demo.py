@@ -62,57 +62,54 @@ class RqtTablesDemo(Plugin):
 
         # ::: parameters
 
-        # navigation and teletransportation in simulation, base waypoints/goals, but also define surfaces
-        wp_dic = {
-            'table_1': [12.21, 2.10, 0.0, 0.707, 0.0, 0.0, 0.707],
-            'table_2': [11.85, 2.45, 0.0, 0.0, 0.0, 0.0, 1.0],
-            'table_3': [10.25, 2.45, 0.0, 0.0, 0.0, 0.0, 1.0],
-        }
-        self.wp_dic = rospy.get_param('navigation_waypoints', wp_dic)
-        surfaces = []
+        # navigation and teletransportation base poses in simulation, base waypoints/goals, but also define surfaces
+        default_wp_dic = {  'pick_pose_name': 'base_table_2_pose', # not used by this node
+                            'place_pose_name': 'base_table_3_pose', # not used by this node
+                            # moelk_tables values by default, order : [[x, y, z], [qx, qy, qz, qw]]
+                            'poses': {  'base_handover_pose': [[10.16, 1.76, 0.0], [0.0, 0.0, 0.707, 0.707]],
+                                        'base_home_pose': [[12.0, 2.0, 0.0], [0.0, 0.0, 0.0, 1.0]],
+                                        'base_table_1_pose': [[12.21, 2.1, 0.0], [0.0, 0.0, 0.707, 0.707]],
+                                        'base_table_2_pose': [[11.85, 2.45, 0.0], [0.0, 0.0, 1.0, 0.0]],
+                                        'base_table_3_pose': [[10.25, 2.45, 0.0], [0.0, 0.0, 1.0, 0.0]],
+                                        'handover_planned': True, # not used by this node
+                                        'world_name': 'moelk' # not used by this node
+                            }
+                        }
+
+        # read poses from parameter server and extract useful information
+        self.wp_dic = self.convert_pose_dict(rospy.get_param('~navigation_waypoints', default_wp_dic))
+
+        manipulation_areas = []
+        navigation_areas = []
         for key in self.wp_dic:
-            surfaces.append(key)
-        self._widget.comboNavigationWaypoints.addItems(surfaces)
-        self._widget.comboPickSurfaces.addItems(surfaces)
-        self._widget.comboPlaceSurfaces.addItems(surfaces)
+            # ignore base_handover_pose and base_home_pose from manipulation areas
+            if key != 'base_handover_pose' and key != 'base_home_pose':
+                manipulation_areas.append(key)
+            navigation_areas.append(key)
+        self._widget.comboNavigationWaypoints.addItems(navigation_areas)
+        self._widget.comboPickSurfaces.addItems(manipulation_areas)
+        self._widget.comboPlaceSurfaces.addItems(manipulation_areas)
 
         # manipulation "predefined arm configurations" or "arm poses"
-        arm_poses = [
-            'home',
-            'observe100cm_front',
-            'observe100cm_left',
-            'observe100cm_right',
-            'observe100cm_back',
-            'transport',
-            'place_1',
-            'above',
-            'tucked',
-            'ready_for_packing',
-            'untangle_cable_guide_1_right',
-            'untangle_cable_guide_2_right',
-        ]
-        arm_poses = rospy.get_param('arm_poses', arm_poses)
-        self._widget.comboArmPoses.addItems(arm_poses)
+        self._widget.comboArmPoses.addItems(self.mobipick.arm.pose_names)
 
-        # perception observation poses
-        arm_observation_poses = [
-            '',
-            'observe100cm_right',
-            'observe100cm_left',
-            'observe100cm_front',
-            'observe100cm_back',
-        ]
-        arm_observation_poses = rospy.get_param('arm_observation_poses', arm_observation_poses)
-        self._widget.comboPerceptionObs1.addItems(arm_observation_poses[1:])  # skip first element
-        self._widget.comboPerceptionObs2.addItems(arm_observation_poses)
-        self._widget.comboPerceptionObs3.addItems(arm_observation_poses)
+        # get moveit arm poses from robot api, filter in only the ones containing 'observe'
+        default_arm_observation_poses = [''] # add a first empty element
+        for arm_pose in self.mobipick.arm.pose_names:
+            if 'observe' in arm_pose:
+                default_arm_observation_poses.append(arm_pose)
+
+        default_arm_observation_poses = rospy.get_param('arm_observation_poses', default_arm_observation_poses)
+        self._widget.comboPerceptionObs1.addItems(default_arm_observation_poses[1:])  # skip first (empty) element
+        self._widget.comboPerceptionObs2.addItems(default_arm_observation_poses)
+        self._widget.comboPerceptionObs3.addItems(default_arm_observation_poses)
 
         # the amount of time to wait for pose selector services to become available
         self.wait_for_services = rospy.get_param('wait_for_services', 2.0)
 
         # adding demo objects to pose selector class query and others
-        objects_of_interest = ['multimeter', 'klt', 'power_drill_with_grip', 'relay', 'screwdriver', 'hot_glue_gun']
-        self.objects_of_interest = rospy.get_param('objects_of_interest', objects_of_interest)
+        default_objects_of_interest = ['multimeter', 'klt', 'power_drill_with_grip', 'relay', 'screwdriver', 'hot_glue_gun']
+        self.objects_of_interest = rospy.get_param('~objects_of_interest', default_objects_of_interest) # TODO: test!!!!!!!!!!!!!!!!!!!!
         self._widget.comboPerceptionPSClassQuery.addItems(self.objects_of_interest)
         self._widget.comboPickObj.addItems(self.objects_of_interest)
 
@@ -201,6 +198,24 @@ class RqtTablesDemo(Plugin):
 
     # ::::::::::::::  class methods
 
+    def convert_pose_dict(self, input_dict):
+        '''
+        this function converts a base pose dictionary from the format used in the
+        planning yaml file to the format used by the rqt tables demo
+        '''
+        output_dict = {}
+        for key, value in input_dict['poses'].items():
+            if 'table' in key:
+                new_key = key.replace('base_', '').replace('_pose', '')
+            else:
+                new_key = key
+
+            if isinstance(value, list) and len(value) == 2:
+                flattened_value = value[0] + value[1]
+                output_dict[new_key] = flattened_value
+
+        return output_dict
+
     def chk_pick_enable_id_changed(self):
         self.manipulation_update()
 
@@ -280,12 +295,7 @@ class RqtTablesDemo(Plugin):
         if self._widget.optNavigationNavigate.isChecked():
             rospy.loginfo(f'Navigating robot to waypoint: {waypoint_as_text}')
             # Move the robot's base using move_base.
-            angular_q = [
-                self.wp_dic[waypoint_as_text][6],
-                self.wp_dic[waypoint_as_text][3],
-                self.wp_dic[waypoint_as_text][4],
-                self.wp_dic[waypoint_as_text][5],
-            ]
+            angular_q = self.wp_dic[waypoint_as_text][3:7]
             angular_rpy = list(tf.transformations.euler_from_quaternion(angular_q))
             self.mobipick.base.move(self.wp_dic[waypoint_as_text][0], self.wp_dic[waypoint_as_text][1], angular_rpy[2])
         elif self._widget.optNavigationTeletransport.isChecked():
@@ -295,10 +305,10 @@ class RqtTablesDemo(Plugin):
             pose_stamped_msg.pose.position.x = self.wp_dic[waypoint_as_text][0]
             pose_stamped_msg.pose.position.y = self.wp_dic[waypoint_as_text][1]
             pose_stamped_msg.pose.position.z = self.wp_dic[waypoint_as_text][2]
-            pose_stamped_msg.pose.orientation.w = self.wp_dic[waypoint_as_text][3]  # WARNING: quaternion order wxyz!
-            pose_stamped_msg.pose.orientation.x = self.wp_dic[waypoint_as_text][4]
-            pose_stamped_msg.pose.orientation.y = self.wp_dic[waypoint_as_text][5]
-            pose_stamped_msg.pose.orientation.z = self.wp_dic[waypoint_as_text][6]
+            pose_stamped_msg.pose.orientation.x = self.wp_dic[waypoint_as_text][3]
+            pose_stamped_msg.pose.orientation.y = self.wp_dic[waypoint_as_text][4]
+            pose_stamped_msg.pose.orientation.z = self.wp_dic[waypoint_as_text][5]
+            pose_stamped_msg.pose.orientation.w = self.wp_dic[waypoint_as_text][6]
             self.set_model_pose('mobipick', pose_stamped_msg)
 
     def manipulation_go(self):

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+
+  <arg name="world_config" default="moelk_tables" doc="objects arrangement, options: moelk_tables, cic_tables, truck_assembly" />
+  <arg name="objects_of_interest" default="[relay, screwdriver, multimeter, power_drill_with_grip, klt, hot_glue_gun]"/>
+  <arg name="namespace" default="mobipick"/>
+
+  <node pkg="rqt_tables_demo" type="rqt_tables_demo" name="rqt_tables_demo" output="screen" ns="$(arg namespace)">
+    <rosparam command="load" file="$(find mobipick_pick_n_place)/config/$(arg world_config)_demo.yaml" ns="navigation_waypoints" />
+    <rosparam param="objects_of_interest" subst_value="True">$(arg objects_of_interest)</rosparam>
+  </node>
+
+</launch>
