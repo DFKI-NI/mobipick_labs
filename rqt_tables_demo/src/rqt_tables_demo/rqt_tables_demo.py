@@ -8,7 +8,7 @@ from qt_gui.plugin import Plugin
 from python_qt_binding import loadUi
 from python_qt_binding.QtWidgets import QWidget
 
-from grasplan.common_grasp_tools import objectToPick
+from grasplan.tools.common import objectToPick
 from geometry_msgs.msg import PoseStamped
 from gazebo_msgs.srv import SetModelState
 from gazebo_msgs.msg import ModelState
