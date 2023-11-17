@@ -51,7 +51,7 @@ class TablesDemoDomain(Domain):
     def __init__(self, robot: Robot) -> None:
         super().__init__()
         self.api_robot = robot
-        self.robot = self.get(Robot, "Mobipick")
+        self.robot = self.get(Robot, robot.name)
         self.pose_locations: Dict[Object, Object] = {}
         self.arm_pose_unknown = self.get(ArmPose, "arm_pose_unknown")
         self.nothing = self.get(Item, "nothing")

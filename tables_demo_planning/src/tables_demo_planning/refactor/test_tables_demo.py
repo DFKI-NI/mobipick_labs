@@ -111,7 +111,7 @@ class Simulation:
                 print(action)
 
                 # Execute action.
-                executable_action(*(parameters[1:] if isinstance(parameters[0], Robot) else parameters))
+                executable_action(*(parameters[1:] if hasattr(self.mobipick) else parameters))
             else:
                 break
 
