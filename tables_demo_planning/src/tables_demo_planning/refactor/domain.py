@@ -38,7 +38,7 @@ The Mobipick domain, providing methods to connect its applications to its planni
 """
 
 
-from typing import Callable, List, Type
+from typing import Callable, Dict, List, Type
 from geometry_msgs.msg import Pose
 from unified_planning.model import Fluent, InstantaneousAction, Object
 from unified_planning.shortcuts import Equals, Not, Or
@@ -91,25 +91,25 @@ class Domain(Bridge):
         """Return UP Object with name if it exists, else create a new one using api_type."""
         return self.objects[name] if name in self.objects.keys() else self.create_object(name, api_type.get(name))
 
-    def get_objects_with_prefix(self, prefix: str) -> List[Object]:
-        """Return UP Objects whose names start with prefix."""
-        return [obj for name, obj in self.objects.items() if name.startswith(prefix)]
-
-    def get_objects_with_suffix(self, suffix: str) -> List[Object]:
-        """Return UP Objects whose names end with suffix."""
-        return [obj for name, obj in self.objects.items() if name.endswith(suffix)]
-
-    def get_arm_pose_objects(self) -> List[Object]:
-        """Return UP Objects representing arm poses."""
-        return [self.get(ArmPose, name) for name in ArmPose.instances.keys()]
+    def get_objects_for_type(self, api_type: type) -> Dict[str, Object]:
+        """Return UP Objects corresponding to objects of api_type."""
+        return {
+            name: self.objects[name]
+            for name, api_object in self._api_objects.items()
+            if isinstance(api_object, api_type)
+        }
 
     def get_tool_objects(self) -> List[Object]:
-        """Return UP Objects representing tools in the Mobipick domain."""
+        """Return UP Objects representing tool items in the Mobipick domain."""
         return [
-            self.get(Item, name)
-            for name, item in Item.instances.items()
-            if name.startswith("multimeter") or name.startswith("relay") or name.startswith("screwdriver")
+            obj
+            for name, obj in self.get_objects_for_type(Item).items()
+            if name.startswith("multimeter_") or name.startswith("relay_") or name.startswith("screwdriver_")
         ]
+
+    def get_table_objects(self) -> List[Object]:
+        """Return UP Objects representing table locations in the Mobipick domain."""
+        return [obj for name, obj in self.get_objects_for_type(Location).items() if name.startswith("table_")]
 
     def create_move_base_action(self, _callable: Callable[[Robot, Pose, Pose], object]) -> InstantaneousAction:
         """
@@ -170,7 +170,7 @@ class Domain(Bridge):
             Or(
                 Equals(location, table)
                 for table in [
-                    *self.get_objects_with_prefix("table_"),
+                    *self.get_table_objects(),
                     self.get(Location, "tool_search_location"),
                     self.get(Location, "klt_search_location"),
                 ]
@@ -179,7 +179,7 @@ class Domain(Bridge):
         pick_item.add_precondition(Not(Equals(item, self.get(Item, "nothing"))))
         pick_item.add_effect(self.robot_has(robot, self.get(Item, "nothing")), False)
         pick_item.add_effect(self.robot_has(robot, item), True)
-        for arm_pose in self.get_arm_pose_objects():
+        for arm_pose in self.get_objects_for_type(ArmPose).values():
             pick_item.add_effect(self.robot_arm_at(robot, arm_pose), arm_pose == self.get(ArmPose, "transport"))
         pick_item.add_effect(self.believe_item_at(item, location), False)
         pick_item.add_effect(self.believe_item_at(item, self.get(Location, "on_robot")), True)
@@ -201,7 +201,7 @@ class Domain(Bridge):
         place_item.add_precondition(Not(Equals(location, self.get(Location, "anywhere"))))
         place_item.add_effect(self.robot_has(robot, item), False)
         place_item.add_effect(self.robot_has(robot, self.get(Item, "nothing")), True)
-        for arm_pose in self.get_arm_pose_objects():
+        for arm_pose in self.get_objects_for_type(ArmPose).values():
             place_item.add_effect(self.robot_arm_at(robot, arm_pose), arm_pose == self.get(ArmPose, "home"))
         place_item.add_effect(self.believe_item_at(item, self.get(Location, "on_robot")), False)
         place_item.add_effect(self.believe_item_at(item, location), True)
@@ -224,7 +224,7 @@ class Domain(Bridge):
         store_item.add_precondition(Not(Equals(location, self.get(Location, "anywhere"))))
         store_item.add_effect(self.robot_has(robot, item), False)
         store_item.add_effect(self.robot_has(robot, self.get(Item, "nothing")), True)
-        for arm_pose in self.get_arm_pose_objects():
+        for arm_pose in self.get_objects_for_type(ArmPose).values():
             store_item.add_effect(self.robot_arm_at(robot, arm_pose), arm_pose == self.get(ArmPose, "arm_pose_home"))
         store_item.add_effect(self.believe_item_at(item, self.get(Location, "on_robot")), False)
         store_item.add_effect(self.believe_item_at(item, self.get(Location, "in_klt")), True)
@@ -242,7 +242,7 @@ class Domain(Bridge):
         handover_item.add_precondition(Not(self.item_offered(item)))
         handover_item.add_effect(self.robot_has(robot, item), False)
         handover_item.add_effect(self.robot_has(robot, self.get(Item, "nothing")), True)
-        for arm_pose in self.get_arm_pose_objects():
+        for arm_pose in self.get_objects_for_type(ArmPose).values():
             handover_item.add_effect(self.robot_arm_at(arm_pose), arm_pose == self.get(ArmPose, "handover"))
         handover_item.add_effect(self.believe_item_at(item, self.get("on_robot")), False)
         handover_item.add_effect(self.believe_item_at(item, self.get("anywhere")), True)
@@ -262,10 +262,10 @@ class Domain(Bridge):
         search_at.add_precondition(self.robot_at(robot, pose))
         search_at.add_precondition(Or(self.robot_arm_at(robot, self.get(ArmPose, name)) for name in arm_pose_names))
         search_at.add_precondition(Not(self.searched_at(location)))
-        search_at.add_precondition(Or(Equals(location, table) for table in self.get_objects_with_prefix("table_")))
+        search_at.add_precondition(Or(Equals(location, table) for table in self.get_table_objects()))
         search_at.add_precondition(self.pose_at(pose, location))
         search_at.add_effect(self.searched_at(location), True)
-        for arm_pose in self.get_arm_pose_objects():
+        for arm_pose in self.get_objects_for_type(ArmPose).values():
             search_at.add_effect(self.robot_arm_at(robot, arm_pose), arm_pose == self.get(ArmPose, "observe"))
 
     def create_search_tool_action(self, _callable: Callable[[Robot, Item], object]) -> InstantaneousAction:
@@ -279,7 +279,7 @@ class Domain(Bridge):
         search_tool.add_precondition(self.robot_has(robot, self.get(Item, "nothing")))
         search_tool.add_precondition(self.believe_item_at(item, self.get(Location, "anywhere")))
         search_tool.add_precondition(Or(Equals(item, tool) for tool in self.get_tool_objects()))
-        for pose in self.get_objects_with_suffix("_pose"):
+        for pose in self.get_objects_for_type(Pose).values():
             search_tool.add_effect(self.robot_at(robot, pose), pose == self.get(Pose, "tool_search_pose"))
         search_tool.add_effect(self.believe_item_at(item, self.get(Location, "anywhere")), False)
         search_tool.add_effect(self.believe_item_at(item, self.get(Location, "tool_search_location")), True)
@@ -293,7 +293,7 @@ class Domain(Bridge):
         search_klt, (robot,) = self.create_action_from_function(_callable)
         search_klt.add_precondition(Not(self.robot_at(robot, self.get(Pose, "klt_search_pose"))))
         search_klt.add_precondition(self.believe_item_at(self.get(Item, "klt_1"), self.get(Location, "anywhere")))
-        for pose in self.get_objects_with_suffix("_pose"):
+        for pose in self.get_objects_for_type(Pose).values():
             search_klt.add_effect(self.robot_at(robot, pose), pose == self.get(Pose, "klt_search_pose"))
         search_klt.add_effect(self.believe_item_at(self.get(Item, "klt_1"), self.get(Location, "anywhere")), False)
         search_klt.add_effect(
@@ -307,7 +307,7 @@ class Domain(Bridge):
         """
         conclude_tool_search, (item,) = self.create_action_from_function(_callable)
         conclude_tool_search.add_precondition(self.believe_item_at(item, self.get(Location, "anywhere")))
-        for table in self.get_objects_with_prefix("table_"):
+        for table in self.get_table_objects():
             conclude_tool_search.add_precondition(self.searched_at(table))
         conclude_tool_search.add_precondition(Not(Equals(item, self.get(Item, "klt_1"))))
         conclude_tool_search.add_effect(self.believe_item_at(item, self.get(Location, "anywhere")), False)
@@ -322,7 +322,7 @@ class Domain(Bridge):
         conclude_klt_search.add_precondition(
             self.believe_item_at(self.get(Item, "klt_1"), self.get(Location, "anywhere"))
         )
-        for table in self.get_objects_with_prefix("table_"):
+        for table in self.get_table_objects():
             conclude_klt_search.add_precondition(self.searched_at(table))
         conclude_klt_search.add_effect(
             self.believe_item_at(self.get(Item, "klt_1"), self.get(Location, "anywhere")), False
