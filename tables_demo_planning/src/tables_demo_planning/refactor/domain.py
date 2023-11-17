@@ -110,6 +110,10 @@ class Domain(Bridge):
         ]
 
     def create_move_base_action(self, _callable: Callable[[Robot, Pose, Pose], object]) -> InstantaneousAction:
+        """
+        Create plannable action using _callable with which the Robot moves to the second Pose
+         while holding 'nothing' and its arm being in 'arm_pose_home'.
+        """
         move_base, (robot, x, y) = self.create_action_from_function(_callable)
         move_base.add_precondition(self.robot_at(robot, x))
         move_base.add_precondition(Not(self.robot_at(robot, y)))
@@ -122,6 +126,10 @@ class Domain(Bridge):
     def create_move_base_with_item_action(
         self, _callable: Callable[[Robot, Item, Pose, Pose], object]
     ) -> InstantaneousAction:
+        """
+        Create plannable action using _callable with which the Robot moves to the second Pose
+         while holding an Item other than 'nothing' and its arm being in 'arm_pose_transport'.
+        """
         move_base_with_item, (robot, item, x, y) = self.create_action_from_function(_callable)
         move_base_with_item.add_precondition(self.robot_at(robot, x))
         move_base_with_item.add_precondition(Not(self.robot_at(robot, y)))
@@ -133,6 +141,10 @@ class Domain(Bridge):
         return move_base_with_item
 
     def create_move_arm_action(self, _callable: Callable[[Robot, ArmPose, ArmPose], object]) -> InstantaneousAction:
+        """
+        Create plannable action using _callable with which the Robot moves its arm
+         to the second ArmPose.
+        """
         move_arm, (robot, x, y) = self.create_action_from_function(_callable)
         move_arm.add_precondition(self.robot_arm_at(robot, x))
         move_arm.add_precondition(Not(self.robot_arm_at(robot, y)))
@@ -143,6 +155,10 @@ class Domain(Bridge):
     def create_pick_item_action(
         self, _callable: Callable[[Robot, Pose, Location, Item], object]
     ) -> InstantaneousAction:
+        """
+        Create plannable action using _callable with which the Robot picks up Item from Location
+         while being at Pose and holding 'nothing'.
+        """
         pick_item, (robot, pose, location, item) = self.create_action_from_function(_callable)
         pick_item.add_precondition(self.robot_at(robot, pose))
         pick_item.add_precondition(self.robot_has(robot, self.get(Item, "nothing")))
@@ -172,6 +188,11 @@ class Domain(Bridge):
     def create_place_item_action(
         self, _callable: Callable[[Robot, Pose, Location, Item], object]
     ) -> InstantaneousAction:
+        """
+        Create plannable action using _callable with which the Robot places Item down at Location
+         while being at Pose, the Item being 'on_robot' and Location other than 'anywhere'.
+         Afterwards, Robot will hold 'nothing' and its arm be in 'arm_pose_home'.
+        """
         place_item, (robot, pose, location, item) = self.create_action_from_function(_callable)
         place_item.add_precondition(self.robot_at(robot, pose))
         place_item.add_precondition(self.robot_has(robot, item))
@@ -189,6 +210,11 @@ class Domain(Bridge):
     def create_store_item_action(
         self, _callable: Callable[[Robot, Pose, Location, Item], object]
     ) -> InstantaneousAction:
+        """
+        Create plannable action using _callable with which the Robot stores Item into 'klt_1' at Location
+         while being at Pose, the Item being 'on_robot' and Location other than 'anywhere'.
+         Afterwards, Robot will hold 'nothing', its arm be in 'arm_pose_home', and Item 'in_klt'.
+        """
         store_item, (robot, pose, location, item) = self.create_action_from_function(_callable)
         store_item.add_precondition(self.robot_at(robot, pose))
         store_item.add_precondition(self.robot_has(robot, item))
@@ -204,6 +230,11 @@ class Domain(Bridge):
         store_item.add_effect(self.believe_item_at(item, self.get(Location, "in_klt")), True)
 
     def create_handover_item_action(self, _callable: Callable[[Robot, Pose, Item], object]) -> InstantaneousAction:
+        """
+        Create plannable action using _callable with which Robot hands over Item
+         while being at Pose and the Item being 'on_robot. Afterwards, Robot will hold 'nothing',
+         its arm be in 'arm_pose_handover', and Item 'anywhere'.
+        """
         handover_item, (robot, pose, item) = self.create_action_from_function(_callable)
         handover_item.add_precondition(self.robot_at(robot, pose))
         handover_item.add_precondition(self.robot_has(robot, item))
@@ -218,19 +249,18 @@ class Domain(Bridge):
         handover_item.add_effect(self.item_offered(item), True)
         return handover_item
 
-    def create_search_at_action(self, _callable: Callable[[Robot, Pose, Location], object]) -> InstantaneousAction:
+    def create_search_at_action(
+        self, _callable: Callable[[Robot, Pose, Location], object], arm_pose_names: List[str]
+    ) -> InstantaneousAction:
+        """
+        Create plannable action using _callable with which Robot searches Location
+         while being at Pose and its arm pose being one of arm_pose_names.
+         Location's name must start with 'table_'.
+         Afterwards, Robot's arm will be in 'arm_pose_observe'.
+        """
         search_at, (robot, pose, location) = self.create_action_from_function(_callable)
         search_at.add_precondition(self.robot_at(robot, pose))
-        search_at.add_precondition(
-            Or(
-                self.robot_arm_at(robot, arm_pose)
-                for arm_pose in (
-                    self.get(ArmPose, "arm_pose_home"),
-                    self.get(ArmPose, "arm_pose_observe100cm_right"),
-                    self.get(ArmPose, "arm_pose_transport"),
-                )
-            )
-        )
+        search_at.add_precondition(Or(self.robot_arm_at(robot, self.get(ArmPose, name)) for name in arm_pose_names))
         search_at.add_precondition(Not(self.searched_at(location)))
         search_at.add_precondition(Or(Equals(location, table) for table in self.get_objects_with_prefix("table_")))
         search_at.add_precondition(self.pose_at(pose, location))
@@ -239,6 +269,11 @@ class Domain(Bridge):
             search_at.add_effect(self.robot_arm_at(robot, arm_pose), arm_pose == self.get(ArmPose, "arm_pose_observe"))
 
     def create_search_tool_action(self, _callable: Callable[[Robot, Item], object]) -> InstantaneousAction:
+        """
+        Create plannable action using _callable with which Robot searches for tool Item
+         while holding 'nothing' and Item being 'anywhere'.
+         Afterwards, Robot will be at 'tool_search_pose' and Item at 'tool_search_location'.
+        """
         search_tool, (robot, item) = self.create_action_from_function(_callable)
         search_tool.add_precondition(Not(self.robot_at(robot, self.get(Pose, "tool_search_pose"))))
         search_tool.add_precondition(self.robot_has(robot, self.get(Item, "nothing")))
@@ -250,6 +285,11 @@ class Domain(Bridge):
         search_tool.add_effect(self.believe_item_at(item, self.get(Location, "tool_search_location")), True)
 
     def create_search_klt_action(self, _callable: Callable[[Robot], object]) -> InstantaneousAction:
+        """
+        Create plannable action using _callable with which Robot searches for 'klt_1'
+         while it being 'anywhere'.
+         Afterwards, Robot will be at 'klt_search_pose' and 'klt_1' at 'klt_search_location'.
+        """
         search_klt, (robot,) = self.create_action_from_function(_callable)
         search_klt.add_precondition(Not(self.robot_at(robot, self.get(Pose, "klt_search_pose"))))
         search_klt.add_precondition(self.believe_item_at(self.get(Item, "klt_1"), self.get(Location, "anywhere")))
@@ -261,6 +301,10 @@ class Domain(Bridge):
         )
 
     def create_conclude_tool_search_action(self, _callable: Callable[[Item], object]) -> InstantaneousAction:
+        """
+        Create plannable action using _callable which concludes the tool search for Item.
+         Item must be 'anywhere', not be 'klt_1'.
+        """
         conclude_tool_search, (item,) = self.create_action_from_function(_callable)
         conclude_tool_search.add_precondition(self.believe_item_at(item, self.get(Location, "anywhere")))
         for table in self.get_objects_with_prefix("table_"):
@@ -270,6 +314,10 @@ class Domain(Bridge):
         conclude_tool_search.add_effect(self.believe_item_at(item, self.get(Location, "tool_search_location")), True)
 
     def create_conclude_klt_search_action(self, _callable: Callable[[], object]) -> InstantaneousAction:
+        """
+        Create plannable action using _callable which concludes the search for 'klt_1.
+          It must be 'anywhere'.
+        """
         conclude_klt_search, _ = self.create_action_from_function(_callable)
         conclude_klt_search.add_precondition(
             self.believe_item_at(self.get(Item, "klt_1"), self.get(Location, "anywhere"))
