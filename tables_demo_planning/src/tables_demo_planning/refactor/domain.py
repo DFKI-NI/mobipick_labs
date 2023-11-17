@@ -99,7 +99,9 @@ class Domain(Bridge):
         """Return UP Objects whose names end with suffix."""
         return [obj for name, obj in self.objects.items() if name.endswith(suffix)]
 
-    # TODO get_arm_pose_objects() from ArmPose
+    def get_arm_pose_objects(self) -> List[Object]:
+        """Return UP Objects representing arm poses."""
+        return [self.get(ArmPose, name) for name in ArmPose.instances.keys()]
 
     def get_tool_objects(self) -> List[Object]:
         """Return UP Objects representing tools in the Mobipick domain."""
@@ -112,13 +114,13 @@ class Domain(Bridge):
     def create_move_base_action(self, _callable: Callable[[Robot, Pose, Pose], object]) -> InstantaneousAction:
         """
         Create plannable action using _callable with which the Robot moves to the second Pose
-         while holding 'nothing' and its arm being in 'arm_pose_home'.
+         while holding 'nothing' and its arm being in 'home' pose.
         """
         move_base, (robot, x, y) = self.create_action_from_function(_callable)
         move_base.add_precondition(self.robot_at(robot, x))
         move_base.add_precondition(Not(self.robot_at(robot, y)))
         move_base.add_precondition(self.robot_has(robot, self.get(Item, "nothing")))
-        move_base.add_precondition(self.robot_arm_at(robot, self.get(ArmPose, "arm_pose_home")))
+        move_base.add_precondition(self.robot_arm_at(robot, self.get(ArmPose, "home")))
         move_base.add_effect(self.robot_at(robot, x), False)
         move_base.add_effect(self.robot_at(robot, y), True)
         return move_base
@@ -128,14 +130,14 @@ class Domain(Bridge):
     ) -> InstantaneousAction:
         """
         Create plannable action using _callable with which the Robot moves to the second Pose
-         while holding an Item other than 'nothing' and its arm being in 'arm_pose_transport'.
+         while holding an Item other than 'nothing' and its arm being in 'transport' pose.
         """
         move_base_with_item, (robot, item, x, y) = self.create_action_from_function(_callable)
         move_base_with_item.add_precondition(self.robot_at(robot, x))
         move_base_with_item.add_precondition(Not(self.robot_at(robot, y)))
         move_base_with_item.add_precondition(self.robot_has(robot, item))
         move_base_with_item.add_precondition(Not(Equals(item, self.get(Item, "nothing"))))
-        move_base_with_item.add_precondition(self.robot_arm_at(robot, self.get(ArmPose, "arm_pose_transport")))
+        move_base_with_item.add_precondition(self.robot_arm_at(robot, self.get(ArmPose, "transport")))
         move_base_with_item.add_effect(self.robot_at(robot, x), False)
         move_base_with_item.add_effect(self.robot_at(robot, y), True)
         return move_base_with_item
@@ -177,10 +179,8 @@ class Domain(Bridge):
         pick_item.add_precondition(Not(Equals(item, self.get(Item, "nothing"))))
         pick_item.add_effect(self.robot_has(robot, self.get(Item, "nothing")), False)
         pick_item.add_effect(self.robot_has(robot, item), True)
-        for arm_pose in self.get_objects_with_prefix("arm_pose_"):
-            pick_item.add_effect(
-                self.robot_arm_at(robot, arm_pose), arm_pose == self.get(ArmPose, "arm_pose_transport")
-            )
+        for arm_pose in self.get_arm_pose_objects():
+            pick_item.add_effect(self.robot_arm_at(robot, arm_pose), arm_pose == self.get(ArmPose, "transport"))
         pick_item.add_effect(self.believe_item_at(item, location), False)
         pick_item.add_effect(self.believe_item_at(item, self.get(Location, "on_robot")), True)
         return pick_item
@@ -191,7 +191,7 @@ class Domain(Bridge):
         """
         Create plannable action using _callable with which the Robot places Item down at Location
          while being at Pose, the Item being 'on_robot' and Location other than 'anywhere'.
-         Afterwards, Robot will hold 'nothing' and its arm be in 'arm_pose_home'.
+         Afterwards, Robot will hold 'nothing' and its arm be in 'home' pose.
         """
         place_item, (robot, pose, location, item) = self.create_action_from_function(_callable)
         place_item.add_precondition(self.robot_at(robot, pose))
@@ -201,8 +201,8 @@ class Domain(Bridge):
         place_item.add_precondition(Not(Equals(location, self.get(Location, "anywhere"))))
         place_item.add_effect(self.robot_has(robot, item), False)
         place_item.add_effect(self.robot_has(robot, self.get(Item, "nothing")), True)
-        for arm_pose in self.get_objects_with_prefix("arm_pose_"):
-            place_item.add_effect(self.robot_arm_at(robot, arm_pose), arm_pose == self.get(ArmPose, "arm_pose_home"))
+        for arm_pose in self.get_arm_pose_objects():
+            place_item.add_effect(self.robot_arm_at(robot, arm_pose), arm_pose == self.get(ArmPose, "home"))
         place_item.add_effect(self.believe_item_at(item, self.get(Location, "on_robot")), False)
         place_item.add_effect(self.believe_item_at(item, location), True)
         return place_item
@@ -213,7 +213,7 @@ class Domain(Bridge):
         """
         Create plannable action using _callable with which the Robot stores Item into 'klt_1' at Location
          while being at Pose, the Item being 'on_robot' and Location other than 'anywhere'.
-         Afterwards, Robot will hold 'nothing', its arm be in 'arm_pose_home', and Item 'in_klt'.
+         Afterwards, Robot will hold 'nothing', its arm be in 'home' pose, and Item 'in_klt'.
         """
         store_item, (robot, pose, location, item) = self.create_action_from_function(_callable)
         store_item.add_precondition(self.robot_at(robot, pose))
@@ -224,7 +224,7 @@ class Domain(Bridge):
         store_item.add_precondition(Not(Equals(location, self.get(Location, "anywhere"))))
         store_item.add_effect(self.robot_has(robot, item), False)
         store_item.add_effect(self.robot_has(robot, self.get(Item, "nothing")), True)
-        for arm_pose in self.get_objects_with_prefix("arm_pose_"):
+        for arm_pose in self.get_arm_pose_objects():
             store_item.add_effect(self.robot_arm_at(robot, arm_pose), arm_pose == self.get(ArmPose, "arm_pose_home"))
         store_item.add_effect(self.believe_item_at(item, self.get(Location, "on_robot")), False)
         store_item.add_effect(self.believe_item_at(item, self.get(Location, "in_klt")), True)
@@ -233,7 +233,7 @@ class Domain(Bridge):
         """
         Create plannable action using _callable with which Robot hands over Item
          while being at Pose and the Item being 'on_robot. Afterwards, Robot will hold 'nothing',
-         its arm be in 'arm_pose_handover', and Item 'anywhere'.
+         its arm be in 'handover' pose, and Item 'anywhere'.
         """
         handover_item, (robot, pose, item) = self.create_action_from_function(_callable)
         handover_item.add_precondition(self.robot_at(robot, pose))
@@ -242,8 +242,8 @@ class Domain(Bridge):
         handover_item.add_precondition(Not(self.item_offered(item)))
         handover_item.add_effect(self.robot_has(robot, item), False)
         handover_item.add_effect(self.robot_has(robot, self.get(Item, "nothing")), True)
-        for arm_pose in self.get_objects_with_prefix("arm_pose_"):
-            handover_item.add_effect(self.robot_arm_at(arm_pose), arm_pose == self.get(ArmPose, "arm_pose_handover"))
+        for arm_pose in self.get_arm_pose_objects():
+            handover_item.add_effect(self.robot_arm_at(arm_pose), arm_pose == self.get(ArmPose, "handover"))
         handover_item.add_effect(self.believe_item_at(item, self.get("on_robot")), False)
         handover_item.add_effect(self.believe_item_at(item, self.get("anywhere")), True)
         handover_item.add_effect(self.item_offered(item), True)
@@ -256,7 +256,7 @@ class Domain(Bridge):
         Create plannable action using _callable with which Robot searches Location
          while being at Pose and its arm pose being one of arm_pose_names.
          Location's name must start with 'table_'.
-         Afterwards, Robot's arm will be in 'arm_pose_observe'.
+         Afterwards, Robot's arm will be in 'observe' pose.
         """
         search_at, (robot, pose, location) = self.create_action_from_function(_callable)
         search_at.add_precondition(self.robot_at(robot, pose))
@@ -265,8 +265,8 @@ class Domain(Bridge):
         search_at.add_precondition(Or(Equals(location, table) for table in self.get_objects_with_prefix("table_")))
         search_at.add_precondition(self.pose_at(pose, location))
         search_at.add_effect(self.searched_at(location), True)
-        for arm_pose in self.get_objects_with_prefix("arm_pose_"):
-            search_at.add_effect(self.robot_arm_at(robot, arm_pose), arm_pose == self.get(ArmPose, "arm_pose_observe"))
+        for arm_pose in self.get_arm_pose_objects():
+            search_at.add_effect(self.robot_arm_at(robot, arm_pose), arm_pose == self.get(ArmPose, "observe"))
 
     def create_search_tool_action(self, _callable: Callable[[Robot, Item], object]) -> InstantaneousAction:
         """

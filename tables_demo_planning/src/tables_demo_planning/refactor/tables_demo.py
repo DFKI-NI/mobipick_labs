@@ -53,7 +53,7 @@ class TablesDemoDomain(Domain):
         self.api_robot = robot
         self.robot = self.get(Robot, robot.name)
         self.pose_locations: Dict[Object, Object] = {}
-        self.arm_pose_unknown = self.get(ArmPose, "arm_pose_unknown")
+        self.arm_pose_unknown = self.get(ArmPose, "unknown")
         self.nothing = self.get(Item, "nothing")
         self.anywhere = self.get(Location, "anywhere")
 
@@ -75,7 +75,7 @@ class TablesDemoDomain(Domain):
     def set_goals(self, problem: Problem, target_location: Location) -> None:
         problem.clear_goals()
         problem.add_goal(self.robot_at(self.robot, self.objects["base_table_2_pose"]))
-        problem.add_goal(self.robot_arm_at(self.robot, self.objects["arm_pose_home"]))
+        problem.add_goal(self.robot_arm_at(self.robot, self.objects["home"]))
 
 
 class EnvironmentRepresentation:
@@ -84,7 +84,7 @@ class EnvironmentRepresentation:
         self.table_locations = [location for name, location in Location.instances.items() if name.startswith("table_")]
         self.robot_home_poses: Dict[Robot, Pose] = {}
         self.robot_poses: Dict[Robot, Pose] = {}
-        self.robot_arm_poses: Dict[Robot, ArmPose] = defaultdict(lambda: ArmPose.get("arm_pose_unknown"))
+        self.robot_arm_poses: Dict[Robot, ArmPose] = defaultdict(lambda: ArmPose.get("unknown"))
         self.robot_items: Dict[Robot, Item] = defaultdict(lambda: Item.get("nothing"))
         self.believed_item_locations: Dict[Item, Location] = defaultdict(lambda: Location.get("anywhere"))
         # self.newly_perceived_item_locations: Dict[Item, Location] = {}

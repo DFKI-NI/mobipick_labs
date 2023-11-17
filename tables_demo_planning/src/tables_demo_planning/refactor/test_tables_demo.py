@@ -75,10 +75,7 @@ class Simulation:
         self.domain.create_pick_item_action(self.env.pick_item)
         self.domain.create_place_item_action(self.env.place_item)
         self.domain.create_store_item_action(self.env.store_item)
-        self.domain.create_search_at_action(
-            self.env.search_at,
-            ["arm_pose_home", "arm_pose_observe100cm_right", "arm_pose_transport"],
-        )
+        self.domain.create_search_at_action(self.env.search_at, ["home", "observe100cm_right", "transport"])
         self.domain.create_search_tool_action(self.env.search_tool)
         self.domain.create_search_klt_action(self.env.search_klt)
         self.domain.create_conclude_tool_search_action(self.env.conclude_tool_search)
@@ -111,7 +108,7 @@ class Simulation:
                 print(action)
 
                 # Execute action.
-                executable_action(*(parameters[1:] if hasattr(self.mobipick) else parameters))
+                executable_action(*(parameters[1:] if hasattr(self.mobipick, action.action.name) else parameters))
             else:
                 break
 
