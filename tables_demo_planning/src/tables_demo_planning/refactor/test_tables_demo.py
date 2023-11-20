@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from typing import Dict, List, Optional
+from collections import defaultdict
 from geometry_msgs.msg import Point, Pose
 import unified_planning
 import unified_planning.shortcuts
@@ -28,8 +29,78 @@ class SimRobot(Robot):
         print(f"{self} moves its arm to {arm_pose}.")
         return self.sim.env.move_arm(self, _, arm_pose)
 
+    def pick_item(self, pose: Pose, location: Location, item: Item) -> bool:
+        location = self.sim.env.resolve_search_location(location)
+        perceived_item_locations = self.perceive(location)
+        if perceived_item_locations.get(item) != location:
+            print(f"Cannot find {item.name} at {location.name}. Pick item FAILED!")
+            return False
+
+        if self.sim.env.actual_item_locations[item] != location:
+            print(f"Pick up {item.name} at {location.name} FAILED!")
+            return False
+
+        self.sim.env.actual_item_locations[item] = Location.get("on_robot")
+        return self.sim.env.pick_item(self, pose, location, item)
+
+    def place_item(self, pose: Pose, location: Location, item: Item) -> bool:
+        location = self.sim.env.resolve_search_location(location)
+        if item != self.sim.env.robot_items[self]:
+            print(f"Item {item.name} is not on the robot. Place item FAILED!")
+            return False
+
+        if self.sim.env.actual_item_locations[item] != Location.get("on_robot"):
+            print(f"Place down {item.name} at {location.name} FAILED!")
+            return False
+
+        self.sim.env.actual_item_locations[item] = location
+        return self.sim.env.place_item(self, pose, location, item)
+
+    def store_item(self, pose: Pose, location: Location, item: Item) -> bool:
+        location = self.sim.env.resolve_search_location(location)
+        perceived_item_locations = self.perceive(location)
+        if perceived_item_locations.get(Item.get("klt_1")) != location:
+            print(f"Cannot find klt_1 at {location.name}. Store item FAILED!")
+            return False
+
+        if (
+            self.sim.env.actual_item_locations[item] != Location.get("on_robot")
+            or self.sim.env.actual_item_locations[Item.get("klt_1")] != location
+        ):
+            print(f"Store {item.name} into klt_1 at {location.name} FAILED!")
+            return False
+
+        return self.sim.env.store_item(self, pose, location, item)
+
+    def perceive(self, location: Location) -> Dict[Item, Location]:
+        # Determine newly perceived items and their locations.
+        perceived_item_locations = {
+            check_item: check_location
+            for check_item, check_location in self.sim.env.actual_item_locations.items()
+            if check_location == location
+        }
+        self.sim.env.newly_perceived_item_locations.clear()
+        for perceived_item, perceived_location in perceived_item_locations.items():
+            if (
+                perceived_item not in self.sim.env.believed_item_locations.keys()
+                or self.sim.env.believed_item_locations[perceived_item] != location
+            ):
+                self.sim.env.newly_perceived_item_locations[perceived_item] = perceived_location
+        print(f"Newly perceived items: {[item.name for item in self.sim.env.newly_perceived_item_locations.keys()]}")
+        # Remove all previously perceived items at location.
+        for check_item, check_location in list(self.sim.env.believed_item_locations.items()):
+            if check_location == location:
+                del self.sim.env.believed_item_locations[check_item]
+        # Add all currently perceived items at location.
+        self.sim.env.believed_item_locations.update(perceived_item_locations)
+        self.sim.env.searched_locations.add(location)
+        self.sim.env.print_believed_item_locations()
+        return perceived_item_locations
+
 
 class Simulation:
+    RETRIES_BEFORE_ABORTION = 2
+
     def __init__(self, item_locations: Dict[Item, Location]) -> None:
         self.mobipick = SimRobot("Mobipick", self)
         self.domain = TablesDemoDomain(self.mobipick)
@@ -50,13 +121,16 @@ class Simulation:
         }
         self.api_pose_names = {id(pose): name for name, pose in self.api_poses.items()}
         self.poses = self.domain.create_objects(self.api_poses)
+        self.items = self.domain.create_objects({item.name: item for item in item_locations.keys()})
         self.tables = [
             self.domain.create_object(name, location)
             for name, location in Location.instances.items()
             if name.startswith("table_")
         ]
-        self.env = EnvironmentRepresentation(item_locations.keys())
+        self.env = EnvironmentRepresentation(item_locations)
+        self.env.perceive = lambda _, location: self.mobipick.perceive(location)
         self.env.initialize_robot_states(self.domain.api_robot, self.api_poses["base_home_pose"])
+        self.demo_items = list(item_locations.keys())
 
         self.domain.set_fluent_functions(
             [
@@ -72,28 +146,30 @@ class Simulation:
         self.domain.create_move_base_action(self.mobipick.move_base)
         self.domain.create_move_base_with_item_action(self.mobipick.move_base_with_item)
         self.domain.create_move_arm_action(self.mobipick.move_arm)
-        self.domain.create_pick_item_action(self.env.pick_item)
-        self.domain.create_place_item_action(self.env.place_item)
-        self.domain.create_store_item_action(self.env.store_item)
+        self.domain.create_pick_item_action(self.mobipick.pick_item)
+        self.domain.create_place_item_action(self.mobipick.place_item)
+        self.domain.create_store_item_action(self.mobipick.store_item)
         self.domain.create_search_at_action(self.env.search_at, ["home", "observe100cm_right", "transport"])
         self.domain.create_search_tool_action(self.env.search_tool)
         self.domain.create_search_klt_action(self.env.search_klt)
         self.domain.create_conclude_tool_search_action(self.env.conclude_tool_search)
         self.domain.create_conclude_klt_search_action(self.env.conclude_klt_search)
-        self.problem = self.domain.define_problem()
+        self.problem = self.domain.define_tables_demo_problem()
+        self.subproblem = self.domain.define_item_search_problem()
 
     def replan(self) -> Optional[List[ActionInstance]]:
         self.env.print_believed_item_locations()
         self.domain.set_initial_values(self.problem)
-        plan = self.domain.solve(self.problem)
-        return plan.actions if plan else None
+        return self.domain.solve(self.problem)
 
     def run(self, target_location: Location) -> None:
         """Run the mobipick tables demo."""
         print(f"Scenario: Mobipick shall bring the KLT with the multimeter inside to {target_location.name}.")
 
+        retries_before_abortion = self.RETRIES_BEFORE_ABORTION
+        error_counts: Dict[str, int] = defaultdict(int)
         # Solve overall problem.
-        self.domain.set_goals(self.problem, target_location)
+        self.domain.set_goals(self.problem, self.demo_items, target_location)
         actions = self.replan()
         if actions is None:
             print("Execution ended because no plan could be found.")
@@ -106,11 +182,96 @@ class Simulation:
             for action in actions:
                 executable_action, parameters = self.domain.get_executable_action(action)
                 print(action)
+                # Explicitly do not pick up KLT from target_table since planning does not handle it yet.
+                if action.action.name == "pick_item" and parameters[-1].name.startswith("klt_"):
+                    assert isinstance(parameters[-2], Location)
+                    location = self.env.resolve_search_location(parameters[-2])
+                    if location == target_location:
+                        print("Picking up KLT OBSOLETE.")
+                        actions = self.replan()
+                        break
 
                 # Execute action.
-                executable_action(*(parameters[1:] if hasattr(self.mobipick, action.action.name) else parameters))
+                result = executable_action(
+                    *(parameters[1:] if hasattr(self.mobipick, action.action.name) else parameters)
+                )
+
+                # Handle item search as an inner execution loop.
+                # Rationale: It has additional stop criteria, and might continue the outer loop.
+                if self.env.item_search:
+                    try:
+                        # Check whether an obsolete item search invalidates the previous plan.
+                        if self.env.believed_item_locations[self.env.item_search] != Location.get("anywhere"):
+                            print(f"Search for {self.env.item_search.name} OBSOLETE.")
+                            actions = self.replan()
+                            break
+
+                        # Search for item by creating and executing a subplan.
+                        self.domain.set_initial_values(self.subproblem)
+                        self.domain.set_search_goals(self.subproblem, self.env.item_search)
+                        subactions = self.domain.solve(self.subproblem)
+                        assert subactions, f"No solution for: {self.subproblem}"
+                        print("- Search plan:")
+                        print('\n'.join(map(str, subactions)))
+                        print("- Search execution:")
+                        subaction_execution_count = 0
+                        for subaction in subactions:
+                            executable_subaction, subparameters = self.domain.get_executable_action(subaction)
+                            print(subaction)
+                            # Execute search action.
+                            result = executable_subaction(
+                                *(subparameters[1:] if hasattr(self.mobipick, subaction.action.name) else subparameters)
+                            )
+                            subaction_execution_count += 1
+
+                            if result is not None:
+                                if result:
+                                    # Note: True result only means any subaction succeeded.
+                                    # Check if the search actually succeeded.
+                                    if (
+                                        self.env.item_search is None
+                                        and len(self.env.newly_perceived_item_locations) <= 1
+                                    ):
+                                        print("- Continue with plan.")
+                                        break
+                                    # Check if the search found another item.
+                                    elif self.env.newly_perceived_item_locations:
+                                        self.env.newly_perceived_item_locations.clear()
+                                        print("- Found another item, search ABORTED.")
+                                        # Set result to None to trigger replanning.
+                                        result = None
+                                        break
+                                else:
+                                    break
+                        # Note: The conclude action at the end of any search always fails.
+                    finally:
+                        # Always end the search at this point.
+                        self.env.item_search = None
+
+                if result is not None:
+                    if result:
+                        retries_before_abortion = self.RETRIES_BEFORE_ABORTION
+                    else:
+                        error_counts[self.label(action)] += 1
+                        # Note: This will also fail if two different failures occur successively.
+                        if retries_before_abortion <= 0 or any(count >= 3 for count in error_counts.values()):
+                            print("Task could not be completed even after retrying.")
+                            return
+
+                        retries_before_abortion -= 1
+                        actions = self.replan()
+                        break
+                else:
+                    retries_before_abortion = self.RETRIES_BEFORE_ABORTION
+                    actions = self.replan()
+                    break
             else:
                 break
+            if actions is None:
+                print("Execution ended because no plan could be found.")
+                return
+
+        print("Demo complete.")
 
 
 def test_tables_demo() -> None:

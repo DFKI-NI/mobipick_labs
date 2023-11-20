@@ -43,6 +43,7 @@ from typing import Callable, Dict, List, Optional, Set
 from collections import defaultdict
 from geometry_msgs.msg import Pose
 from unified_planning.model import Object, Problem
+from unified_planning.plans import ActionInstance
 from tables_demo_planning.refactor.domain import Domain
 from tables_demo_planning.refactor.components import ArmPose, Item, Location, Robot
 
@@ -72,22 +73,99 @@ class TablesDemoDomain(Domain):
             self.initialize_pose_locations()
         return location == (self.pose_locations[pose] if pose in self.pose_locations.keys() else self.anywhere)
 
-    def set_goals(self, problem: Problem, target_location: Location) -> None:
+    def define_tables_demo_problem(self) -> Problem:
+        problem = self.define_problem(
+            fluents=(
+                self.robot_at,
+                self.robot_arm_at,
+                self.robot_has,
+                self.believe_item_at,
+                self.pose_at,
+                self.item_offered,
+            ),
+            actions=(
+                self._actions["move_base"],
+                self._actions["move_base_with_item"],
+                self._actions["move_arm"],
+                self._actions["pick_item"],
+                self._actions["place_item"],
+                self._actions["store_item"],
+                self._actions["search_tool"],
+                self._actions["search_klt"],
+            ),
+        )
+        return problem
+
+    def define_item_search_problem(self) -> Problem:
+        problem = self.define_problem(
+            fluents=(
+                self.robot_at,
+                self.robot_arm_at,
+                self.robot_has,
+                self.believe_item_at,
+                self.searched_at,
+                self.pose_at,
+            ),
+            actions=(
+                self._actions["move_base"],
+                self._actions["move_base_with_item"],
+                self._actions["move_arm"],
+                self._actions["search_at"],
+                self._actions["conclude_tool_search"],
+                self._actions["conclude_klt_search"],
+            ),
+        )
+        return problem
+
+    def set_goals(self, problem: Problem, demo_items: List[Item], target_location: Location) -> None:
+        """Set the goals for the overall demo."""
         problem.clear_goals()
-        problem.add_goal(self.robot_at(self.robot, self.objects["base_table_2_pose"]))
-        problem.add_goal(self.robot_arm_at(self.robot, self.objects["home"]))
+        if any(item.name.startswith("klt_") for item in demo_items):
+            if any(item.name.startswith("multimeter_") for item in demo_items):
+                problem.add_goal(self.believe_item_at(self.get(Item, "multimeter_1"), self.get(Location, "in_klt")))
+            if any(item.name.startswith("relay_") for item in demo_items):
+                problem.add_goal(self.believe_item_at(self.get(Item, "relay_1"), self.get(Location, "in_klt")))
+            if any(item.name.startswith("screwdriver_") for item in demo_items):
+                problem.add_goal(self.believe_item_at(self.get(Item, "screwdriver_1"), self.get(Location, "in_klt")))
+            problem.add_goal(self.believe_item_at(self.get(Item, "klt_1"), self.objects[target_location.name]))
+        else:
+            if any(item.name.startswith("multimeter_") for item in demo_items):
+                problem.add_goal(
+                    self.believe_item_at(self.get(Item, "multimeter_1"), self.objects[target_location.name])
+                )
+            if any(item.name.startswith("relay_") for item in demo_items):
+                problem.add_goal(self.believe_item_at(self.get(Item, "relay_1"), self.objects[target_location.name]))
+            if any(item.name.startswith("screwdriver_") for item in demo_items):
+                problem.add_goal(
+                    self.believe_item_at(self.get(Item, "screwdriver_1"), self.objects[target_location.name])
+                )
+
+    def set_search_goals(self, problem: Problem, item_search: Item) -> None:
+        """Set the goals for the current item_search subproblem."""
+        problem.clear_goals()
+        problem.add_goal(
+            self.believe_item_at(self.get(Item, "klt_1"), self.get(Location, "klt_search_location"))
+            if item_search.name.startswith("klt_")
+            else self.believe_item_at(self.get(Item, item_search.name), self.get(Location, "tool_search_location"))
+        )
+
+    def solve(self, problem: Problem) -> Optional[List[ActionInstance]]:
+        """Solve planning problem and return list of UP actions."""
+        print("Calculating plan ...")
+        plan = super().solve(problem)
+        return plan.actions if plan else None
 
 
 class EnvironmentRepresentation:
-    def __init__(self, demo_items: List[Item]) -> None:
-        self.demo_items = demo_items
+    def __init__(self, item_locations: Dict[Item, Location]) -> None:
+        self.actual_item_locations = item_locations
         self.table_locations = [location for name, location in Location.instances.items() if name.startswith("table_")]
         self.robot_home_poses: Dict[Robot, Pose] = {}
         self.robot_poses: Dict[Robot, Pose] = {}
         self.robot_arm_poses: Dict[Robot, ArmPose] = defaultdict(lambda: ArmPose.get("unknown"))
         self.robot_items: Dict[Robot, Item] = defaultdict(lambda: Item.get("nothing"))
         self.believed_item_locations: Dict[Item, Location] = defaultdict(lambda: Location.get("anywhere"))
-        # self.newly_perceived_item_locations: Dict[Item, Location] = {}
+        self.newly_perceived_item_locations: Dict[Item, Location] = {}
         self.item_search: Optional[Item] = None
         self.searched_locations: Set[Location] = set()
         self.search_location = Location.get("anywhere")
@@ -146,7 +224,7 @@ class EnvironmentRepresentation:
     def print_believed_item_locations(self) -> None:
         """Print at which locations the items are believed to be."""
         print("The believed item locations are:")
-        for item in self.demo_items:
+        for item in self.actual_item_locations.keys():
             print(f"- {item.name}:", self.believed_item_locations[item].name)
 
     def move_base(self, robot: Robot, _: Pose, pose: Pose) -> bool:
