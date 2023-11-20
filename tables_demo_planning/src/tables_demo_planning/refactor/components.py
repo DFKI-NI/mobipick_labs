@@ -12,7 +12,7 @@ class Unique(Generic[T]):
         self.name = name
         self.instances[name] = self
 
-    def __str__(self) -> str:
+    def __repr__(self) -> str:
         return str(self.name)
 
     @classmethod
