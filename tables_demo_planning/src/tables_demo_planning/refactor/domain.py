@@ -266,7 +266,9 @@ class Domain(Bridge):
         search_at.add_precondition(self.pose_at(pose, location))
         search_at.add_effect(self.searched_at(location), True)
         for arm_pose in self.get_objects_for_type(ArmPose).values():
-            search_at.add_effect(self.robot_arm_at(robot, arm_pose), arm_pose == self.get(ArmPose, "observe"))
+            search_at.add_effect(
+                self.robot_arm_at(robot, arm_pose), arm_pose == self.get(ArmPose, "observe100cm_right")
+            )
 
     def create_search_tool_action(self, _callable: Callable[[Robot, Item], object]) -> InstantaneousAction:
         """
