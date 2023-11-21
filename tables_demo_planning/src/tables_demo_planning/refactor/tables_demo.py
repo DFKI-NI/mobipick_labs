@@ -39,7 +39,7 @@ The Tables Demo domain and environment specify concrete instances of the scenari
 """
 
 
-from typing import Callable, Dict, List, Optional, Set
+from typing import Callable, Dict, List, Optional, Sequence, Set
 from collections import defaultdict
 from geometry_msgs.msg import Pose
 from unified_planning.model import Object, Problem
@@ -57,6 +57,33 @@ class TablesDemoDomain(Domain):
         self.arm_pose_unknown = self.get(ArmPose, "unknown")
         self.nothing = self.get(Item, "nothing")
         self.anywhere = self.get(Location, "anywhere")
+
+        # Create visualization labels for actions as functions of their parameters.
+        self.method_labels: Dict[str, Callable[[Sequence[str]], str]] = {
+            "move_base": lambda parameters: f"Move to {parameters[-1]}",
+            "move_base_with_item": lambda parameters: f"Transport {parameters[1]} to {parameters[-1]}",
+            "move_arm": lambda parameters: f"Move arm to its {parameters[-1]} pose",
+            "pick_item": lambda parameters: f"Pick up {parameters[-1]}",
+            "place_item": lambda parameters: f"Place {parameters[-1]} onto table",
+            "store_item": lambda parameters: f"Place {parameters[-1]} into KLT",
+            "hand_over_item": lambda parameters: f"Handover {parameters[-1]} to person",
+            "search_at": lambda parameters: f"Search at {parameters[-1]}",
+            "search_tool": lambda parameters: f"Search tables for {parameters[-1]}",
+            "search_klt": lambda _: "Search tables for the KLT",
+            "conclude_tool_search": lambda parameters: f"Conclude search for {parameters[-1]}",
+            "conclude_klt_search": lambda _: "Conclude search for the KLT",
+        }
+        self.parameter_labels: Dict[str, str] = {
+            "base_home_pose": "home",
+            "base_handover_pose": "handover",
+            "base_pick_pose": "pick",
+            "base_place_pose": "place",
+            "base_table_1_pose": "table_1",
+            "base_table_2_pose": "table_2",
+            "base_table_3_pose": "table_3",
+            "tool_search_pose": "where tool has been found",
+            "klt_search_pose": "where KLT has been found",
+        }
 
     def initialize_pose_locations(self) -> None:
         """Initialize information which pose is at which location."""
@@ -90,7 +117,7 @@ class TablesDemoDomain(Domain):
                 self._actions["pick_item"],
                 self._actions["place_item"],
                 self._actions["store_item"],
-                self._actions["hand_over"],
+                self._actions["hand_over_item"],
                 self._actions["search_tool"],
                 self._actions["search_klt"],
             ),
@@ -136,6 +163,12 @@ class TablesDemoDomain(Domain):
         print("Calculating plan ...")
         plan = super().solve(problem)
         return plan.actions if plan else None
+
+    def label(self, action: ActionInstance) -> str:
+        """Return a user-friendly label for visualizing action."""
+        parameters = [parameter.object() for parameter in action.actual_parameters]
+        parameter_labels = [self.parameter_labels.get(parameter.name, str(parameter)) for parameter in parameters]
+        return self.method_labels[action.action.name](parameter_labels)
 
 
 class EnvironmentRepresentation:

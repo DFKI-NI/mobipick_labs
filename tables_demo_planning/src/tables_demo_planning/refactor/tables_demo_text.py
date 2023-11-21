@@ -69,7 +69,7 @@ class SimRobot(Robot):
 
         return self.sim.env.store_item(self, pose, location, item)
 
-    def hand_over(self, item: Item) -> bool:
+    def hand_over_item(self, item: Item) -> bool:
         print(f"{self} tries to hand over {item}.")
         return self.sim.env.hand_over_item(self, item)
 
@@ -109,8 +109,8 @@ class Simulation:
             name: Pose(position=Point(x=float(index)))
             for index, name in enumerate(
                 (
-                    "base_handover_pose",
                     "base_home_pose",
+                    "base_handover_pose",
                     "base_table_1_pose",
                     "base_table_2_pose",
                     "base_table_3_pose",
@@ -148,7 +148,7 @@ class Simulation:
         self.domain.create_pick_item_action(self.mobipick.pick_item)
         self.domain.create_place_item_action(self.mobipick.place_item)
         self.domain.create_store_item_action(self.mobipick.store_item)
-        self.domain.create_handover_item_action(self.mobipick.hand_over)
+        self.domain.create_handover_item_action(self.mobipick.hand_over_item)
         self.domain.create_search_at_action(self.env.search_at, ["home", "observe100cm_right", "transport"])
         self.domain.create_search_tool_action(self.env.search_tool)
         self.domain.create_search_klt_action(self.env.search_klt)
@@ -252,7 +252,7 @@ class Simulation:
                     if result:
                         retries_before_abortion = self.RETRIES_BEFORE_ABORTION
                     else:
-                        error_counts[self.label(action)] += 1
+                        error_counts[self.domain.label(action)] += 1
                         # Note: This will also fail if two different failures occur successively.
                         if retries_before_abortion <= 0 or any(count >= 3 for count in error_counts.values()):
                             print("Task could not be completed even after retrying.")
