@@ -120,22 +120,31 @@ class TablesDemoDomain(Domain):
     def set_goals(self, problem: Problem, demo_items: List[Item], target_location: Location) -> None:
         """Set the goals for the overall demo."""
         problem.clear_goals()
-        if any(item.name.startswith("klt_") for item in demo_items):
-            if any(item.name.startswith("multimeter_") for item in demo_items):
+        assert self.believe_item_at in problem.fluents
+        if any(item.name == "klt_1" for item in demo_items):
+            assert problem.object("in_klt")
+            if any(item.name == "multimeter_1" for item in demo_items):
+                assert problem.object("multimeter_1")
                 problem.add_goal(self.believe_item_at(self.get(Item, "multimeter_1"), self.get(Location, "in_klt")))
-            if any(item.name.startswith("relay_") for item in demo_items):
+            if any(item.name == "relay_1" for item in demo_items):
+                assert problem.object("relay_1")
                 problem.add_goal(self.believe_item_at(self.get(Item, "relay_1"), self.get(Location, "in_klt")))
-            if any(item.name.startswith("screwdriver_") for item in demo_items):
+            if any(item.name == "screwdriver_1" for item in demo_items):
+                assert problem.object("screwdriver_1")
                 problem.add_goal(self.believe_item_at(self.get(Item, "screwdriver_1"), self.get(Location, "in_klt")))
+            assert problem.object(target_location.name)
             problem.add_goal(self.believe_item_at(self.get(Item, "klt_1"), self.objects[target_location.name]))
         else:
-            if any(item.name.startswith("multimeter_") for item in demo_items):
+            if any(item.name == "multimeter_1" for item in demo_items):
+                assert problem.object("multimeter_1")
                 problem.add_goal(
                     self.believe_item_at(self.get(Item, "multimeter_1"), self.objects[target_location.name])
                 )
-            if any(item.name.startswith("relay_") for item in demo_items):
+            if any(item.name == "relay_1" for item in demo_items):
+                assert problem.object("relay_1")
                 problem.add_goal(self.believe_item_at(self.get(Item, "relay_1"), self.objects[target_location.name]))
-            if any(item.name.startswith("screwdriver_") for item in demo_items):
+            if any(item.name == "screwdriver_1" for item in demo_items):
+                assert problem.object("screwdriver_1")
                 problem.add_goal(
                     self.believe_item_at(self.get(Item, "screwdriver_1"), self.objects[target_location.name])
                 )
@@ -143,11 +152,15 @@ class TablesDemoDomain(Domain):
     def set_search_goals(self, problem: Problem, item_search: Item) -> None:
         """Set the goals for the current item_search subproblem."""
         problem.clear_goals()
-        problem.add_goal(
-            self.believe_item_at(self.get(Item, "klt_1"), self.get(Location, "klt_search_location"))
-            if item_search.name.startswith("klt_")
-            else self.believe_item_at(self.get(Item, item_search.name), self.get(Location, "tool_search_location"))
-        )
+        assert self.believe_item_at in problem.fluents
+        if item_search.name == "klt_1":
+            assert problem.object("klt_1") and problem.object("klt_search_location")
+            problem.add_goal(self.believe_item_at(self.get(Item, "klt_1"), self.get(Location, "klt_search_location")))
+        else:
+            assert problem.object(item_search.name) and problem.object("tool_search_location")
+            problem.add_goal(
+                self.believe_item_at(self.get(Item, item_search.name), self.get(Location, "tool_search_location"))
+            )
 
     def solve(self, problem: Problem) -> Optional[List[ActionInstance]]:
         """Solve planning problem and return list of UP actions."""
