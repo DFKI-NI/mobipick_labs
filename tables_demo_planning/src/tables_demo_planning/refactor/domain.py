@@ -104,7 +104,10 @@ class Domain(Bridge):
         return [
             obj
             for name, obj in self.get_objects_for_type(Item).items()
-            if name.startswith("multimeter_") or name.startswith("relay_") or name.startswith("screwdriver_")
+            if name.startswith("multimeter_")
+            or name.startswith("power_drill_")
+            or name.startswith("relay_")
+            or name.startswith("screwdriver_")
         ]
 
     def get_table_objects(self) -> List[Object]:
