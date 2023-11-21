@@ -72,6 +72,10 @@ class SimRobot(Robot):
 
         return self.sim.env.store_item(self, pose, location, item)
 
+    def hand_over(self, item: Item) -> bool:
+        print(f"{self} tries to hand over {item}.")
+        return self.sim.env.hand_over_item(self, item)
+
     def perceive(self, location: Location) -> Dict[Item, Location]:
         # Determine newly perceived items and their locations.
         perceived_item_locations = {
@@ -149,6 +153,7 @@ class Simulation:
         self.domain.create_pick_item_action(self.mobipick.pick_item)
         self.domain.create_place_item_action(self.mobipick.place_item)
         self.domain.create_store_item_action(self.mobipick.store_item)
+        self.domain.create_handover_item_action(self.mobipick.hand_over)
         self.domain.create_search_at_action(self.env.search_at, ["home", "observe100cm_right", "transport"])
         self.domain.create_search_tool_action(self.env.search_tool)
         self.domain.create_search_klt_action(self.env.search_klt)

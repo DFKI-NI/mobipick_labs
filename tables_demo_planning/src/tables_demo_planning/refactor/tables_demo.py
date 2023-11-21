@@ -90,6 +90,7 @@ class TablesDemoDomain(Domain):
                 self._actions["pick_item"],
                 self._actions["place_item"],
                 self._actions["store_item"],
+                self._actions["hand_over"],
                 self._actions["search_tool"],
                 self._actions["search_klt"],
             ),
@@ -281,12 +282,12 @@ class EnvironmentRepresentation:
         self.robot_arm_poses[robot] = ArmPose.get("home")
         return True
 
-    def hand_over_item(self, robot, Robot, pose: Pose, item: Item) -> bool:
+    def hand_over_item(self, robot: Robot, item: Item) -> bool:
         """At pose, let robot hand over item held to a person."""
         print(f"Successfully handed {item.name} over.")
-        self.item = Item.get("nothing")
+        self.robot_items[robot] = Item.get("nothing")
         self.believed_item_locations[item] = Location.get("anywhere")
-        self.arm_pose = ArmPose.get("handover")
+        self.robot_arm_poses[robot] = ArmPose.get("handover")
         self.offered_items.add(item)
         return True
 

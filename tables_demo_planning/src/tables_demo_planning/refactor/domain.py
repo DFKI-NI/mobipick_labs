@@ -229,23 +229,22 @@ class Domain(Bridge):
         store_item.add_effect(self.believe_item_at(item, self.get(Location, "on_robot")), False)
         store_item.add_effect(self.believe_item_at(item, self.get(Location, "in_klt")), True)
 
-    def create_handover_item_action(self, _callable: Callable[[Robot, Pose, Item], object]) -> InstantaneousAction:
+    def create_handover_item_action(self, _callable: Callable[[Robot, Item], object]) -> InstantaneousAction:
         """
-        Create plannable action using _callable with which Robot hands over Item
-         while being at Pose and the Item being 'on_robot. Afterwards, Robot will hold 'nothing',
-         its arm be in 'handover' pose, and Item 'anywhere'.
+        Create plannable action using _callable with which Robot hands over Item from being 'on_robot'.
+         Afterwards, Robot will hold 'nothing', its arm be in 'handover' pose, and Item 'anywhere'.
         """
-        handover_item, (robot, pose, item) = self.create_action_from_function(_callable)
-        handover_item.add_precondition(self.robot_at(robot, pose))
+        handover_item, (robot, item) = self.create_action_from_function(_callable)
+        handover_item.add_precondition(self.robot_at(robot, self.get(Pose, "base_handover_pose")))
         handover_item.add_precondition(self.robot_has(robot, item))
         handover_item.add_precondition(self.believe_item_at(item, self.get(Location, "on_robot")))
         handover_item.add_precondition(Not(self.item_offered(item)))
         handover_item.add_effect(self.robot_has(robot, item), False)
         handover_item.add_effect(self.robot_has(robot, self.get(Item, "nothing")), True)
         for arm_pose in self.get_objects_for_type(ArmPose).values():
-            handover_item.add_effect(self.robot_arm_at(arm_pose), arm_pose == self.get(ArmPose, "handover"))
-        handover_item.add_effect(self.believe_item_at(item, self.get("on_robot")), False)
-        handover_item.add_effect(self.believe_item_at(item, self.get("anywhere")), True)
+            handover_item.add_effect(self.robot_arm_at(robot, arm_pose), arm_pose == self.get(ArmPose, "handover"))
+        handover_item.add_effect(self.believe_item_at(item, self.get(Location, "on_robot")), False)
+        handover_item.add_effect(self.believe_item_at(item, self.get(Location, "anywhere")), True)
         handover_item.add_effect(self.item_offered(item), True)
         return handover_item
 
