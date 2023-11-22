@@ -65,7 +65,7 @@ class TablesDemoDomain(Domain):
             "move_arm": lambda parameters: f"Move arm to its {parameters[-1]} pose",
             "pick_item": lambda parameters: f"Pick up {parameters[-1]}",
             "place_item": lambda parameters: f"Place {parameters[-1]} onto table",
-            "store_item": lambda parameters: f"Place {parameters[-1]} into KLT",
+            "store_item": lambda parameters: f"Place {parameters[-2]} into KLT {parameters[-1]}",
             "hand_over_item": lambda parameters: f"Handover {parameters[-1]} to person",
             "search_at": lambda parameters: f"Search at {parameters[-1]}",
             "search_tool": lambda parameters: f"Search tables for {parameters[-1]}",
@@ -107,6 +107,7 @@ class TablesDemoDomain(Domain):
                 self.robot_arm_at,
                 self.robot_has,
                 self.believe_item_at,
+                self.believe_item_in,
                 self.pose_at,
                 self.item_offered,
             ),
@@ -131,6 +132,7 @@ class TablesDemoDomain(Domain):
                 self.robot_arm_at,
                 self.robot_has,
                 self.believe_item_at,
+                self.believe_item_in,
                 self.searched_at,
                 self.pose_at,
             ),
@@ -149,9 +151,11 @@ class TablesDemoDomain(Domain):
         """Set the goals for the current item_search subproblem."""
         problem.clear_goals()
         assert self.believe_item_at in problem.fluents
-        if item_search.name == "klt_1":
-            assert problem.object("klt_1") and problem.object("klt_search_location")
-            problem.add_goal(self.believe_item_at(self.get(Item, "klt_1"), self.get(Location, "klt_search_location")))
+        if item_search.name.startswith("klt_"):
+            assert problem.object(item_search.name) and problem.object("klt_search_location")
+            problem.add_goal(
+                self.believe_item_at(self.get(Item, item_search.name), self.get(Location, "klt_search_location"))
+            )
         else:
             assert problem.object(item_search.name) and problem.object("tool_search_location")
             problem.add_goal(
@@ -180,6 +184,7 @@ class EnvironmentRepresentation:
         self.robot_arm_poses: Dict[Robot, ArmPose] = defaultdict(lambda: ArmPose.get("unknown"))
         self.robot_items: Dict[Robot, Item] = defaultdict(lambda: Item.get("nothing"))
         self.believed_item_locations: Dict[Item, Location] = defaultdict(lambda: Location.get("anywhere"))
+        self.believed_klt_contents: Dict[Item, Set[Item]] = defaultdict(set)
         self.newly_perceived_item_locations: Dict[Item, Location] = {}
         self.item_search: Optional[Item] = None
         self.searched_locations: Set[Location] = set()
@@ -224,6 +229,10 @@ class EnvironmentRepresentation:
         """Return fluent value whether item is believed to be at location."""
         return location == self.believed_item_locations[item]
 
+    def get_believe_item_in(self, item: Item, klt: Item) -> bool:
+        """Return fluent value whether item is believed to be in klt."""
+        return item in self.believed_klt_contents[klt]
+
     def get_searched_at(self, location: Location) -> bool:
         """Return fluent value whether robot has already searched at location."""
         return location in self.searched_locations
@@ -264,6 +273,9 @@ class EnvironmentRepresentation:
         print(f"Successfully picked up {item.name}.")
         self.robot_items[robot] = item
         self.believed_item_locations[item] = Location.get("on_robot")
+        for contents in self.believed_klt_contents.values():
+            if item in contents:
+                contents.remove(item)
         self.robot_arm_poses[robot] = ArmPose.get("transport")
         return True
 
@@ -275,11 +287,12 @@ class EnvironmentRepresentation:
         self.robot_arm_poses[robot] = ArmPose.get("home")
         return True
 
-    def store_item(self, robot: Robot, pose: Pose, location: Location, item: Item) -> bool:
-        """At pose, let robot store item into KLT at location, then move its arm to home pose."""
-        print(f"Successfully inserted {item.name} into KLT.")
+    def store_item(self, robot: Robot, pose: Pose, location: Location, tool: Item, klt: Item) -> bool:
+        """At pose, let robot store tool into KLT at location, then move its arm to home pose."""
+        print(f"Successfully inserted {tool.name} into KLT {klt.name}.")
         self.robot_items[robot] = Item.get("nothing")
-        self.believed_item_locations[item] = Location.get("in_klt")
+        self.believed_item_locations[tool] = Location.get("in_klt")
+        self.believed_klt_contents[klt].add(tool)
         self.robot_arm_poses[robot] = ArmPose.get("home")
         return True
 
@@ -310,23 +323,23 @@ class EnvironmentRepresentation:
             self.searched_locations.clear()
 
     def search_tool(self, robot: Robot, item: Item) -> bool:
-        """Let robot initiate search for item."""
+        """Let robot initiate search for the tool item."""
         self.item_search = item
         self.check_reset_search()
         return True
 
-    def search_klt(self, robot: Robot) -> bool:
-        """Let robot initiate search for the KLT."""
-        self.item_search = Item.get("klt_1")
+    def search_klt(self, robot: Robot, item: Item) -> bool:
+        """Let robot initiate search for the KLT item."""
+        self.item_search = item
         self.check_reset_search()
         return True
 
     def conclude_tool_search(self, item: Item) -> bool:
-        """Conclue tool search as failed. Success is determined in search_at()."""
+        """Conclue search for tool item as failed. Success is determined in search_at()."""
         print(f"Search for {item.name} FAILED!")
         return False
 
-    def conclude_klt_search(self) -> bool:
-        """Conclue KLT search as failed. Success is determined in search_at()."""
-        print("Search for KLT FAILED!")
+    def conclude_klt_search(self, item: Item) -> bool:
+        """Conclue search for KLT item as failed. Success is determined in search_at()."""
+        print(f"Search for KLT {item.name} FAILED!")
         return False

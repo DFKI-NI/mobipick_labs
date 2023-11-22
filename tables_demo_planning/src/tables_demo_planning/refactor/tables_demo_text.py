@@ -53,21 +53,21 @@ class SimRobot(Robot):
         self.sim.env.actual_item_locations[item] = location
         return self.sim.env.place_item(self, pose, location, item)
 
-    def store_item(self, pose: Pose, location: Location, item: Item) -> bool:
+    def store_item(self, pose: Pose, location: Location, tool: Item, klt: Item) -> bool:
         location = self.sim.env.resolve_search_location(location)
         perceived_item_locations = self.perceive(location)
-        if perceived_item_locations.get(Item.get("klt_1")) != location:
-            print(f"Cannot find klt_1 at {location.name}. Store item FAILED!")
+        if perceived_item_locations.get(klt) != location:
+            print(f"Cannot find '{klt.name}' at {location.name}. Store item FAILED!")
             return False
 
         if (
-            self.sim.env.actual_item_locations[item] != Location.get("on_robot")
-            or self.sim.env.actual_item_locations[Item.get("klt_1")] != location
+            self.sim.env.actual_item_locations[tool] != Location.get("on_robot")
+            or self.sim.env.actual_item_locations[klt] != location
         ):
-            print(f"Store {item.name} into klt_1 at {location.name} FAILED!")
+            print(f"Store {tool.name} into '{klt.name}' at {location.name} FAILED!")
             return False
 
-        return self.sim.env.store_item(self, pose, location, item)
+        return self.sim.env.store_item(self, pose, location, tool, klt)
 
     def hand_over_item(self, item: Item) -> bool:
         print(f"{self} tries to hand over {item}.")
@@ -137,6 +137,7 @@ class Simulation:
                 self.env.get_robot_arm_at,
                 self.env.get_robot_has,
                 self.env.get_believe_item_at,
+                self.env.get_believe_item_in,
                 self.env.get_searched_at,
                 self.env.get_item_offered,
                 self.domain.get_pose_at,

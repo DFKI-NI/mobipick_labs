@@ -76,6 +76,10 @@ class Domain(Bridge):
         return self._get_fluent("get_believe_item_at", item=Item, location=Location)
 
     @property
+    def believe_item_in(self) -> Fluent:
+        return self._get_fluent("get_believe_item_in", item=Item, klt=Item)
+
+    @property
     def searched_at(self) -> Fluent:
         return self._get_fluent("get_searched_at", location=Location)
 
@@ -109,6 +113,10 @@ class Domain(Bridge):
             or name.startswith("relay_")
             or name.startswith("screwdriver_")
         ]
+
+    def get_klt_objects(self) -> List[Object]:
+        """Return UP Objects representing KLT items in the Mobipick domain."""
+        return [obj for name, obj in self.get_objects_for_type(Item).items() if name.startswith("klt_")]
 
     def get_table_objects(self) -> List[Object]:
         """Return UP Objects representing table locations in the Mobipick domain."""
@@ -190,6 +198,8 @@ class Domain(Bridge):
             pick_item.add_effect(self.robot_arm_at(robot, arm_pose), arm_pose == self.get(ArmPose, "transport"))
         pick_item.add_effect(self.believe_item_at(item, location), False)
         pick_item.add_effect(self.believe_item_at(item, self.get(Location, "on_robot")), True)
+        for klt in self.get_klt_objects():
+            pick_item.add_effect(self.believe_item_in(item, klt), False)
         return pick_item
 
     def create_place_item_action(
@@ -216,27 +226,33 @@ class Domain(Bridge):
         return place_item
 
     def create_store_item_action(
-        self, _callable: Callable[[Robot, Pose, Location, Item], object]
+        self, _callable: Callable[[Robot, Pose, Location, Item, Item], object]
     ) -> InstantaneousAction:
         """
-        Create plannable action using _callable with which the Robot stores Item into 'klt_1' at Location
-         while being at Pose, the Item being 'on_robot' and Location other than 'anywhere'.
+        Create plannable action using _callable with which the Robot stores the first Item
+         into the second Item at Location while being at Pose, the first Item being 'on_robot',
+         and Location other than 'anywhere'.
          Afterwards, Robot will hold 'nothing', its arm be in 'home' pose, and Item 'in_klt'.
         """
         assert _callable.__name__ == "store_item"
-        store_item, (robot, pose, location, item) = self.create_action_from_function(_callable)
+        store_item, (robot, pose, location, item1, item2) = self.create_action_from_function(_callable)
         store_item.add_precondition(self.robot_at(robot, pose))
-        store_item.add_precondition(self.robot_has(robot, item))
-        store_item.add_precondition(self.believe_item_at(item, self.get(Location, "on_robot")))
-        store_item.add_precondition(self.believe_item_at(self.get(Item, "klt_1"), location))
+        store_item.add_precondition(self.robot_has(robot, item1))
+        store_item.add_precondition(self.believe_item_at(item1, self.get(Location, "on_robot")))
+        store_item.add_precondition(self.believe_item_at(item2, location))
+        for klt in self.get_klt_objects():
+            store_item.add_precondition(Not(Equals(item1, klt)))
+        for tool in self.get_tool_objects():
+            store_item.add_precondition(Not(Equals(item2, tool)))
         store_item.add_precondition(self.pose_at(pose, location))
         store_item.add_precondition(Not(Equals(location, self.get(Location, "anywhere"))))
-        store_item.add_effect(self.robot_has(robot, item), False)
+        store_item.add_effect(self.robot_has(robot, item1), False)
         store_item.add_effect(self.robot_has(robot, self.get(Item, "nothing")), True)
         for arm_pose in self.get_objects_for_type(ArmPose).values():
             store_item.add_effect(self.robot_arm_at(robot, arm_pose), arm_pose == self.get(ArmPose, "arm_pose_home"))
-        store_item.add_effect(self.believe_item_at(item, self.get(Location, "on_robot")), False)
-        store_item.add_effect(self.believe_item_at(item, self.get(Location, "in_klt")), True)
+        store_item.add_effect(self.believe_item_at(item1, self.get(Location, "on_robot")), False)
+        store_item.add_effect(self.believe_item_at(item1, self.get(Location, "in_klt")), True)
+        store_item.add_effect(self.believe_item_in(item1, item2), True)
 
     def create_hand_over_item_action(self, _callable: Callable[[Robot, Item], object]) -> InstantaneousAction:
         """
@@ -291,58 +307,56 @@ class Domain(Bridge):
         search_tool.add_precondition(Not(self.robot_at(robot, self.get(Pose, "tool_search_pose"))))
         search_tool.add_precondition(self.robot_has(robot, self.get(Item, "nothing")))
         search_tool.add_precondition(self.believe_item_at(item, self.get(Location, "anywhere")))
-        search_tool.add_precondition(Or(Equals(item, tool) for tool in self.get_tool_objects()))
+        for klt in self.get_klt_objects():
+            search_tool.add_precondition(Not(Equals(item, klt)))
         for pose in self.get_objects_for_type(Pose).values():
             search_tool.add_effect(self.robot_at(robot, pose), pose == self.get(Pose, "tool_search_pose"))
         search_tool.add_effect(self.believe_item_at(item, self.get(Location, "anywhere")), False)
         search_tool.add_effect(self.believe_item_at(item, self.get(Location, "tool_search_location")), True)
 
-    def create_search_klt_action(self, _callable: Callable[[Robot], object]) -> InstantaneousAction:
+    def create_search_klt_action(self, _callable: Callable[[Robot, Item], object]) -> InstantaneousAction:
         """
-        Create plannable action using _callable with which Robot searches for 'klt_1'
+        Create plannable action using _callable with which Robot searches for KLT Item
          while it being 'anywhere'.
-         Afterwards, Robot will be at 'klt_search_pose' and 'klt_1' at 'klt_search_location'.
+         Afterwards, Robot will be at 'klt_search_pose' and Item at 'klt_search_location'.
         """
         assert _callable.__name__ == "search_klt"
-        search_klt, (robot,) = self.create_action_from_function(_callable)
+        search_klt, (robot, item) = self.create_action_from_function(_callable)
         search_klt.add_precondition(Not(self.robot_at(robot, self.get(Pose, "klt_search_pose"))))
-        search_klt.add_precondition(self.believe_item_at(self.get(Item, "klt_1"), self.get(Location, "anywhere")))
+        search_klt.add_precondition(self.believe_item_at(item, self.get(Location, "anywhere")))
+        for tool in self.get_tool_objects():
+            search_klt.add_precondition(Not(Equals(item, tool)))
         for pose in self.get_objects_for_type(Pose).values():
             search_klt.add_effect(self.robot_at(robot, pose), pose == self.get(Pose, "klt_search_pose"))
-        search_klt.add_effect(self.believe_item_at(self.get(Item, "klt_1"), self.get(Location, "anywhere")), False)
-        search_klt.add_effect(
-            self.believe_item_at(self.get(Item, "klt_1"), self.get(Location, "klt_search_location")), True
-        )
+        search_klt.add_effect(self.believe_item_at(item, self.get(Location, "anywhere")), False)
+        search_klt.add_effect(self.believe_item_at(item, self.get(Location, "klt_search_location")), True)
 
     def create_conclude_tool_search_action(self, _callable: Callable[[Item], object]) -> InstantaneousAction:
         """
-        Create plannable action using _callable which concludes the tool search for Item.
-         Item must be 'anywhere', not be 'klt_1'.
+        Create plannable action using _callable which concludes the search for tool Item
+         while it being 'anywhere'. Afterwards, it is at 'tool_search_location'.
         """
         assert _callable.__name__ == "conclude_tool_search"
         conclude_tool_search, (item,) = self.create_action_from_function(_callable)
         conclude_tool_search.add_precondition(self.believe_item_at(item, self.get(Location, "anywhere")))
         for table in self.get_table_objects():
             conclude_tool_search.add_precondition(self.searched_at(table))
-        conclude_tool_search.add_precondition(Not(Equals(item, self.get(Item, "klt_1"))))
+        for klt in self.get_klt_objects():
+            conclude_tool_search.add_precondition(Not(Equals(item, klt)))
         conclude_tool_search.add_effect(self.believe_item_at(item, self.get(Location, "anywhere")), False)
         conclude_tool_search.add_effect(self.believe_item_at(item, self.get(Location, "tool_search_location")), True)
 
-    def create_conclude_klt_search_action(self, _callable: Callable[[], object]) -> InstantaneousAction:
+    def create_conclude_klt_search_action(self, _callable: Callable[[Item], object]) -> InstantaneousAction:
         """
-        Create plannable action using _callable which concludes the search for 'klt_1.
-          It must be 'anywhere'.
+        Create plannable action using _callable which concludes the search for KLT Item
+         while it being 'anywhere'. Afterwards, it is at 'klt_search_location'.
         """
         assert _callable.__name__ == "conclude_klt_search"
-        conclude_klt_search, _ = self.create_action_from_function(_callable)
-        conclude_klt_search.add_precondition(
-            self.believe_item_at(self.get(Item, "klt_1"), self.get(Location, "anywhere"))
-        )
+        conclude_klt_search, (item,) = self.create_action_from_function(_callable)
+        conclude_klt_search.add_precondition(self.believe_item_at(item, self.get(Location, "anywhere")))
         for table in self.get_table_objects():
             conclude_klt_search.add_precondition(self.searched_at(table))
-        conclude_klt_search.add_effect(
-            self.believe_item_at(self.get(Item, "klt_1"), self.get(Location, "anywhere")), False
-        )
-        conclude_klt_search.add_effect(
-            self.believe_item_at(self.get(Item, "klt_1"), self.get(Location, "klt_search_location")), True
-        )
+        for tool in self.get_tool_objects():
+            conclude_klt_search.add_precondition(Not(Equals(item, tool)))
+        conclude_klt_search.add_effect(self.believe_item_at(item, self.get(Location, "anywhere")), False)
+        conclude_klt_search.add_effect(self.believe_item_at(item, self.get(Location, "klt_search_location")), True)
