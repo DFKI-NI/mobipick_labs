@@ -148,7 +148,7 @@ class Simulation:
         self.domain.create_pick_item_action(self.mobipick.pick_item)
         self.domain.create_place_item_action(self.mobipick.place_item)
         self.domain.create_store_item_action(self.mobipick.store_item)
-        self.domain.create_handover_item_action(self.mobipick.hand_over_item)
+        self.domain.create_hand_over_item_action(self.mobipick.hand_over_item)
         self.domain.create_search_at_action(self.env.search_at, ["home", "observe100cm_right", "transport"])
         self.domain.create_search_tool_action(self.env.search_tool)
         self.domain.create_search_klt_action(self.env.search_klt)
