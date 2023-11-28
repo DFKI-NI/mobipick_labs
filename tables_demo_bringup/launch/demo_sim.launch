@@ -8,6 +8,9 @@
   <arg name="robot_y"   default="2.40" />
   <arg name="robot_yaw" default="3.1415" />
 
+  <!-- controls the simulation speed -->
+  <arg name="physics_profile" default="fast" doc="options: slow, fast" />
+
   <!-- tables demo gazebo simulation -->
   <include file="$(find mobipick_gazebo)/launch/mobipick/tables_demo.launch" >
     <arg name="robot_x"      value="$(arg robot_x)" />
@@ -15,6 +18,7 @@
     <arg name="robot_yaw"    value="$(arg robot_yaw)" />
     <arg name="world"        value="$(arg world)" />
     <arg name="world_config" value="$(arg world_config)" />
+    <arg name="physics_profile" value="$(arg physics_profile)" />
   </include>
 
   <!-- automatically unpause gazebo simulation after some time -->
