@@ -100,7 +100,11 @@ class TablesDemoDomain(Domain):
             self.initialize_pose_locations()
         return location == (self.pose_locations[pose] if pose in self.pose_locations.keys() else self.anywhere)
 
-    def define_tables_demo_problem(self) -> Problem:
+    def initialize_tables_demo_problem(self) -> Problem:
+        """
+        Create UP Problem including all fluents and actions needed by the overall Tables Demo.
+        Note: Initial states and goals are not defined yet.
+        """
         problem = self.define_problem(
             fluents=(
                 self.robot_at,
@@ -125,7 +129,11 @@ class TablesDemoDomain(Domain):
         )
         return problem
 
-    def define_item_search_problem(self) -> Problem:
+    def initialize_item_search_problem(self) -> Problem:
+        """
+        Create UP Problem including all fluents and actions needed by the item search subproblem.
+        Note: Initial states and goals are not defined yet.
+        """
         problem = self.define_problem(
             fluents=(
                 self.robot_at,

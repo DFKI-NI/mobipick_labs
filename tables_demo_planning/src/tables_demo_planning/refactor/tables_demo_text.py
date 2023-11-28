@@ -5,10 +5,10 @@ from unified_planning.plans import ActionInstance
 from tables_demo_planning.refactor.components import ArmPose, Item, Location, Robot
 from tables_demo_planning.refactor.tables_demo import EnvironmentRepresentation, TablesDemoDomain
 
-"""This test script tests planning, re-planning, and text-based execution without ROS."""
+"""This script provides text-based simulation and execution methods without ROS."""
 
 
-# Note: Purpose of this robot class is to showcase usage of methods for robot actions
+# Note: Purpose of this Robot subclass is to showcase usage of methods for robot actions
 #  in a separate class. They could be easily implemented in the Simulation class instead.
 class SimRobot(Robot):
     def __init__(self, name: str, sim: 'Simulation') -> None:
@@ -155,8 +155,8 @@ class Simulation:
         self.domain.create_search_klt_action(self.env.search_klt)
         self.domain.create_conclude_tool_search_action(self.env.conclude_tool_search)
         self.domain.create_conclude_klt_search_action(self.env.conclude_klt_search)
-        self.problem = self.domain.define_tables_demo_problem()
-        self.subproblem = self.domain.define_item_search_problem()
+        self.problem = self.domain.initialize_tables_demo_problem()
+        self.subproblem = self.domain.initialize_item_search_problem()
 
     def replan(self) -> Optional[List[ActionInstance]]:
         self.env.print_believed_item_locations()
