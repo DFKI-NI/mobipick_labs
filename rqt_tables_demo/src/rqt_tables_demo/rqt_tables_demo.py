@@ -63,18 +63,20 @@ class RqtTablesDemo(Plugin):
         # ::: parameters
 
         # navigation and teletransportation base poses in simulation, base waypoints/goals, but also define surfaces
-        default_wp_dic = {  'pick_pose_name': 'base_table_2_pose', # not used by this node
-                            'place_pose_name': 'base_table_3_pose', # not used by this node
-                            # moelk_tables values by default, order : [[x, y, z], [qx, qy, qz, qw]]
-                            'poses': {  'base_handover_pose': [[10.16, 1.76, 0.0], [0.0, 0.0, 0.707, 0.707]],
-                                        'base_home_pose': [[12.0, 2.0, 0.0], [0.0, 0.0, 0.0, 1.0]],
-                                        'base_table_1_pose': [[12.21, 2.1, 0.0], [0.0, 0.0, 0.707, 0.707]],
-                                        'base_table_2_pose': [[11.85, 2.45, 0.0], [0.0, 0.0, 1.0, 0.0]],
-                                        'base_table_3_pose': [[10.25, 2.45, 0.0], [0.0, 0.0, 1.0, 0.0]],
-                                        'handover_planned': True, # not used by this node
-                                        'world_name': 'moelk' # not used by this node
-                            }
-                        }
+        default_wp_dic = {
+            'pick_pose_name': 'base_table_2_pose',  # not used by this node
+            'place_pose_name': 'base_table_3_pose',  # not used by this node
+            # moelk_tables values by default, order : [[x, y, z], [qx, qy, qz, qw]]
+            'poses': {
+                'base_handover_pose': [[10.16, 1.76, 0.0], [0.0, 0.0, 0.707, 0.707]],
+                'base_home_pose': [[12.0, 2.0, 0.0], [0.0, 0.0, 0.0, 1.0]],
+                'base_table_1_pose': [[12.21, 2.1, 0.0], [0.0, 0.0, 0.707, 0.707]],
+                'base_table_2_pose': [[11.85, 2.45, 0.0], [0.0, 0.0, 1.0, 0.0]],
+                'base_table_3_pose': [[10.25, 2.45, 0.0], [0.0, 0.0, 1.0, 0.0]],
+                'handover_planned': True,  # not used by this node
+                'world_name': 'moelk',  # not used by this node
+            },
+        }
 
         # read poses from parameter server and extract useful information
         self.wp_dic = self.convert_pose_dict(rospy.get_param('~navigation_waypoints', default_wp_dic))
@@ -94,7 +96,7 @@ class RqtTablesDemo(Plugin):
         self._widget.comboArmPoses.addItems(self.mobipick.arm.pose_names)
 
         # get moveit arm poses from robot api, filter in only the ones containing 'observe'
-        default_arm_observation_poses = [''] # add a first empty element
+        default_arm_observation_poses = ['']  # add a first empty element
         for arm_pose in self.mobipick.arm.pose_names:
             if 'observe' in arm_pose:
                 default_arm_observation_poses.append(arm_pose)
@@ -108,8 +110,17 @@ class RqtTablesDemo(Plugin):
         self.wait_for_services = rospy.get_param('wait_for_services', 2.0)
 
         # adding demo objects to pose selector class query and others
-        default_objects_of_interest = ['multimeter', 'klt', 'power_drill_with_grip', 'relay', 'screwdriver', 'hot_glue_gun']
-        self.objects_of_interest = rospy.get_param('~objects_of_interest', default_objects_of_interest) # TODO: test!!!!!!!!!!!!!!!!!!!!
+        default_objects_of_interest = [
+            'multimeter',
+            'klt',
+            'power_drill_with_grip',
+            'relay',
+            'screwdriver',
+            'hot_glue_gun',
+        ]
+        self.objects_of_interest = rospy.get_param(
+            '~objects_of_interest', default_objects_of_interest
+        )  # TODO: test!!!!!!!!!!!!!!!!!!!!
         self._widget.comboPerceptionPSClassQuery.addItems(self.objects_of_interest)
         self._widget.comboPickObj.addItems(self.objects_of_interest)
 
