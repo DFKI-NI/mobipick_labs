@@ -11,6 +11,9 @@
   <!-- controls the simulation speed -->
   <arg name="physics_profile" default="fast" doc="options: slow, fast" />
 
+  <!-- if true, gzclient is started -->
+  <arg name="gui" default="true" />
+
   <!-- tables demo gazebo simulation -->
   <include file="$(find mobipick_gazebo)/launch/mobipick/tables_demo.launch" >
     <arg name="robot_x"      value="$(arg robot_x)" />
@@ -19,6 +22,7 @@
     <arg name="world"        value="$(arg world)" />
     <arg name="world_config" value="$(arg world_config)" />
     <arg name="physics_profile" value="$(arg physics_profile)" />
+    <arg name="gui" value="$(arg gui)" />
   </include>
 
   <!-- automatically unpause gazebo simulation after some time -->
