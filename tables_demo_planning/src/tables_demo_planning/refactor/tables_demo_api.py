@@ -240,7 +240,7 @@ class TablesDemoAPI:
         if self.mobipick_api.base.move(pose) != 3:
             rospy.logerr(f"Move base to {pose} FAILED!")
             # Move to home pose whenever movement fails. Note: This is a drastic workaround.
-            self.mobipick_api.base.move(self.home_pose)
+            self.mobipick_api.base.move(self.api_poses["base_home_pose"])
             return False
 
         return self.env.move_base(self.mobipick, _, pose)
@@ -249,7 +249,7 @@ class TablesDemoAPI:
         if self.mobipick_api.base.move(pose) != 3:
             rospy.logerr(f"Move base to {pose} FAILED!")
             # Move to home pose whenever movement fails. Note: This is a drastic workaround.
-            self.mobipick_api.base.move(self.home_pose)
+            self.mobipick_api.base.move(self.api_poses["base_home_pose"])
             return False
 
         return self.env.move_base(self.mobipick, _, pose)
