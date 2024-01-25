@@ -44,6 +44,7 @@ from collections import defaultdict
 from geometry_msgs.msg import Pose
 from unified_planning.model import Object, Problem
 from unified_planning.plans import ActionInstance
+from unified_planning.shortcuts import And, Or
 from tables_demo_planning.domain import Domain
 from tables_demo_planning.components import ArmPose, Item, Location, Robot
 
@@ -154,6 +155,35 @@ class TablesDemoDomain(Domain):
             ),
         )
         return problem
+
+    def set_goals(self, problem: Problem, demo_items: List[Item], target_location: Location) -> None:
+        """Set the goals for the overall demo."""
+        assert self.believe_item_at in problem.fluents
+        assert all(problem.object(item.name) for item in demo_items)
+        assert problem.object(target_location.name)
+        problem.clear_goals()
+        if any(item.name.startswith("klt_") for item in demo_items):
+            assert problem.object("in_klt")
+            if any(item.name.startswith("multimeter_") for item in demo_items):
+                problem.add_goal(
+                    Or(
+                        And(
+                            self.believe_item_in(self.objects[item.name], klt),
+                            self.believe_item_at(klt, self.objects[target_location.name]),
+                        )
+                        for item in demo_items
+                        if item.name.startswith("multimeter_")
+                        for klt in self.get_klt_objects()
+                    )
+                )
+        else:
+            # Note: Just for testing without KLT.
+            if any(item.name.startswith("multimeter_") for item in demo_items):
+                for item in demo_items:
+                    if item.name.startswith("multimeter_"):
+                        problem.add_goal(
+                            self.believe_item_at(self.objects[item.name], self.objects[target_location.name])
+                        )
 
     def set_search_goals(self, problem: Problem, item_search: Item) -> None:
         """Set the goals for the current item_search subproblem."""
