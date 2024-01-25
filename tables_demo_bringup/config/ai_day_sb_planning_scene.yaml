@@ -1,0 +1,88 @@
+# a list of boxes to add to the planning scene
+#
+#     +---------+
+#     |         |
+#     | table_3 |
+#     |         |
+#     +---------+
+#                           +-------+
+#                           |       |
+#                           |table_2|
+#                           |       |
+#                           +-------+
+#
+#                           +-------+
+#                           |       |
+#                           |table_1|
+#                           |       |
+#                           +-------+
+#   +------------------+
+#   |                  |
+#   |      table_4     |
+#   |                  |            x
+#   +------------------+            ^
+#                                   |
+#                                   |
+#                            y <----+ map
+
+planning_scene_boxes:
+- box_orientation_w: 1.0
+  box_orientation_x: 0.0
+  box_orientation_y: 0.0
+  box_orientation_z: 0.0
+  box_position_x: 3.75
+  box_position_y: 10.24
+  box_position_z: 0.3575
+  box_x_dimension: 0.8
+  box_y_dimension: 0.8
+  box_z_dimension: 0.72
+  frame_id: map
+  scene_name: table_1
+- box_orientation_w: 1.0
+  box_orientation_x: 0.0
+  box_orientation_y: 0.0
+  box_orientation_z: 0.0
+  box_position_x: 4.85
+  box_position_y: 10.24
+  box_position_z: 0.3575
+  box_x_dimension: 0.8
+  box_y_dimension: 0.8
+  box_z_dimension: 0.72
+  frame_id: map
+  scene_name: table_2
+- box_orientation_w: 1.0
+  box_orientation_x: 0.0
+  box_orientation_y: 0.0
+  box_orientation_z: 0.0
+  box_position_x: 6.17
+  box_position_y: 11.53
+  box_position_z: 0.36
+  box_x_dimension: 0.8
+  box_y_dimension: 0.8
+  box_z_dimension: 0.72
+  frame_id: map
+  scene_name: table_3
+- box_orientation_w: 1.0
+  box_orientation_x: 0.0
+  box_orientation_y: 0.0
+  box_orientation_z: 0.0
+  box_position_x: 2.24
+  box_position_y: 11.64
+  box_position_z: 0.36
+  box_x_dimension: 0.8
+  box_y_dimension: 1.6
+  box_z_dimension: 0.72
+  frame_id: map
+  scene_name: table_4
+- box_orientation_w: 1.0
+  box_orientation_x: 0.0
+  box_orientation_y: 0.0
+  box_orientation_z: 0.0
+  box_position_x: 4.36
+  box_position_y: 12.76
+  box_position_z: 1.17
+  box_x_dimension: 1.4
+  box_y_dimension: 0.8
+  box_z_dimension: 2.34
+  frame_id: map
+  scene_name: tv

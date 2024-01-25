@@ -39,14 +39,29 @@ The Tables Demo domain and environment specify concrete instances of the scenari
 """
 
 
-from typing import Callable, Dict, List, Optional, Sequence, Set
+from typing import Callable, Dict, List, Optional, Sequence, Set, Tuple
 from collections import defaultdict
+import re
 from geometry_msgs.msg import Pose
+from unified_planning.exceptions import UPValueError
 from unified_planning.model import Object, Problem
 from unified_planning.plans import ActionInstance
 from unified_planning.shortcuts import And, Or
 from tables_demo_planning.domain import Domain
 from tables_demo_planning.components import ArmPose, Item, Location, Robot
+
+
+def parse_goal(goal_str: str) -> Tuple[str, List[str]]:
+    # goal should have the format fluent_name(param1, param2, ..., paramn)
+    regex = r"(\w+)\((\w+(?:,\s*\w+)*)\)"
+    match = re.match(regex, goal_str)
+    if match:
+        goal_name = match.group(1)
+        params_str = match.group(2)
+        params = [param.strip() for param in params_str.split(',')]
+        return goal_name, params
+    else:
+        raise ValueError(f"Invalid goal string: {goal_str}")
 
 
 class TablesDemoDomain(Domain):
@@ -58,6 +73,17 @@ class TablesDemoDomain(Domain):
         self.arm_pose_unknown = self.get(ArmPose, "unknown")
         self.nothing = self.get(Item, "nothing")
         self.anywhere = self.get(Location, "anywhere")
+
+        self.fluent_name_alternatives: Dict[str, str] = {}
+        self.fluent_name_alternatives["robot_at"] = "get_robot_at"
+        self.fluent_name_alternatives["robot_arm_at"] = "get_robot_arm_at"
+        self.fluent_name_alternatives["arm_at"] = "get_robot_arm_at"
+        self.fluent_name_alternatives["robot_has"] = "get_robot_has"
+        self.fluent_name_alternatives["has"] = "get_robot_has"
+        self.fluent_name_alternatives["believe_item_at"] = "get_believe_item_at"
+        self.fluent_name_alternatives["item_at"] = "get_believe_item_at"
+        self.fluent_name_alternatives["item_offered"] = "get_item_offered"
+        self.fluent_name_alternatives["offered"] = "get_item_offered"
 
         # Create visualization labels for actions as functions of their parameters.
         self.method_labels: Dict[str, Callable[[Sequence[str]], str]] = {
@@ -155,6 +181,26 @@ class TablesDemoDomain(Domain):
             ),
         )
         return problem
+
+    def set_goals_by_strs(self, problem: Problem, goal_strs: List[str]) -> None:
+        for goal_str in goal_strs:
+            try:
+                goal_fluent_name, params = parse_goal(goal_str)
+                if goal_fluent_name in self.fluent_name_alternatives.keys():
+                    goal_fluent_name = self.fluent_name_alternatives[goal_fluent_name]
+                if problem.has_fluent(goal_fluent_name):
+                    goal_fluent = problem.fluent(goal_fluent_name)
+                param_objs = [problem.object(param) for param in params]
+                problem.add_goal(goal_fluent(*param_objs))
+            except ValueError as e:
+                print(e)
+                print("Goal should have the format fluent_name(param1, param2, ..., paramn).")
+                return
+            except UPValueError as e:
+                print("Could not set the goal for the goal string.")
+                print(e)
+                print("Available fluents: %s" % problem.fluents)
+                print("Available parameters: %s" % problem.all_objects)
 
     def set_goals(self, problem: Problem, demo_items: List[Item], target_location: Location) -> None:
         """Set the goals for the overall demo."""

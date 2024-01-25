@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import sys
 import unified_planning
 import unified_planning.shortcuts
 from tables_demo_planning.components import Item, Location
@@ -14,14 +15,18 @@ def test_tables_demo_api() -> None:
         Item.get("klt_2"): Location.get("table_1"),
         Item.get("klt_3"): Location.get("table_3"),
     }
-    # Define goal.
-    target_location = Location.get("table_2")
-
     # Run the Mobipick Tables Demo.
     api = TablesDemoAPI(item_locations)
-    api.domain.set_goals(api.problem, list(item_locations.keys()), target_location)
-    print(f"Scenario: Mobipick shall bring a KLT with a multimeter inside to {target_location.name}.")
-    api.run(target_location)
+    # Define goal.
+    goal_strs = sys.argv[1:]
+    if goal_strs:
+        api.domain.set_goals_by_strs(api.problem, goal_strs)
+        api.run()
+    else:
+        target_location = Location.get("table_2")
+        api.domain.set_goals(api.problem, list(item_locations.keys()), target_location)
+        print(f"Scenario: Mobipick shall bring a KLT with a multimeter inside to {target_location.name}.")
+        api.run(target_location)
 
 
 if __name__ == "__main__":
