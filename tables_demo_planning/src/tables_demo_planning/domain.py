@@ -43,7 +43,7 @@ from geometry_msgs.msg import Pose
 from unified_planning.model import Fluent, InstantaneousAction, Object
 from unified_planning.shortcuts import Equals, Not, Or
 from up_esb import Bridge
-from tables_demo_planning.refactor.components import ArmPose, Item, Location, Robot, Unique
+from tables_demo_planning.components import ArmPose, Item, Location, Robot, Unique
 
 
 class Domain(Bridge):

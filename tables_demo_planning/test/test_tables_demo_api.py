@@ -3,8 +3,8 @@ from typing import List
 import unified_planning
 import unified_planning.shortcuts
 from unified_planning.shortcuts import And, Or
-from tables_demo_planning.refactor.components import Item, Location
-from tables_demo_planning.refactor.tables_demo_api import TablesDemoAPI
+from tables_demo_planning.components import Item, Location
+from tables_demo_planning.tables_demo_api import TablesDemoAPI
 
 
 def set_goals(api: TablesDemoAPI, demo_items: List[Item], target_location: Location) -> None:

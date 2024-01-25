@@ -2,8 +2,8 @@
 from geometry_msgs.msg import Pose
 import unified_planning
 import unified_planning.shortcuts
-from tables_demo_planning.refactor.components import Item, Location
-from tables_demo_planning.refactor.tables_demo_text import Simulation
+from tables_demo_planning.components import Item, Location
+from tables_demo_planning.tables_demo_text import Simulation
 
 
 def test_pick_n_place_demo() -> None:
