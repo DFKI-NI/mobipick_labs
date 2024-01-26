@@ -44,50 +44,53 @@ Development in progress.
 import sys
 import rospy
 import unified_planning
-from typing import Optional
-from tables_demo_planning.mobipick_components import Item, Location
+from typing import Optional, Dict
+from tables_demo_planning.components import Item, Location
 from tables_demo_planning.hierarchical_domain import HierarchicalDomain
 from tables_demo_planning.subplan_visualization import SubPlanVisualization
 
 
 class HierarchicalDemoOrchestrator:
-    def __init__(self) -> None:
-        self._domain = HierarchicalDomain()
+    def __init__(self, item_locations: Dict[Item, Location]) -> None:
+        self._domain = HierarchicalDomain(item_locations)
         self.visualization: Optional[SubPlanVisualization] = None
         self.espeak_pub: Optional[rospy.Publisher] = None
         self._trigger_replanning = False  # Temporary solution until it is provided by dispatcher
 
     def generate_and_execute_plan(self, target_item: Item, target_box: Item, target_location: Location) -> None:
         print(
-            f"Scenario: Mobipick shall bring the {self._domain.objects[target_box.name]}"
-            f" with the {self._domain.objects[target_item.name]} inside"
-            f" to {self._domain.objects[target_location.name]}."
+            f"Scenario: Mobipick shall bring the {target_box}"
+            f" with the {target_item} inside"
+            f" to {target_location}."
         )
 
-        self._domain.run(
-            self._domain.objects[target_item.name],
-            self._domain.objects[target_box.name],
-            self._domain.objects[target_location.name],
-        )
+        self._domain.run(target_item, target_box, target_location)
 
 
 if __name__ == '__main__':
     unified_planning.shortcuts.get_environment().credits_stream = None
     try:
-        target_location = Location.table_2
+        target_location = Location.get("table_2")
         if len(sys.argv) >= 2:
             parameter = sys.argv[1]
             if parameter in ("1", "table1", "table_1"):
-                target_location = Location.table_1
+                target_location = Location.get("table_1")
             elif parameter in ("2", "table2", "table_2"):
-                target_location = Location.table_2
+                target_location = Location.get("table_2")
             elif parameter in ("3", "table3", "table_3"):
-                target_location = Location.table_3
+                target_location = Location.get("table_3")
             else:
                 rospy.logwarn(f"Unknown parameter '{parameter}', using default table.")
 
-        target_item = Item.multimeter
-        target_box = Item.box
-        HierarchicalDemoOrchestrator().generate_and_execute_plan(target_item, target_box, target_location)
+        item_locations = {
+            Item.get("multimeter_1"): Location.get("table_3"),
+            Item.get("klt_1"): Location.get("table_2"),
+            Item.get("klt_2"): Location.get("table_1"),
+            Item.get("klt_3"): Location.get("table_3"),
+        }
+
+        target_item = Item.get("multimeter_1")
+        target_box = Item.get("klt_1")
+        HierarchicalDemoOrchestrator(item_locations).generate_and_execute_plan(target_item, target_box, target_location)
     except rospy.ROSInterruptException:
         pass
