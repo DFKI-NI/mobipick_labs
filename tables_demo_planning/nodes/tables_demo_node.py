@@ -41,16 +41,32 @@
 import sys
 import rospy
 import unified_planning
-from tables_demo_planning.tables_demo_api import TablesDemoAPIDomain
+from tables_demo_planning.components import Item, Location
+from tables_demo_planning.tables_demo_api import TablesDemoAPI
 
 
 if __name__ == '__main__':
     unified_planning.shortcuts.get_environment().credits_stream = None
+
+    # Define environment values.
+    item_locations = {
+        Item.get("multimeter_1"): Location.get("table_3"),
+        Item.get("klt_1"): Location.get("table_2"),
+        Item.get("klt_2"): Location.get("table_1"),
+        Item.get("klt_3"): Location.get("table_3"),
+    }
+
     try:
-        if len(sys.argv) >= 2:
-            goals = sys.argv[1:]
-            TablesDemoAPIDomain().run(goals)
-        else:
-            TablesDemoAPIDomain().run()  # use standard tables demo goal
+        api = TablesDemoAPI(item_locations)
+        # Define goal.
+        goal_strs = sys.argv[1:]
+        if goal_strs:
+            api.domain.set_goals_by_strs(api.problem, goal_strs)
+            api.run()
+        else:  # Standard tables Demo goal
+            target_location = Location.get("table_2")
+            api.domain.set_goals(api.problem, list(item_locations.keys()), target_location)
+            print(f"Scenario: Mobipick shall bring a KLT with a multimeter inside to {target_location.name}.")
+            api.run(target_location)
     except rospy.ROSInterruptException:
         pass
