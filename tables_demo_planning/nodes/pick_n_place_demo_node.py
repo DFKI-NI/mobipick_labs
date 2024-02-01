@@ -38,84 +38,29 @@
 """Run the Pick and Place demo with an execution loop using a behavior tree."""
 
 
-from typing import Set
 import rospy
-from std_msgs.msg import String
+from geometry_msgs.msg import Pose
 import unified_planning
-from unified_planning.model.metrics import MinimizeSequentialPlanLength
-from tables_demo_planning.pick_n_place_demo import PickAndPlaceDomain
-from tables_demo_planning.subplan_visualization import SubPlanVisualization
+from tables_demo_planning.components import Item, Location
+from tables_demo_planning.tables_demo_api import TablesDemoAPI
 
 
 def run_demo():
-    """Run the pick and place demo."""
-    domain = PickAndPlaceDomain()
-    espeak_pub = rospy.Publisher("/espeak_node/speak_line", String, queue_size=1)
-    visualization = SubPlanVisualization()
-    executed_action_names: Set[str] = set()  # Note: For visualization purposes only.
-    error_count = 0
-    active = True
-    while active:
-        # Create problem based on current state.
-        problem = domain.initialize_problem()
-        problem.add_quality_metric(MinimizeSequentialPlanLength())
-        domain.set_initial_values(problem)
-        domain.set_goals(problem)
+    """Run the handover demo."""
 
-        # Plan ...
-        actions = domain.solve(problem)
-        if not actions:
-            if actions is None:
-                print("Execution ended because no plan could be found.")
-                espeak_pub.publish("Mission impossible!")
-                visualization.add_node("Mission impossible", "red")
-            else:
-                print("Demo complete.")
-                espeak_pub.publish("Demo complete.")
-                visualization.add_node("Demo complete", "green")
-            active = False
-            return
+    # Define environment values.
+    item_locations = {
+        Item.get("power_drill_with_grip_1"): Location.get("table_2"),
+    }
 
-        print("> Plan:")
-        print('\n'.join(map(str, actions)))
-        action_names = [
-            f"{len(executed_action_names) + number} {domain.label(action)}"
-            for number, action in enumerate(actions, start=1)
-        ]
-        visualization.set_actions(action_names, preserve_actions=executed_action_names)
-        # ... and execute.
-        print("> Execution:")
-        for action in actions:
-            executable_action, parameters = domain.get_executable_action(action)
-            action_name = f"{len(executed_action_names) + 1} {domain.label(action)}"
-            print(action)
-            visualization.execute(action_name)
-            espeak_pub.publish(domain.label(action))
-            result = executable_action(*parameters)
-            executed_action_names.add(action_name)
-            if rospy.is_shutdown():
-                return
+    api = TablesDemoAPI(item_locations)
+    # Define handover goal.
+    api.problem.add_goal(api.domain.robot_at(api.domain.robot, api.domain.get(Pose, "base_home_pose")))
+    api.problem.add_goal(api.domain.robot_has(api.domain.robot, api.domain.nothing))
+    api.problem.add_goal(api.domain.item_offered(api.domain.get(Item, "power_drill_with_grip_1")))
 
-            if result is None or result:
-                visualization.succeed(action_name)
-            else:
-                print("-- Action failed! Need to replan.")
-                error_count += 1
-                visualization.fail(action_name)
-                espeak_pub.publish("Action failed.")
-                if error_count >= 3:
-                    print("Execution ended after too many failures.")
-                    espeak_pub.publish("Mission impossible!")
-                    visualization.add_node("Mission impossible", "red")
-                    return
-
-                # Abort execution and loop to planning.
-                break
-        else:
-            active = False
-            print("Demo complete.")
-            espeak_pub.publish("Demo complete.")
-            visualization.add_node("Demo complete", "green")
+    print("Scenario: Mobipick shall fetch the power drill and hand it over to a person.")
+    api.run()
 
 
 if __name__ == '__main__':
