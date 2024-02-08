@@ -246,12 +246,6 @@ class TablesDemoDomain(Domain):
                 self.believe_item_at(self.get(Item, item_search.name), self.get(Location, "tool_search_location"))
             )
 
-    def solve(self, problem: Problem) -> Optional[List[ActionInstance]]:
-        """Solve planning problem and return list of UP actions."""
-        print("Calculating plan ...")
-        plan = super().solve(problem)
-        return plan.actions if plan else None
-
     def label(self, action: ActionInstance) -> str:
         """Return a user-friendly label for visualizing action."""
         parameters = [parameter.object() for parameter in action.actual_parameters]

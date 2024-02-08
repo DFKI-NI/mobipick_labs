@@ -116,16 +116,16 @@ class TablesDemoAPI:
         retries_before_abortion = self.RETRIES_BEFORE_ABORTION
         error_counts: Dict[str, int] = defaultdict(int)
         # Solve overall problem.
-        actions = self.replan()
-        if actions is None:
+        plan = self.replan()
+        if plan is None or plan.actions is None:
             print("Execution ended because no plan could be found.")
             return
 
-        while actions:
+        while plan.actions:
             print("> Plan:")
-            print('\n'.join(map(str, actions)))
+            print('\n'.join(map(str, plan.actions)))
             print("> Execution:")
-            for action in actions:
+            for action in plan.actions:
                 executable_action, parameters = self.domain.get_executable_action(action)
                 print(action)
                 # Explicitly do not pick up KLT from target_table since planning does not handle it yet.
@@ -134,7 +134,8 @@ class TablesDemoAPI:
                     location = self.env.resolve_search_location(parameters[-2])
                     if location == target_location:
                         print("Picking up KLT OBSOLETE.")
-                        actions = self.replan()
+                        print("Replanning")
+                        plan = self.replan()
                         break
 
                 # Execute action.
@@ -149,19 +150,19 @@ class TablesDemoAPI:
                         # Check whether an obsolete item search invalidates the previous plan.
                         if self.env.believed_item_locations[self.env.item_search] != Location.get("anywhere"):
                             print(f"Search for {self.env.item_search.name} OBSOLETE.")
-                            actions = self.replan()
+                            plan = self.replan()
                             break
 
                         # Search for item by creating and executing a subplan.
                         self.domain.set_initial_values(self.subproblem)
                         self.domain.set_search_goals(self.subproblem, self.env.item_search)
-                        subactions = self.domain.solve(self.subproblem)
-                        assert subactions, f"No solution for: {self.subproblem}"
+                        subplan = self.domain.solve(self.subproblem)
+                        assert subplan, f"No solution for: {self.subproblem}"
                         print("- Search plan:")
-                        print('\n'.join(map(str, subactions)))
+                        print('\n'.join(map(str, subplan.actions)))
                         print("- Search execution:")
                         subaction_execution_count = 0
-                        for subaction in subactions:
+                        for subaction in subplan.actions:
                             executable_subaction, subparameters = self.domain.get_executable_action(subaction)
                             print(subaction)
                             # Execute search action.
@@ -205,15 +206,15 @@ class TablesDemoAPI:
                             return
 
                         retries_before_abortion -= 1
-                        actions = self.replan()
+                        plan = self.replan()
                         break
                 else:
                     retries_before_abortion = self.RETRIES_BEFORE_ABORTION
-                    actions = self.replan()
+                    plan = self.replan()
                     break
             else:
                 break
-            if actions is None:
+            if plan is None or plan.actions is None:
                 print("Execution ended because no plan could be found.")
                 return
 
