@@ -15,8 +15,6 @@ vcs pull
 # Install mobipick's dependencies.
 mobipick/install-deps.sh
 
-# Install Unified Planning library and its planners.
-pip3 install 'unified-planning[tamer,fast-downward]==0.5.0.438.dev1'
-
 # Install Unified Planning Embedded Systems Bridge
-pip install up-esb==0.0.136
+pip install up-esb==0.1.0
+pip install up-fast-downward==0.4.0

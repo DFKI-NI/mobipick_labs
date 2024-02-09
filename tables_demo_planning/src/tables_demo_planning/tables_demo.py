@@ -1,6 +1,6 @@
 # Software License Agreement (BSD License)
 #
-#  Copyright (c) 2022, DFKI GmbH
+#  Copyright (c) 2022, 2023, DFKI GmbH
 #  All rights reserved.
 #
 #  Redistribution and use in source and binary forms, with or without
@@ -34,149 +34,21 @@
 # Authors: Alexander Sung, Oscar Lima, Marc Vinci
 
 """
-These Mobipick components connect the planning domain with the application domain,
- and include methods valid for both simulation and reality.
+The Tables Demo domain and environment specify concrete instances of the scenario for planning
+ and include methods valid for both simulation and reality. It does not handle execution yet.
 """
 
 
-from typing import Dict, Generic, List, Optional, Set, TypeVar, Tuple
-from abc import ABC, abstractmethod
+from typing import Callable, Dict, List, Optional, Sequence, Set, Tuple
 from collections import defaultdict
 import re
-import rospy
 from geometry_msgs.msg import Pose
-from unified_planning.model import Object
-from unified_planning.model.metrics import MinimizeSequentialPlanLength
-from unified_planning.plans import ActionInstance
-from unified_planning.shortcuts import Equals, Not, Or
 from unified_planning.exceptions import UPValueError
-from tables_demo_planning.demo_domain import Domain
-from tables_demo_planning.mobipick_components import ArmPose, EnvironmentRepresentation, Item, Location, Robot
-from tables_demo_planning.subplan_visualization import SubPlanVisualization
-
-
-E = TypeVar('E', bound='TablesDemoEnv')
-
-
-class TablesDemoRobot(Robot, ABC, Generic[E]):
-    def __init__(self, env: E) -> None:
-        Robot.__init__(self)
-        self.env = env
-
-    def pick_item(self, pose: Pose, location: Location, item: Item) -> bool:
-        """At pose, look for item at location, pick it up, then move arm to transport pose."""
-        print(f"Successfully picked up {item.name}.")
-        self.item = item
-        self.env.believed_item_locations[item] = Location.on_robot
-        self.arm_pose = ArmPose.transport
-        return True
-
-    def place_item(self, pose: Pose, location: Location, item: Item) -> bool:
-        """At pose, place item at location, then move arm to home pose."""
-        print(f"Successfully placed {item.name}.")
-        self.item = Item.nothing
-        self.env.believed_item_locations[item] = location
-        self.arm_pose = ArmPose.home
-        return True
-
-    def store_item(self, pose: Pose, location: Location, item: Item) -> bool:
-        """At pose, store item into box at location, the move arm to home pose."""
-        print(f"Successfully inserted {item.name} into box.")
-        self.item = Item.nothing
-        self.env.believed_item_locations[item] = Location.in_box
-        self.arm_pose = ArmPose.home
-        return True
-
-    def hand_over_item(self, pose: Pose, item: Item) -> bool:
-        """At pose, hand over item held to a person."""
-        print(f"Successfully handed {item.name} over.")
-        self.item = Item.nothing
-        self.env.believed_item_locations[item] = Location.anywhere
-        self.arm_pose = ArmPose.handover
-        self.env.offered_items.add(item)
-        return True
-
-    def search_at(self, pose: Pose, location: Location) -> bool:
-        """At pose, search for item_search at location."""
-        item_locations = self.perceive(location)
-        if self.env.item_search is not None:
-            self.env.search_location = location
-            item = self.env.item_search
-            assert item
-            if item in item_locations.keys():
-                print(f"Search for {item.name} SUCCESSFUL.")
-                self.env.item_search = None
-        return True
-
-    def check_reset_search(self) -> None:
-        """Reset search if all tables have been searched."""
-        if all(table in self.env.searched_locations for table in TablesDemoDomain.TABLE_LOCATIONS):
-            self.env.searched_locations.clear()
-
-    def search_tool(self, item: Item) -> bool:
-        """Initiate search for item."""
-        self.env.item_search = item
-        self.check_reset_search()
-        return True
-
-    def search_box(self) -> bool:
-        """Initiate search for box."""
-        self.env.item_search = Item.box
-        self.check_reset_search()
-        return True
-
-    def conclude_tool_search(self, item: Item) -> bool:
-        """Conclude tool search as failed. Success is determined in search_at()."""
-        print(f"Search for {item.name} FAILED!")
-        return False
-
-    def conclude_box_search(self) -> bool:
-        """Conclude box search as failed. Success is determined in search_at()."""
-        print("Search for box FAILED!")
-        return False
-
-    @abstractmethod
-    def perceive(self, location: Location) -> Dict[Item, Location]:
-        """Move arm into observation pose and return all perceived items with their locations."""
-
-
-R = TypeVar('R', bound=TablesDemoRobot)
-
-
-class TablesDemoEnv(EnvironmentRepresentation[R]):
-    def __init__(self, robot: R) -> None:
-        super().__init__(robot)
-        self.believed_item_locations: Dict[Item, Location] = {}
-        self.newly_perceived_item_locations: Dict[Item, Location] = {}
-        self.item_search: Optional[Item] = None
-        self.searched_locations: Set[Location] = set()
-        self.search_location = Location.anywhere
-        self.offered_items: Set[Item] = set()
-
-    def get_item_offered(self, item: Item) -> bool:
-        return item in self.offered_items
-
-    def get_believe_item_at(self, item: Item, location: Location) -> bool:
-        """Return fluent value whether item is believed to be at location."""
-        return location == self.believed_item_locations.get(item, Location.anywhere)
-
-    def get_searched_at(self, location: Location) -> bool:
-        """Return fluent value whether robot has already searched at location."""
-        return location in self.searched_locations
-
-    def resolve_search_location(self, location: Location) -> Location:
-        """Resolve a location symbol to the actual table where the search succeeded."""
-        if location not in (Location.tool_search_location, Location.box_search_location):
-            return location
-
-        assert self.search_location in TablesDemoDomain.TABLE_LOCATIONS
-        return self.search_location
-
-    def print_believed_item_locations(self) -> None:
-        """Print at which locations the items are believed to be."""
-        print("The believed item locations are:")
-        for item in TablesDemoDomain.DEMO_ITEMS:
-            print(f"- {item.name}:", self.believed_item_locations.get(item, Location.anywhere).name)
+from unified_planning.model import Object, Problem
+from unified_planning.plans import ActionInstance
+from unified_planning.shortcuts import And, Or
+from tables_demo_planning.domain import Domain
+from tables_demo_planning.components import ArmPose, Item, Location, Robot
 
 
 def parse_goal(goal_str: str) -> Tuple[str, List[str]]:
@@ -192,195 +64,17 @@ def parse_goal(goal_str: str) -> Tuple[str, List[str]]:
         raise ValueError(f"Invalid goal string: {goal_str}")
 
 
-class TablesDemoDomain(Domain[E]):
-    DEMO_ITEMS = (Item.box, Item.multimeter, Item.power_drill)
-    TABLE_LOCATIONS = (Location.table_1, Location.table_2, Location.table_3)
-    RETRIES_BEFORE_ABORTION = 2
+class TablesDemoDomain(Domain):
+    def __init__(self, robot: Robot) -> None:
+        super().__init__()
+        self.api_robot = robot
+        self.robot = self.get(Robot, robot.name)
+        self.pose_locations: Dict[Object, Object] = {}
+        self.arm_pose_unknown = self.get(ArmPose, "unknown")
+        self.nothing = self.get(Item, "nothing")
+        self.anywhere = self.get(Location, "anywhere")
 
-    def __init__(self, env: E) -> None:
-        super().__init__(env)
-        self.pose_locations = {
-            self.base_table_1_pose: self.table_1,
-            self.base_table_2_pose: self.table_2,
-            self.base_table_3_pose: self.table_3,
-            self.tool_search_pose: self.tool_search_location,
-            self.box_search_pose: self.box_search_location,
-        }
-
-        self.believe_item_at = self.create_fluent_from_function(self.env.get_believe_item_at)
-        self.searched_at = self.create_fluent_from_function(self.env.get_searched_at)
-        self.pose_at = self.create_fluent("get_pose_at", pose=Pose, location=Location)
-        self.item_offered = self.create_fluent_from_function(self.env.get_item_offered)
-        self.set_fluent_functions((self.get_pose_at,))
-
-        self.pick_item, (_, pose, location, item) = self.create_action_from_function(
-            TablesDemoRobot.pick_item, set_callable=False
-        )
-        self.pick_item.add_precondition(self.robot_at(pose))
-        self.pick_item.add_precondition(self.robot_has(self.nothing))
-        self.pick_item.add_precondition(self.believe_item_at(item, location))
-        self.pick_item.add_precondition(self.pose_at(pose, location))
-        self.pick_item.add_precondition(
-            Or(
-                Equals(location, table) for table in [*self.tables, self.tool_search_location, self.box_search_location]
-            ),
-        )
-        self.pick_item.add_precondition(Not(Equals(item, self.nothing)))
-        self.pick_item.add_effect(self.robot_has(self.nothing), False)
-        self.pick_item.add_effect(self.robot_has(item), True)
-        for arm_pose in self.arm_poses:
-            self.pick_item.add_effect(self.robot_arm_at(arm_pose), arm_pose == self.arm_pose_transport)
-        self.pick_item.add_effect(self.believe_item_at(item, location), False)
-        self.pick_item.add_effect(self.believe_item_at(item, self.on_robot), True)
-        self.place_item, (_, pose, location, item) = self.create_action_from_function(
-            TablesDemoRobot.place_item, set_callable=False
-        )
-        self.place_item.add_precondition(self.robot_at(pose))
-        self.place_item.add_precondition(self.robot_has(item))
-        self.place_item.add_precondition(self.believe_item_at(item, self.on_robot))
-        self.place_item.add_precondition(self.pose_at(pose, location))
-        self.place_item.add_precondition(Not(Equals(location, self.anywhere)))
-        self.place_item.add_effect(self.robot_has(item), False)
-        self.place_item.add_effect(self.robot_has(self.nothing), True)
-        for arm_pose in self.arm_poses:
-            self.place_item.add_effect(self.robot_arm_at(arm_pose), arm_pose == self.arm_pose_home)
-        self.place_item.add_effect(self.believe_item_at(item, self.on_robot), False)
-        self.place_item.add_effect(self.believe_item_at(item, location), True)
-        self.store_item, (_, pose, location, item) = self.create_action_from_function(
-            TablesDemoRobot.store_item, set_callable=False
-        )
-        self.store_item.add_precondition(self.robot_at(pose))
-        self.store_item.add_precondition(self.robot_has(item))
-        self.store_item.add_precondition(self.believe_item_at(item, self.on_robot))
-        self.store_item.add_precondition(self.believe_item_at(self.box, location))
-        self.store_item.add_precondition(self.pose_at(pose, location))
-        self.store_item.add_precondition(Not(Equals(location, self.anywhere)))
-        self.store_item.add_effect(self.robot_has(item), False)
-        self.store_item.add_effect(self.robot_has(self.nothing), True)
-        for arm_pose in self.arm_poses:
-            self.store_item.add_effect(self.robot_arm_at(arm_pose), arm_pose == self.arm_pose_home)
-        self.store_item.add_effect(self.believe_item_at(item, self.on_robot), False)
-        self.store_item.add_effect(self.believe_item_at(item, self.in_box), True)
-        self.handover_item, (_, pose, item) = self.create_action_from_function(
-            TablesDemoRobot.hand_over_item, set_callable=False
-        )
-        self.handover_item.add_precondition(self.robot_at(pose))
-        self.handover_item.add_precondition(self.robot_has(item))
-        self.handover_item.add_precondition(self.believe_item_at(item, self.on_robot))
-        self.handover_item.add_precondition(Not(self.item_offered(item)))
-        self.handover_item.add_effect(self.robot_has(item), False)
-        self.handover_item.add_effect(self.robot_has(self.nothing), True)
-        for arm_pose in self.arm_poses:
-            self.handover_item.add_effect(self.robot_arm_at(arm_pose), arm_pose == self.arm_pose_handover)
-        self.handover_item.add_effect(self.believe_item_at(item, self.on_robot), False)
-        self.handover_item.add_effect(self.believe_item_at(item, self.anywhere), True)
-        self.handover_item.add_effect(self.item_offered(item), True)
-        self.search_at, (_, pose, location) = self.create_action_from_function(TablesDemoRobot.search_at)
-        self.search_at.add_precondition(self.robot_at(pose))
-        self.search_at.add_precondition(
-            Or(
-                self.robot_arm_at(arm_pose)
-                for arm_pose in (self.arm_pose_home, self.arm_pose_observe, self.arm_pose_transport)
-            )
-        )
-        self.search_at.add_precondition(Not(self.searched_at(location)))
-        self.search_at.add_precondition(Or(Equals(location, table) for table in self.tables))
-        self.search_at.add_precondition(self.pose_at(pose, location))
-        self.search_at.add_effect(self.searched_at(location), True)
-        for arm_pose in self.arm_poses:
-            self.search_at.add_effect(self.robot_arm_at(arm_pose), arm_pose == self.arm_pose_observe)
-        self.search_tool, (_, item) = self.create_action_from_function(TablesDemoRobot.search_tool)
-        self.search_tool.add_precondition(Not(self.robot_at(self.tool_search_pose)))
-        self.search_tool.add_precondition(self.robot_has(self.nothing))
-        self.search_tool.add_precondition(self.believe_item_at(item, self.anywhere))
-        self.search_tool.add_precondition(
-            Or(Equals(item, tool) for tool in (self.multimeter, self.relay, self.screwdriver, self.power_drill))
-        )
-        for pose in self.poses:
-            self.search_tool.add_effect(self.robot_at(pose), pose == self.tool_search_pose)
-        self.search_tool.add_effect(self.believe_item_at(item, self.anywhere), False)
-        self.search_tool.add_effect(self.believe_item_at(item, self.tool_search_location), True)
-        self.search_box, (_,) = self.create_action_from_function(TablesDemoRobot.search_box)
-        self.search_box.add_precondition(Not(self.robot_at(self.box_search_pose)))
-        self.search_box.add_precondition(self.believe_item_at(self.box, self.anywhere))
-        for pose in self.poses:
-            self.search_box.add_effect(self.robot_at(pose), pose == self.box_search_pose)
-        self.search_box.add_effect(self.believe_item_at(self.box, self.anywhere), False)
-        self.search_box.add_effect(self.believe_item_at(self.box, self.box_search_location), True)
-        self.conclude_tool_search, (_, item) = self.create_action_from_function(TablesDemoRobot.conclude_tool_search)
-        self.conclude_tool_search.add_precondition(self.believe_item_at(item, self.anywhere))
-        for table in self.tables:
-            self.conclude_tool_search.add_precondition(self.searched_at(table))
-        self.conclude_tool_search.add_precondition(Not(Equals(item, self.box)))
-        self.conclude_tool_search.add_effect(self.believe_item_at(item, self.anywhere), False)
-        self.conclude_tool_search.add_effect(self.believe_item_at(item, self.tool_search_location), True)
-        self.conclude_box_search, (_,) = self.create_action_from_function(TablesDemoRobot.conclude_box_search)
-        self.conclude_box_search.add_precondition(self.believe_item_at(self.box, self.anywhere))
-        for table in self.tables:
-            self.conclude_box_search.add_precondition(self.searched_at(table))
-        self.conclude_box_search.add_effect(self.believe_item_at(self.box, self.anywhere), False)
-        self.conclude_box_search.add_effect(self.believe_item_at(self.box, self.box_search_location), True)
-
-        self.problem = self.define_problem(
-            fluents=(
-                self.robot_at,
-                self.robot_arm_at,
-                self.robot_has,
-                self.believe_item_at,
-                self.pose_at,
-                self.item_offered,
-            ),
-            actions=(
-                self.move_base,
-                self.move_base_with_item,
-                self.move_arm,
-                self.pick_item,
-                self.place_item,
-                self.store_item,
-                self.handover_item,
-                self.search_tool,
-                self.search_box,
-            ),
-        )
-        self.problem.add_quality_metric(MinimizeSequentialPlanLength())
-        self.subproblem = self.define_problem(
-            fluents=(
-                self.robot_at,
-                self.robot_arm_at,
-                self.robot_has,
-                self.believe_item_at,
-                self.searched_at,
-                self.pose_at,
-            ),
-            actions=(
-                self.move_base,
-                self.move_base_with_item,
-                self.move_arm,
-                self.search_at,
-                self.conclude_tool_search,
-                self.conclude_box_search,
-            ),
-        )
-        self.subproblem.add_quality_metric(MinimizeSequentialPlanLength())
-
-        self.method_labels.update(
-            {
-                self.pick_item: lambda parameters: f"Pick up {parameters[-1]}",
-                self.place_item: lambda parameters: f"Place {parameters[-1]} onto table",
-                self.store_item: lambda parameters: f"Place {parameters[-1]} into box",
-                self.handover_item: lambda parameters: f"Handover {parameters[-1]} to person",
-                self.search_at: lambda parameters: f"Search at {parameters[-1]}",
-                self.search_tool: lambda parameters: f"Search tables for {parameters[-1]}",
-                self.search_box: lambda _: "Search tables for the box",
-                self.conclude_tool_search: lambda parameters: f"Conclude search for {parameters[-1]}",
-                self.conclude_box_search: lambda _: "Conclude search for the box",
-            }
-        )
-
-        self.visualization: Optional[SubPlanVisualization] = None
-        self.espeak_pub: Optional[rospy.Publisher] = None
-
-        self.fluent_name_alternatives = {}
+        self.fluent_name_alternatives: Dict[str, str] = {}
         self.fluent_name_alternatives["robot_at"] = "get_robot_at"
         self.fluent_name_alternatives["robot_arm_at"] = "get_robot_arm_at"
         self.fluent_name_alternatives["arm_at"] = "get_robot_arm_at"
@@ -391,249 +85,339 @@ class TablesDemoDomain(Domain[E]):
         self.fluent_name_alternatives["item_offered"] = "get_item_offered"
         self.fluent_name_alternatives["offered"] = "get_item_offered"
 
+        # Create visualization labels for actions as functions of their parameters.
+        self.method_labels: Dict[str, Callable[[Sequence[str]], str]] = {
+            "move_base": lambda parameters: f"Move to {parameters[-1]}",
+            "move_base_with_item": lambda parameters: f"Transport {parameters[1]} to {parameters[-1]}",
+            "move_arm": lambda parameters: f"Move arm to its {parameters[-1]} pose",
+            "pick_item": lambda parameters: f"Pick up {parameters[-1]}",
+            "place_item": lambda parameters: f"Place {parameters[-1]} onto table",
+            "store_item": lambda parameters: f"Place {parameters[-2]} into KLT {parameters[-1]}",
+            "hand_over_item": lambda parameters: f"Handover {parameters[-1]} to person",
+            "search_at": lambda parameters: f"Search at {parameters[-1]}",
+            "search_tool": lambda parameters: f"Search tables for {parameters[-1]}",
+            "search_klt": lambda _: "Search tables for the KLT",
+            "conclude_tool_search": lambda parameters: f"Conclude search for {parameters[-1]}",
+            "conclude_klt_search": lambda _: "Conclude search for the KLT",
+        }
+        self.parameter_labels: Dict[str, str] = {
+            "base_home_pose": "home",
+            "base_handover_pose": "handover",
+            "base_pick_pose": "pick",
+            "base_place_pose": "place",
+            "base_table_1_pose": "table_1",
+            "base_table_2_pose": "table_2",
+            "base_table_3_pose": "table_3",
+            "tool_search_pose": "where tool has been found",
+            "klt_search_pose": "where KLT has been found",
+        }
+
+    def initialize_pose_locations(self) -> None:
+        """Initialize information which pose is at which location."""
+        for name, obj in self.objects.items():
+            if name.startswith("base_table_") and name.endswith("_pose"):
+                self.pose_locations[obj] = self.get(Location, name[5:-5])
+            elif name.endswith("_search_pose"):
+                self.pose_locations[obj] = self.get(Location, name[:-4] + "location")
+        assert self.pose_locations
+
     def get_pose_at(self, pose: Object, location: Object) -> bool:
+        """Return fluent value whether pose is at location."""
+        if not self.pose_locations:
+            self.initialize_pose_locations()
         return location == (self.pose_locations[pose] if pose in self.pose_locations.keys() else self.anywhere)
 
-    def set_goal_by_str(self, goal_str: str) -> bool:
-        (goal_fluent_name, params) = parse_goal(goal_str)
-
-        if goal_fluent_name in self.fluent_name_alternatives.keys():
-            goal_fluent_name = self.fluent_name_alternatives[goal_fluent_name]
-
-        if self.problem.has_fluent(goal_fluent_name):
-            goal_fluent = self.problem.fluent(goal_fluent_name)
-        param_objs = [self.problem.object(param) for param in params]
-        self.problem.add_goal(goal_fluent(*param_objs))
-
-    def set_goals(self, target_location: Location) -> None:
-        """Set the goals for the overall demo."""
-        self.problem.clear_goals()
-        if Item.box in self.DEMO_ITEMS:
-            if Item.multimeter in self.DEMO_ITEMS:
-                self.problem.add_goal(self.believe_item_at(self.multimeter, self.in_box))
-            if Item.relay in self.DEMO_ITEMS:
-                self.problem.add_goal(self.believe_item_at(self.relay, self.in_box))
-            if Item.screwdriver in self.DEMO_ITEMS:
-                self.problem.add_goal(self.believe_item_at(self.screwdriver, self.in_box))
-            self.problem.add_goal(self.believe_item_at(self.box, self.objects[target_location.name]))
-        else:
-            if Item.multimeter in self.DEMO_ITEMS:
-                self.problem.add_goal(self.believe_item_at(self.multimeter, self.objects[target_location.name]))
-            if Item.relay in self.DEMO_ITEMS:
-                self.problem.add_goal(self.believe_item_at(self.relay, self.objects[target_location.name]))
-            if Item.screwdriver in self.DEMO_ITEMS:
-                self.problem.add_goal(self.believe_item_at(self.screwdriver, self.objects[target_location.name]))
-
-    def set_search_goals(self) -> None:
-        """Set the goals for the current item_search subproblem."""
-        assert self.env.item_search
-        self.subproblem.clear_goals()
-        self.subproblem.add_goal(
-            self.believe_item_at(self.box, self.box_search_location)
-            if self.env.item_search == Item.box
-            else self.believe_item_at(self.objects[self.env.item_search.name], self.tool_search_location)
+    def initialize_tables_demo_problem(self) -> Problem:
+        """
+        Create UP Problem including all fluents and actions needed by the overall Tables Demo.
+        Note: Initial states and goals are not defined yet.
+        """
+        problem = self.define_problem(
+            fluents=(
+                self.robot_at,
+                self.robot_arm_at,
+                self.robot_has,
+                self.believe_item_at,
+                self.believe_item_in,
+                self.pose_at,
+                self.item_offered,
+            ),
+            actions=(
+                self._actions["move_base"],
+                self._actions["move_base_with_item"],
+                self._actions["move_arm"],
+                self._actions["pick_item"],
+                self._actions["place_item"],
+                self._actions["store_item"],
+                self._actions["hand_over_item"],
+                self._actions["search_tool"],
+                self._actions["search_klt"],
+            ),
         )
+        return problem
 
-    def replan(self) -> Optional[List[ActionInstance]]:
-        """Print believed item locations, initialize UP problem, and solve it."""
-        self.env.print_believed_item_locations()
-        self.set_initial_values(self.problem)
-        return self.solve(self.problem)
+    def initialize_item_search_problem(self) -> Problem:
+        """
+        Create UP Problem including all fluents and actions needed by the item search subproblem.
+        Note: Initial states and goals are not defined yet.
+        """
+        problem = self.define_problem(
+            fluents=(
+                self.robot_at,
+                self.robot_arm_at,
+                self.robot_has,
+                self.believe_item_at,
+                self.believe_item_in,
+                self.searched_at,
+                self.pose_at,
+            ),
+            actions=(
+                self._actions["move_base"],
+                self._actions["move_base_with_item"],
+                self._actions["move_arm"],
+                self._actions["search_at"],
+                self._actions["conclude_tool_search"],
+                self._actions["conclude_klt_search"],
+            ),
+        )
+        return problem
 
-    def run(self, goal_strs: List[str] = None) -> None:
-        """Run the mobipick tables demo."""
-
-        print("Goals:")
-        print(goal_strs)
-
-        executed_action_names: Set[str] = set()  # Note: For visualization purposes only.
-        retries_before_abortion = self.RETRIES_BEFORE_ABORTION
-        error_counts: Dict[str, int] = defaultdict(int)
-        target_location = Location.table_2
-        self.problem.clear_goals()
-        # Solve overall problem.
-        if goal_strs:
-            perform_default_demo = False
-            for goal_str in goal_strs:
-                try:
-                    self.set_goal_by_str(goal_str)
-                except ValueError as e:
-                    print(e)
-                    print("Goal should have the format fluent_name(param1, param2, ..., paramn).")
-                    return
-                except UPValueError as e:
-                    rospy.logerr("Could not set the goal for the goal string.")
-                    print(e)
-                    print("Available fluents: %s" % self.problem.fluents)
-                    print("Available parameters: %s" % self.problem.all_objects)
-                    return
-        else:  # use default goal:
-            perform_default_demo = True
-            print(
-                "Scenario: Mobipick shall bring the box with the multimeter inside to"
-                f" {self.objects[target_location.name]}."
-            )
-            self.set_goals(target_location)
-        actions = self.replan()
-        if actions is None:
-            print("Execution ended because no plan could be found.")
-            return
-
-        # Loop action execution as long as there are actions.
-        while actions:
-            print("> Plan:")
-            print('\n'.join(map(str, actions)))
-            if self.visualization:
-                self.visualization.set_actions(
-                    [
-                        f"{number + len(executed_action_names)} {self.label(action)}"
-                        for number, action in enumerate(actions, start=1)
-                    ],
-                    preserve_actions=executed_action_names,
-                )
-            print("> Execution:")
-            for action in actions:
-                executable_action, parameters = self.get_executable_action(action)
-                action_name = f"{len(executed_action_names) + 1} {self.label(action)}"
-                print(action)
-                # Explicitly do not pick up box from target_table since planning does not handle it yet.
-                if action.action.name == "pick_item" and parameters[-1] == Item.box:
-                    assert isinstance(parameters[-2], Location)
-                    location = self.env.resolve_search_location(parameters[-2])
-                    if location == target_location and perform_default_demo:
-                        print("Picking up box OBSOLETE.")
-                        if self.visualization:
-                            self.visualization.cancel(action_name)
-                        actions = self.replan()
-                        break
-
-                if self.visualization:
-                    self.visualization.execute(action_name)
-                if self.espeak_pub:
-                    self.espeak_pub.publish(self.label(action))
-
-                # Execute action.
-                result = executable_action(*parameters)
-                executed_action_names.add(action_name)
-                if rospy.is_shutdown():
-                    return
-
-                # Handle item search as an inner execution loop.
-                # Rationale: It has additional stop criteria, and might continue the outer loop.
-                if self.env.item_search:
-                    try:
-                        # Check whether an obsolete item search invalidates the previous plan.
-                        if self.env.believed_item_locations.get(self.env.item_search, self.anywhere) != self.anywhere:
-                            print(f"Search for {self.env.item_search.name} OBSOLETE.")
-                            if self.visualization:
-                                self.visualization.cancel(action_name)
-                            actions = self.replan()
-                            break
-
-                        # Search for item by creating and executing a subplan.
-                        self.set_initial_values(self.subproblem)
-                        self.set_search_goals()
-                        subactions = self.solve(self.subproblem)
-                        assert subactions, f"No solution for: {self.subproblem}"
-                        print("- Search plan:")
-                        print('\n'.join(map(str, subactions)))
-                        if self.visualization:
-                            self.visualization.set_actions(
-                                [
-                                    f"{len(executed_action_names)}{chr(number)} {self.label(subaction)}"
-                                    for number, subaction in enumerate(subactions, start=97)
-                                ],
-                                preserve_actions=executed_action_names,
-                                predecessor=action_name,
-                            )
-                        print("- Search execution:")
-                        subaction_execution_count = 0
-                        for subaction in subactions:
-                            executable_subaction, subparameters = self.get_executable_action(subaction)
-                            subaction_name = (
-                                f"{len(executed_action_names)}{chr(subaction_execution_count + 97)}"
-                                f" {self.label(subaction)}"
-                            )
-                            print(subaction)
-                            if self.visualization:
-                                self.visualization.execute(subaction_name)
-                            if self.espeak_pub:
-                                self.espeak_pub.publish(self.label(subaction))
-                            # Execute search action.
-                            result = executable_subaction(*subparameters)
-                            subaction_execution_count += 1
-                            if rospy.is_shutdown():
-                                return
-
-                            if result is not None:
-                                if result:
-                                    # Note: True result only means any subaction succeeded.
-                                    # Check if the search actually succeeded.
-                                    if (
-                                        self.env.item_search is None
-                                        and len(self.env.newly_perceived_item_locations) <= 1
-                                    ):
-                                        print("- Continue with plan.")
-                                        if self.visualization:
-                                            self.visualization.succeed(subaction_name)
-                                        break
-                                    # Check if the search found another item.
-                                    elif self.env.newly_perceived_item_locations:
-                                        self.env.newly_perceived_item_locations.clear()
-                                        print("- Found another item, search ABORTED.")
-                                        if self.visualization:
-                                            self.visualization.cancel(subaction_name)
-                                        if self.espeak_pub:
-                                            self.espeak_pub.publish("Found another item. Make a new plan.")
-                                        # Set result to None to trigger replanning.
-                                        result = None
-                                        break
-                                else:
-                                    if self.visualization:
-                                        self.visualization.fail(subaction_name)
-                                    break
-                        # Note: The conclude action at the end of any search always fails.
-                    finally:
-                        # Always end the search at this point.
-                        self.env.item_search = None
-
-                if result is not None:
-                    if result:
-                        if self.visualization:
-                            self.visualization.succeed(action_name)
-                        retries_before_abortion = self.RETRIES_BEFORE_ABORTION
-                    else:
-                        if self.visualization:
-                            self.visualization.fail(action_name)
-                        if self.espeak_pub:
-                            self.espeak_pub.publish("Action failed.")
-                        error_counts[self.label(action)] += 1
-                        # Note: This will also fail if two different failures occur successively.
-                        if retries_before_abortion <= 0 or any(count >= 3 for count in error_counts.values()):
-                            print("Task could not be completed even after retrying.")
-                            if self.visualization:
-                                self.visualization.add_node("Mission impossible", "red")
-                            if self.espeak_pub:
-                                self.espeak_pub.publish("Mission impossible!")
-                            return
-
-                        retries_before_abortion -= 1
-                        actions = self.replan()
-                        break
-                else:
-                    if self.visualization:
-                        self.visualization.cancel(action_name)
-                    retries_before_abortion = self.RETRIES_BEFORE_ABORTION
-                    actions = self.replan()
-                    break
-            else:
-                break
-            if actions is None:
-                print("Execution ended because no plan could be found.")
+    def set_goals_by_strs(self, problem: Problem, goal_strs: List[str]) -> None:
+        for goal_str in goal_strs:
+            try:
+                goal_fluent_name, params = parse_goal(goal_str)
+                if goal_fluent_name in self.fluent_name_alternatives.keys():
+                    goal_fluent_name = self.fluent_name_alternatives[goal_fluent_name]
+                if problem.has_fluent(goal_fluent_name):
+                    goal_fluent = problem.fluent(goal_fluent_name)
+                param_objs = [problem.object(param) for param in params]
+                problem.add_goal(goal_fluent(*param_objs))
+            except ValueError as e:
+                print(e)
+                print("Goal should have the format fluent_name(param1, param2, ..., paramn).")
                 return
+            except UPValueError as e:
+                print("Could not set the goal for the goal string.")
+                print(e)
+                print("Available fluents: %s" % problem.fluents)
+                print("Available parameters: %s" % problem.all_objects)
 
-        print("Demo complete.")
-        if self.visualization:
-            self.visualization.add_node("Demo complete", "green")
-        if self.espeak_pub:
-            self.espeak_pub.publish("Demo complete.")
+    def set_goals(self, problem: Problem, demo_items: List[Item], target_location: Location) -> None:
+        """Set the goals for the overall demo."""
+        assert self.believe_item_at in problem.fluents
+        assert all(problem.object(item.name) for item in demo_items)
+        assert problem.object(target_location.name)
+        problem.clear_goals()
+        if any(item.name.startswith("klt_") for item in demo_items):
+            assert problem.object("in_klt")
+            if any(item.name.startswith("multimeter_") for item in demo_items):
+                problem.add_goal(
+                    Or(
+                        And(
+                            self.believe_item_in(self.objects[item.name], klt),
+                            self.believe_item_at(klt, self.objects[target_location.name]),
+                        )
+                        for item in demo_items
+                        if item.name.startswith("multimeter_")
+                        for klt in self.get_klt_objects()
+                    )
+                )
+        else:
+            # Note: Just for testing without KLT.
+            if any(item.name.startswith("multimeter_") for item in demo_items):
+                for item in demo_items:
+                    if item.name.startswith("multimeter_"):
+                        problem.add_goal(
+                            self.believe_item_at(self.objects[item.name], self.objects[target_location.name])
+                        )
+
+    def set_search_goals(self, problem: Problem, item_search: Item) -> None:
+        """Set the goals for the current item_search subproblem."""
+        problem.clear_goals()
+        assert self.believe_item_at in problem.fluents
+        if item_search.name.startswith("klt_"):
+            assert problem.object(item_search.name) and problem.object("klt_search_location")
+            problem.add_goal(
+                self.believe_item_at(self.get(Item, item_search.name), self.get(Location, "klt_search_location"))
+            )
+        else:
+            assert problem.object(item_search.name) and problem.object("tool_search_location")
+            problem.add_goal(
+                self.believe_item_at(self.get(Item, item_search.name), self.get(Location, "tool_search_location"))
+            )
+
+    def label(self, action: ActionInstance) -> str:
+        """Return a user-friendly label for visualizing action."""
+        parameters = [parameter.object() for parameter in action.actual_parameters]
+        parameter_labels = [self.parameter_labels.get(parameter.name, str(parameter)) for parameter in parameters]
+        return self.method_labels[action.action.name](parameter_labels)
+
+
+class EnvironmentRepresentation:
+    def __init__(self, item_locations: Dict[Item, Location]) -> None:
+        self.actual_item_locations = item_locations
+        self.table_locations = [location for name, location in Location.instances.items() if name.startswith("table_")]
+        self.robot_home_poses: Dict[Robot, Pose] = {}
+        self.robot_poses: Dict[Robot, Pose] = {}
+        self.robot_arm_poses: Dict[Robot, ArmPose] = defaultdict(lambda: ArmPose.get("unknown"))
+        self.robot_items: Dict[Robot, Item] = defaultdict(lambda: Item.get("nothing"))
+        self.believed_item_locations: Dict[Item, Location] = defaultdict(lambda: Location.get("anywhere"))
+        self.believed_klt_contents: Dict[Item, Set[Item]] = defaultdict(set)
+        self.newly_perceived_item_locations: Dict[Item, Location] = {}
+        self.item_search: Optional[Item] = None
+        self.searched_locations: Set[Location] = set()
+        self.search_location = Location.get("anywhere")
+        self.offered_items: Set[Item] = set()
+
+        # Provide a function which returns all perceived items with their locations.
+        #  Note: Due to request, this is not an abstract method anymore.
+        self.perceive: Callable[[Robot, Location], Dict[Item, Location]]
+
+    def initialize_robot_states(
+        self,
+        robot: Robot,
+        pose: Optional[Pose] = None,
+        arm_pose: Optional[ArmPose] = None,
+        item: Optional[Item] = None,
+    ) -> None:
+        if pose:
+            self.robot_home_poses[robot] = self.robot_poses[robot] = pose
+        if arm_pose:
+            self.robot_arm_poses[robot] = arm_pose
+        if item:
+            self.robot_items[robot] = item
+
+    def get_robot_at(self, robot: Robot, pose: Pose) -> bool:
+        """Return fluent value whether robot is at pose."""
+        return self.robot_poses[robot] == pose
+
+    def get_robot_arm_at(self, robot: Robot, arm_pose: ArmPose) -> bool:
+        """Return fluent value whether robot arm is at arm_pose."""
+        return self.robot_arm_poses[robot] == arm_pose
+
+    def get_robot_has(self, robot: Robot, item: Item) -> bool:
+        """Return fluent value whether robot has item."""
+        return self.robot_items[robot] == item
+
+    def get_item_offered(self, item: Item) -> bool:
+        """Return fluent value whether item has already been offered."""
+        return item in self.offered_items
+
+    def get_believe_item_at(self, item: Item, location: Location) -> bool:
+        """Return fluent value whether item is believed to be at location."""
+        return location == self.believed_item_locations[item]
+
+    def get_believe_item_in(self, item: Item, klt: Item) -> bool:
+        """Return fluent value whether item is believed to be in klt."""
+        return item in self.believed_klt_contents[klt]
+
+    def get_searched_at(self, location: Location) -> bool:
+        """Return fluent value whether robot has already searched at location."""
+        return location in self.searched_locations
+
+    def resolve_search_location(self, location: Location) -> Location:
+        """Resolve a location symbol to the actual table where the search succeeded."""
+        if location.name not in ("tool_search_location", "klt_search_location"):
+            return location
+
+        assert self.search_location in self.table_locations
+        return self.search_location
+
+    def print_believed_item_locations(self) -> None:
+        """Print at which locations the items are believed to be."""
+        print("The believed item locations are:")
+        for item in self.actual_item_locations.keys():
+            print(f"- {item.name}:", self.believed_item_locations[item].name)
+
+    def move_base(self, robot: Robot, _: Pose, pose: Pose) -> bool:
+        """Move robot base to pose."""
+        self.robot_poses[robot] = pose
+        return True
+
+    def move_base_with_item(self, robot: Robot, item: Item, _: Pose, pose: Pose) -> bool:
+        """Move robot base with item to pose."""
+        # Note: Same action as move_base(), just with item and arm in transport pose.
+        return self.move_base(robot, _, pose)
+
+    def move_arm(self, robot: Robot, _: ArmPose, arm_pose: ArmPose) -> bool:
+        """Move robot arm to arm_pose."""
+        self.robot_arm_poses[robot] = arm_pose
+        return True
+
+    def pick_item(self, robot: Robot, pose: Pose, location: Location, item: Item) -> bool:
+        """
+        At pose, let robot look for item at location, pick it up, then move its arm to transport pose.
+        """
+        print(f"Successfully picked up {item.name}.")
+        self.robot_items[robot] = item
+        self.believed_item_locations[item] = Location.get("on_robot")
+        for contents in self.believed_klt_contents.values():
+            if item in contents:
+                contents.remove(item)
+        self.robot_arm_poses[robot] = ArmPose.get("transport")
+        return True
+
+    def place_item(self, robot: Robot, pose: Pose, location: Location, item: Item) -> bool:
+        """At pose, let robot place item at location, then move its arm to home pose."""
+        print(f"Successfully placed {item.name}.")
+        self.robot_items[robot] = Item.get("nothing")
+        self.believed_item_locations[item] = location
+        self.robot_arm_poses[robot] = ArmPose.get("home")
+        return True
+
+    def store_item(self, robot: Robot, pose: Pose, location: Location, tool: Item, klt: Item) -> bool:
+        """At pose, let robot store tool into KLT at location, then move its arm to home pose."""
+        print(f"Successfully inserted {tool.name} into KLT {klt.name}.")
+        self.robot_items[robot] = Item.get("nothing")
+        self.believed_item_locations[tool] = Location.get("in_klt")
+        self.believed_klt_contents[klt].add(tool)
+        self.robot_arm_poses[robot] = ArmPose.get("home")
+        return True
+
+    def hand_over_item(self, robot: Robot, item: Item) -> bool:
+        """At pose, let robot hand over item held to a person."""
+        print(f"Successfully handed {item.name} over.")
+        self.robot_items[robot] = Item.get("nothing")
+        self.believed_item_locations[item] = Location.get("anywhere")
+        self.robot_arm_poses[robot] = ArmPose.get("handover")
+        self.offered_items.add(item)
+        return True
+
+    def search_at(self, robot: Robot, pose: Pose, location: Location) -> bool:
+        """At pose, let robot search for item_search at location."""
+        item_locations = self.perceive(robot, location)
+        if self.item_search is not None:
+            self.search_location = location
+            item = self.item_search
+            assert item
+            if item in item_locations.keys():
+                print(f"Search for {item.name} SUCCESSFUL.")
+                self.item_search = None
+        return True
+
+    def check_reset_search(self) -> None:
+        """Reset search if all tables have been searched."""
+        if self.searched_locations.issuperset(self.table_locations):
+            self.searched_locations.clear()
+
+    def search_tool(self, robot: Robot, item: Item) -> bool:
+        """Let robot initiate search for the tool item."""
+        self.item_search = item
+        self.check_reset_search()
+        return True
+
+    def search_klt(self, robot: Robot, item: Item) -> bool:
+        """Let robot initiate search for the KLT item."""
+        self.item_search = item
+        self.check_reset_search()
+        return True
+
+    def conclude_tool_search(self, item: Item) -> bool:
+        """Conclue search for tool item as failed. Success is determined in search_at()."""
+        print(f"Search for {item.name} FAILED!")
+        return False
+
+    def conclude_klt_search(self, item: Item) -> bool:
+        """Conclue search for KLT item as failed. Success is determined in search_at()."""
+        print(f"Search for KLT {item.name} FAILED!")
+        return False
