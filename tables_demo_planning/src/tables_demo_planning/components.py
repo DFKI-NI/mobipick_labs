@@ -8,7 +8,8 @@ class Unique(Generic[T]):
     instances: Dict[str, T]
 
     def __init__(self, name: str) -> None:
-        assert name not in self.instances.keys(), f"{self.__class__.__name__} '{name}' already exists!"
+        if name in self.instances.keys():
+            print(f"Warning: Replacing duplicate {self.__class__.__name__} '{name}'.")
         self.name = name
         self.instances[name] = self
 
