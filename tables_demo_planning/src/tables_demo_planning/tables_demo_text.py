@@ -33,11 +33,11 @@ class SimRobot(Robot):
             print(f"Cannot find {item.name} at {location.name}. Pick item FAILED!")
             return False
 
-        if self.sim.env.actual_item_locations[item] != location:
+        if self.sim.actual_item_locations[item] != location:
             print(f"Pick up {item.name} at {location.name} FAILED!")
             return False
 
-        self.sim.env.actual_item_locations[item] = Location.get("on_robot")
+        self.sim.actual_item_locations[item] = Location.get("on_robot")
         return self.sim.env.pick_item(self, pose, location, item)
 
     def place_item(self, pose: Pose, location: Location, item: Item) -> bool:
@@ -46,11 +46,11 @@ class SimRobot(Robot):
             print(f"Item {item.name} is not on the robot. Place item FAILED!")
             return False
 
-        if self.sim.env.actual_item_locations[item] != Location.get("on_robot"):
+        if self.sim.actual_item_locations[item] != Location.get("on_robot"):
             print(f"Place down {item.name} at {location.name} FAILED!")
             return False
 
-        self.sim.env.actual_item_locations[item] = location
+        self.sim.actual_item_locations[item] = location
         return self.sim.env.place_item(self, pose, location, item)
 
     def store_item(self, pose: Pose, location: Location, tool: Item, klt: Item) -> bool:
@@ -61,8 +61,8 @@ class SimRobot(Robot):
             return False
 
         if (
-            self.sim.env.actual_item_locations[tool] != Location.get("on_robot")
-            or self.sim.env.actual_item_locations[klt] != location
+            self.sim.actual_item_locations[tool] != Location.get("on_robot")
+            or self.sim.actual_item_locations[klt] != location
         ):
             print(f"Store {tool.name} into '{klt.name}' at {location.name} FAILED!")
             return False
@@ -77,7 +77,7 @@ class SimRobot(Robot):
         # Determine newly perceived items and their locations.
         perceived_item_locations = {
             check_item: check_location
-            for check_item, check_location in self.sim.env.actual_item_locations.items()
+            for check_item, check_location in self.sim.actual_item_locations.items()
             if check_location == location
         }
         self.sim.env.newly_perceived_item_locations.clear()
@@ -103,6 +103,7 @@ class Simulation:
     RETRIES_BEFORE_ABORTION = 2
 
     def __init__(self, item_locations: Dict[Item, Location]) -> None:
+        self.actual_item_locations = item_locations
         self.mobipick = SimRobot("Mobipick", self)
         self.domain = TablesDemoDomain(self.mobipick)
         self.api_poses = {
@@ -126,7 +127,7 @@ class Simulation:
         self.tables = [
             self.domain.create_object(name, Location.get(name)) for name in ("table_1", "table_2", "table_3")
         ]
-        self.env = EnvironmentRepresentation(item_locations)
+        self.env = EnvironmentRepresentation(item_locations.keys())
         self.env.perceive = lambda _, location: self.mobipick.perceive(location)
         self.env.initialize_robot_states(self.domain.api_robot, self.api_poses["base_home_pose"])
         self.demo_items = list(item_locations.keys())

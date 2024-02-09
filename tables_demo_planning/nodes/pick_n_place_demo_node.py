@@ -41,7 +41,7 @@
 import rospy
 from geometry_msgs.msg import Pose
 import unified_planning
-from tables_demo_planning.components import Item, Location
+from tables_demo_planning.components import Item
 from tables_demo_planning.tables_demo_api import TablesDemoAPI
 
 
@@ -49,11 +49,11 @@ def run_demo():
     """Run the handover demo."""
 
     # Define environment values.
-    item_locations = {
-        Item.get("power_drill_with_grip_1"): Location.get("table_2"),
-    }
+    demo_items = [
+        Item.get("power_drill_with_grip_1"),
+    ]
 
-    api = TablesDemoAPI(item_locations)
+    api = TablesDemoAPI(demo_items)
     # Define handover goal.
     api.problem.add_goal(api.domain.robot_at(api.domain.robot, api.domain.get(Pose, "base_home_pose")))
     api.problem.add_goal(api.domain.robot_has(api.domain.robot, api.domain.nothing))

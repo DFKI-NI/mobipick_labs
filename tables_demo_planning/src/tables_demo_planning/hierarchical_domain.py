@@ -51,9 +51,8 @@ from tables_demo_planning.tables_demo_api import TablesDemoAPI
 
 
 class HierarchicalDomain:
-    def __init__(self, item_locations: Dict[Item, Location]) -> None:
-        self.item_locations = item_locations
-        self.tables_demo_api = TablesDemoAPI(item_locations)
+    def __init__(self, api_items: Iterable[Item]) -> None:
+        self.tables_demo_api = TablesDemoAPI(api_items)
         # Aliases for domain and env variable
         self.domain = self.tables_demo_api.domain
         self.env = self.tables_demo_api.env
