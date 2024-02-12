@@ -1,7 +1,7 @@
 import rospy
 import rosparam
 
-from typing import Dict, List, Set, Sequence, Union, Optional
+from typing import Dict, Iterable, List, Set, Sequence, Union, Optional
 from collections import defaultdict
 from geometry_msgs.msg import Pose, Point
 from unified_planning.plans import ActionInstance
@@ -18,7 +18,7 @@ from robot_api import TuplePose, is_instance
 class TablesDemoAPI:
     RETRIES_BEFORE_ABORTION = 2
 
-    def __init__(self, item_locations: Dict[Item, Location]) -> None:
+    def __init__(self, api_items: Iterable[Item]) -> None:
         self.mobipick = Robot("mobipick")
         self.mobipick_api = mobipick_api_robot("mobipick", True, True)
         self.domain = TablesDemoDomain(self.mobipick)
@@ -42,12 +42,12 @@ class TablesDemoAPI:
         self.api_poses["klt_search_pose"] = Pose(position=Point(x=-5.0))
         self.api_pose_names = {id(pose): name for name, pose in self.api_poses.items()}
         self.poses = self.domain.create_objects(self.api_poses)
-        self.items = self.domain.create_objects({item.name: item for item in item_locations.keys()})
+        self.items = self.domain.create_objects({item.name: item for item in api_items})
         self.tables = [self.domain.get(Location, name) for name in ("table_1", "table_2", "table_3")]
-        self.env = EnvironmentRepresentation(item_locations)
+        self.env = EnvironmentRepresentation(api_items)
         self.env.perceive = lambda _, location: self.perceive(_, location)
         self.env.initialize_robot_states(self.domain.api_robot, self.api_poses["base_home_pose"])
-        self.demo_items = list(item_locations.keys())
+        self.demo_items = list(api_items)
 
         self.domain.set_fluent_functions(
             [

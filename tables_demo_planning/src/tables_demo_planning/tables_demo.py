@@ -39,7 +39,7 @@ The Tables Demo domain and environment specify concrete instances of the scenari
 """
 
 
-from typing import Callable, Dict, List, Optional, Sequence, Set, Tuple
+from typing import Callable, Dict, Iterable, List, Optional, Sequence, Set, Tuple
 from collections import defaultdict
 import re
 from geometry_msgs.msg import Pose
@@ -254,8 +254,8 @@ class TablesDemoDomain(Domain):
 
 
 class EnvironmentRepresentation:
-    def __init__(self, item_locations: Dict[Item, Location]) -> None:
-        self.actual_item_locations = item_locations
+    def __init__(self, api_items: Iterable[Item]) -> None:
+        self.api_items = api_items
         self.table_locations = [location for name, location in Location.instances.items() if name.startswith("table_")]
         self.robot_home_poses: Dict[Robot, Pose] = {}
         self.robot_poses: Dict[Robot, Pose] = {}
@@ -326,7 +326,7 @@ class EnvironmentRepresentation:
     def print_believed_item_locations(self) -> None:
         """Print at which locations the items are believed to be."""
         print("The believed item locations are:")
-        for item in self.actual_item_locations.keys():
+        for item in self.api_items:
             print(f"- {item.name}:", self.believed_item_locations[item].name)
 
     def move_base(self, robot: Robot, _: Pose, pose: Pose) -> bool:

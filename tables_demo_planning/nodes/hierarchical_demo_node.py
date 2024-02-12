@@ -44,15 +44,15 @@ Development in progress.
 import sys
 import rospy
 import unified_planning
-from typing import Optional, Dict
+from typing import Iterable, Optional
 from tables_demo_planning.components import Item, Location
 from tables_demo_planning.hierarchical_domain import HierarchicalDomain
 from tables_demo_planning.subplan_visualization import SubPlanVisualization
 
 
 class HierarchicalDemoOrchestrator:
-    def __init__(self, item_locations: Dict[Item, Location]) -> None:
-        self._domain = HierarchicalDomain(item_locations)
+    def __init__(self, api_items: Iterable[Item]) -> None:
+        self._domain = HierarchicalDomain(api_items)
         self.visualization: Optional[SubPlanVisualization] = None
         self.espeak_pub: Optional[rospy.Publisher] = None
         self._trigger_replanning = False  # Temporary solution until it is provided by dispatcher
@@ -82,15 +82,15 @@ if __name__ == '__main__':
             else:
                 rospy.logwarn(f"Unknown parameter '{parameter}', using default table.")
 
-        item_locations = {
-            Item.get("multimeter_1"): Location.get("table_3"),
-            Item.get("klt_1"): Location.get("table_2"),
-            Item.get("klt_2"): Location.get("table_1"),
-            Item.get("klt_3"): Location.get("table_3"),
-        }
+        demo_items = [
+            Item.get("multimeter_1"),
+            Item.get("klt_1"),
+            Item.get("klt_2"),
+            Item.get("klt_3"),
+        ]
 
         target_item = Item.get("multimeter_1")
         target_box = Item.get("klt_1")
-        HierarchicalDemoOrchestrator(item_locations).generate_and_execute_plan(target_item, target_box, target_location)
+        HierarchicalDemoOrchestrator(demo_items).generate_and_execute_plan(target_item, target_box, target_location)
     except rospy.ROSInterruptException:
         pass
