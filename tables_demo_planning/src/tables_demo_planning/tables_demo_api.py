@@ -1,7 +1,7 @@
 import rospy
 import rosparam
 
-from typing import Dict, Iterable, List, Set, Sequence, Union, Optional
+from typing import Dict, Iterable, List, Set, Sequence, Union, Optional, Callable
 from collections import defaultdict
 from geometry_msgs.msg import Pose, Point
 from unified_planning.plans import ActionInstance
@@ -13,6 +13,7 @@ from symbolic_fact_generation.robot_facts_generator import RobotAtGenerator, Has
 from pose_selector.srv import PoseDelete, PoseDeleteRequest
 from mobipick_api import Robot as mobipick_api_robot
 from robot_api import TuplePose, is_instance
+from tables_demo_planning.subplan_visualization import SubPlanVisualization
 
 
 class TablesDemoAPI:
@@ -108,6 +109,44 @@ class TablesDemoAPI:
             class_id, instance_id = str(item).rsplit("_", 1)
             self.pose_selector_delete(PoseDeleteRequest(class_id=class_id, instance_id=int(instance_id)))
 
+        # Initialize plan visualization
+        self.visualization = SubPlanVisualization()
+
+        # Readable labels for parameters
+        self.parameter_labels: Dict[str, str] = {
+            "base_home_pose": "home",
+            "base_handover_pose": "handover",
+            "base_pick_pose": "pick",
+            "base_place_pose": "place",
+            "base_table_1_pose": "table_1",
+            "base_table_2_pose": "table_2",
+            "base_table_3_pose": "table_3",
+            "tool_search_pose": "where tool has been found",
+            "klt_search_pose": "where KLT has been found",
+        }
+
+        # Readable string for each action to visualize
+        self.method_labels: Dict[str, Callable[[Sequence[str]], str]] = {
+            "move_base": lambda parameters: f"Move to {parameters[-1]}",
+            "move_base_with_item": lambda parameters: f"Transport {parameters[1]} to {parameters[-1]}",
+            "move_arm": lambda parameters: f"Move arm to its {parameters[-1]} pose",
+            "pick_item": lambda parameters: f"Pick up {parameters[-1]}",
+            "place_item": lambda parameters: f"Place {parameters[-1]} onto table",
+            "store_item": lambda parameters: f"Place {parameters[-2]} into {parameters[-1]}",
+            "hand_over_item": lambda parameters: f"Handover {parameters[-1]} to person",
+            "search_at": lambda parameters: f"Search at {parameters[-1]}",
+            "search_tool": lambda parameters: f"Search tables for {parameters[-1]}",
+            "search_klt": lambda _: "Search tables for the KLT",
+            "conclude_tool_search": lambda parameters: f"Conclude search for {parameters[-1]}",
+            "conclude_klt_search": lambda parameters: f"Conclude search for {parameters[-1]}",
+        }
+
+    def label(self, action: ActionInstance) -> str:
+        """Return a user-friendly label for visualizing action names and parameters."""
+        parameters = [parameter.object() for parameter in action.actual_parameters]
+        parameter_labels = [self.parameter_labels.get(parameter.name, str(parameter)) for parameter in parameters]
+        return self.method_labels[action.action.name](parameter_labels)
+
     def replan(self) -> Optional[List[ActionInstance]]:
         self.env.print_believed_item_locations()
         self.domain.set_initial_values(self.problem)
@@ -120,6 +159,7 @@ class TablesDemoAPI:
         """
         retries_before_abortion = self.RETRIES_BEFORE_ABORTION
         error_counts: Dict[str, int] = defaultdict(int)
+        executed_action_names: Set[str] = set()  # Note: For visualization purposes only.
         # Solve overall problem.
         plan = self.replan()
         if plan is None or plan.actions is None:
@@ -129,9 +169,17 @@ class TablesDemoAPI:
         while plan.actions:
             print("> Plan:")
             print('\n'.join(map(str, plan.actions)))
+            self.visualization.set_actions(
+                [
+                    f"{number + len(executed_action_names)} {self.label(action)}"
+                    for number, action in enumerate(plan.actions, start=1)
+                ],
+                preserve_actions=executed_action_names,
+            )
             print("> Execution:")
             for action in plan.actions:
                 executable_action, parameters = self.domain.get_executable_action(action)
+                action_name = f"{len(executed_action_names) + 1} {self.label(action)}"
                 print(action)
                 # Explicitly do not pick up KLT from target_table since planning does not handle it yet.
                 if target_location and action.action.name == "pick_item" and parameters[-1].name.startswith("klt_"):
@@ -139,14 +187,18 @@ class TablesDemoAPI:
                     location = self.env.resolve_search_location(parameters[-2])
                     if location == target_location:
                         print("Picking up KLT OBSOLETE.")
+                        self.visualization.cancel(action_name)
                         print("Replanning")
                         plan = self.replan()
                         break
+
+                self.visualization.execute(action_name)
 
                 # Execute action.
                 result = executable_action(
                     *(parameters[1:] if hasattr(self.mobipick, action.action.name) else parameters)
                 )
+                executed_action_names.add(action_name)
 
                 # Handle item search as an inner execution loop.
                 # Rationale: It has additional stop criteria, and might continue the outer loop.
@@ -155,6 +207,7 @@ class TablesDemoAPI:
                         # Check whether an obsolete item search invalidates the previous plan.
                         if self.env.believed_item_locations[self.env.item_search] != Location.get("anywhere"):
                             print(f"Search for {self.env.item_search.name} OBSOLETE.")
+                            self.visualization.cancel(action_name)
                             plan = self.replan()
                             break
 
@@ -165,11 +218,24 @@ class TablesDemoAPI:
                         assert subplan, f"No solution for: {self.subproblem}"
                         print("- Search plan:")
                         print('\n'.join(map(str, subplan.actions)))
+                        self.visualization.set_actions(
+                            [
+                                f"{len(executed_action_names)}{chr(number)} {self.label(subaction)}"
+                                for number, subaction in enumerate(subplan.actions, start=97)
+                            ],
+                            preserve_actions=executed_action_names,
+                            predecessor=action_name,
+                        )
                         print("- Search execution:")
                         subaction_execution_count = 0
                         for subaction in subplan.actions:
                             executable_subaction, subparameters = self.domain.get_executable_action(subaction)
+                            subaction_name = (
+                                f"{len(executed_action_names)}{chr(subaction_execution_count + 97)}"
+                                f" {self.label(subaction)}"
+                            )
                             print(subaction)
+                            self.visualization.execute(subaction_name)
                             # Execute search action.
                             result = executable_subaction(
                                 *(subparameters[1:] if hasattr(self.mobipick, subaction.action.name) else subparameters)
@@ -185,15 +251,18 @@ class TablesDemoAPI:
                                         and len(self.env.newly_perceived_item_locations) <= 1
                                     ):
                                         print("- Continue with plan.")
+                                        self.visualization.succeed(subaction_name)
                                         break
                                     # Check if the search found another item.
                                     elif self.env.newly_perceived_item_locations:
                                         self.env.newly_perceived_item_locations.clear()
                                         print("- Found another item, search ABORTED.")
+                                        self.visualization.cancel(subaction_name)
                                         # Set result to None to trigger replanning.
                                         result = None
                                         break
                                 else:
+                                    self.visualization.fail(subaction_name)
                                     break
                         # Note: The conclude action at the end of any search always fails.
                     finally:
@@ -203,17 +272,21 @@ class TablesDemoAPI:
                 if result is not None:
                     if result:
                         retries_before_abortion = self.RETRIES_BEFORE_ABORTION
+                        self.visualization.succeed(action_name)
                     else:
+                        self.visualization.fail(action_name)
                         error_counts[self.domain.label(action)] += 1
                         # Note: This will also fail if two different failures occur successively.
                         if retries_before_abortion <= 0 or any(count >= 3 for count in error_counts.values()):
                             print("Task could not be completed even after retrying.")
+                            self.visualization.add_node("Mission impossible", "red")
                             return
 
                         retries_before_abortion -= 1
                         plan = self.replan()
                         break
                 else:
+                    self.visualization.cancel(action_name)
                     retries_before_abortion = self.RETRIES_BEFORE_ABORTION
                     plan = self.replan()
                     break
@@ -224,6 +297,7 @@ class TablesDemoAPI:
                 return
 
         print("Demo complete.")
+        self.visualization.add_node("Demo complete", "green")
 
     def get_robot_at(self, robot: Robot, pose: Pose) -> bool:
         base_pose_name = None
