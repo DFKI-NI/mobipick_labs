@@ -114,7 +114,9 @@ class TablesDemoDomain(Domain):
 
     def initialize_pose_locations(self) -> None:
         """Initialize information which pose is at which location."""
-        for name, obj in self.objects.items():
+        # Search UP objects for table poses and search poses,
+        #  then assign related locations to as pose_locations.
+        for name, obj in list(self.objects.items()):
             if name.startswith("base_table_") and name.endswith("_pose"):
                 self.pose_locations[obj] = self.get(Location, name[5:-5])
             elif name.endswith("_search_pose"):
