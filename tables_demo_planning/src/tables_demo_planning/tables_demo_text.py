@@ -102,7 +102,7 @@ class SimRobot(Robot):
 class Simulation:
     RETRIES_BEFORE_ABORTION = 2
 
-    def __init__(self, item_locations: Dict[Item, Location]) -> None:
+    def __init__(self, item_locations: Dict[Item, Location], table_count: int) -> None:
         self.actual_item_locations = item_locations
         self.mobipick = SimRobot("Mobipick", self)
         self.domain = TablesDemoDomain(self.mobipick)
@@ -124,9 +124,8 @@ class Simulation:
         self.api_pose_names = {id(pose): name for name, pose in self.api_poses.items()}
         self.poses = self.domain.create_objects(self.api_poses)
         self.items = self.domain.create_objects({item.name: item for item in item_locations.keys()})
-        self.tables = [
-            self.domain.create_object(name, Location.get(name)) for name in ("table_1", "table_2", "table_3")
-        ]
+        table_names = [f"table_{number}" for number in range(1, table_count + 1)]
+        self.tables = [self.domain.create_object(table_name, Location.get(table_name)) for table_name in table_names]
         self.env = EnvironmentRepresentation(item_locations.keys())
         self.env.perceive = lambda _, location: self.mobipick.perceive(location)
         self.env.initialize_robot_states(self.domain.api_robot, self.api_poses["base_home_pose"])

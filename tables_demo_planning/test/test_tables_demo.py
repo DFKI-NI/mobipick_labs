@@ -15,7 +15,7 @@ def test_tables_demo() -> None:
         Item.get("klt_2"): Location.get("table_3"),
     }
     # Run the Mobipick Tables Demo.
-    sim = Simulation(item_locations)
+    sim = Simulation(item_locations, table_count=3)
     # Define goal.
     goal_strs = sys.argv[1:]
     if goal_strs:

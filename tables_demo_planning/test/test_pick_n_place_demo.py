@@ -14,7 +14,7 @@ def test_pick_n_place_demo() -> None:
     }
 
     # Run the Pick & Place Demo.
-    sim = Simulation(item_locations)
+    sim = Simulation(item_locations, table_count=3)
     sim.problem.add_goal(sim.domain.robot_at(sim.domain.robot, sim.domain.get(Pose, "base_home_pose")))
     sim.problem.add_goal(sim.domain.robot_has(sim.domain.robot, sim.domain.nothing))
     sim.problem.add_goal(sim.domain.item_offered(sim.domain.get(Item, "power_drill_with_grip_1")))
