@@ -25,12 +25,17 @@ class TablesDemoAPI:
 
         rosparam_namespace = "/mobipick/tables_demo_planning"
         self.api_poses: Dict[str, Pose] = {}
+        table_names: List[str] = []
         for param_path in rosparam.list_params(rosparam_namespace):
             assert isinstance(param_path, str)
             param = rosparam.get_param(param_path)
             param_name = param_path.rsplit('/', maxsplit=1)[-1]
+            # Collect poses from rosparams.
             if is_instance(param, Sequence[Sequence[Union[float, int]]]) and tuple(map(len, param)) == (3, 4):
                 self.api_poses[param_name] = TuplePose.to_pose(param)
+            # Collect table names from rosparam names.
+            if param_name.startswith("base_table_") and param_name.endswith("_pose"):
+                table_names.append(param_name[5:-5])
         if len({TuplePose.from_pose(pose) for pose in self.api_poses.values()}) < len(self.api_poses):
             rospy.logwarn(
                 f"Duplicate poses in rosparam namespace '{rosparam_namespace}'"
@@ -43,7 +48,7 @@ class TablesDemoAPI:
         self.api_pose_names = {id(pose): name for name, pose in self.api_poses.items()}
         self.poses = self.domain.create_objects(self.api_poses)
         self.items = self.domain.create_objects({item.name: item for item in api_items})
-        self.tables = [self.domain.get(Location, name) for name in ("table_1", "table_2", "table_3")]
+        self.tables = [self.domain.get(Location, name) for name in table_names]
         self.env = EnvironmentRepresentation(api_items)
         self.env.perceive = lambda _, location: self.perceive(_, location)
         self.env.initialize_robot_states(self.domain.api_robot, self.api_poses["base_home_pose"])
