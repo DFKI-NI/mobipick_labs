@@ -42,7 +42,7 @@ from geometry_msgs.msg import Pose
 from unified_planning.model import Fluent, InstantaneousAction, Object, Action, Problem
 from unified_planning.model.htn import HierarchicalProblem, Method, Task, Subtask
 from unified_planning.shortcuts import Equals, Not, Or, OneshotPlanner
-from unified_planning.plans import PlanKind, Plan, ActionInstance
+from unified_planning.plans import PlanKind, ActionInstance
 from unified_planning.model.metrics import MinimizeSequentialPlanLength
 from unified_planning.engines import OptimalityGuarantee
 from tables_demo_planning.components import Robot, ArmPose, Item, Location
