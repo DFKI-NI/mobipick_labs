@@ -50,6 +50,10 @@ class TablesDemoAPI:
         self.poses = self.domain.create_objects(self.api_poses)
         self.items = self.domain.create_objects({item.name: item for item in api_items})
         self.tables = [self.domain.get(Location, name) for name in table_names]
+        self.arm_poses = [
+            self.domain.get(ArmPose, arm_pose)
+            for arm_pose in ["unknown", "home", "transport", "handover", "observe100cm_right"]
+        ]
         self.env = EnvironmentRepresentation(api_items)
         self.env.perceive = lambda _, location: self.perceive(_, location)
         self.env.initialize_robot_states(self.domain.api_robot, self.api_poses["base_home_pose"])
