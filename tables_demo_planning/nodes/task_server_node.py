@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 
 import rospy
-import unified_planning
 import actionlib
 from collections import defaultdict
-from typing import Dict
+from typing import Dict, List
 from up_esb.plexmo import PlanDispatcher
 from tables_demo_planning.msg import (
     PlanAndExecuteTaskAction,
     PlanAndExecuteTaskGoal,
     PlanAndExecuteTaskResult,
 )
+from unified_planning.shortcuts import get_environment
+from tables_demo_planning.components import Item, Location
 
 
 class TaskServerNode:
@@ -21,13 +22,24 @@ class TaskServerNode:
             default="/mobipick/task_planning",
         )
 
+        demo_items = [
+            Item.get("multimeter_1"),
+            Item.get("relay_1"),
+            Item.get("screwdriver_1"),
+            Item.get("power_drill_with_grip_1"),
+            Item.get("hot_glue_gun_1"),
+            Item.get("klt_1"),
+            Item.get("klt_2"),
+            Item.get("klt_3"),
+        ]
+
         domain_class = rospy.get_param("~domain_class", default="HierarchicalDomain")
         domain_module = rospy.get_param("~domain_module", default="tables_demo_planning.hierarchical_domain")
 
         try:
             # Initialize domain by importing python class and calling __init__ without arguments
             # using the module and class specified in the ros parameters
-            self._domain = getattr(__import__(domain_module, fromlist=[domain_class]), domain_class)()
+            self._domain = getattr(__import__(domain_module, fromlist=[domain_class]), domain_class)(demo_items)
         except ImportError as e:
             print(f"Could not import {domain_module} module for {domain_class} domain: {e}")
 
@@ -44,21 +56,6 @@ class TaskServerNode:
 
     def preempt_cb(self) -> None:
         self._domain.problem.clear_goals()
-
-    def solve_problem(self, problem: Problem) -> Plan:
-        # TODO Remove or adapt for new domain
-        """Solve planning problem and return plan."""
-        result = OneshotPlanner(
-            problem_kind=problem.kind,
-            optimality_guarantee=OptimalityGuarantee.SOLVED_OPTIMALLY,
-        ).solve(problem)
-        if result.status and result.status.value > 2:
-            if result.log_messages:
-                rospy.logerr(f"Error during plan generation: {result.log_messages[0].message}")
-            else:
-                rospy.logerr(f"Error during plan generation: {result.status}")
-        rospy.loginfo(f"Result received from '{result.engine_name}' planner.")
-        return result.plan if result.plan else None
 
     def set_goals(self, task: str, parameters: List[str]) -> None:
         """Set the goals given by the task message."""
@@ -79,27 +76,24 @@ class TaskServerNode:
         # TODO OLD still using items and locations from castle demo
         # HACK hardcoded initial object locations
         initial_item_locations = {}
-        initial_item_locations[Item.multimeter] = Location.table_3
-        initial_item_locations[Item.relay] = Location.table_3
-        initial_item_locations[Item.screwdriver] = Location.table_3
-        initial_item_locations[Item.box] = Location.table_2
-        initial_item_locations[Item.power_drill] = Location.table_2
+        initial_item_locations[Item.get("multimeter_1")] = Location.get("table_3")
+        initial_item_locations[Item.get("relay_1")] = Location.get("table_3")
+        initial_item_locations[Item.get("screwdriver_1")] = Location.get("table_3")
+        initial_item_locations[Item.get("power_drill_with_grip_1")] = Location.get("table_2")
+        initial_item_locations[Item.get("hot_glue_gun_1")] = Location.get("table_2")
+        initial_item_locations[Item.get("klt_1")] = Location.get("table_2")
+        initial_item_locations[Item.get("klt_2")] = Location.get("table_1")
+        initial_item_locations[Item.get("klt_3")] = Location.get("table_3")
         # add only items, which are not already set to avoid overriding perceived locations
         for item in list(initial_item_locations.keys()):
             if item in self._domain.env.believed_item_locations:
                 del initial_item_locations[item]
         self._domain.env.believed_item_locations.update(initial_item_locations)
 
-    def generate_plan(self, request) -> Plan:
-        # TODO Remove or change to new domain
-        # generate problem and plan
-        self._domain.set_initial_values(self._domain.problem)
-        self.set_goals(request.task, request.parameters)
-        return self.solve_problem(self._domain.problem)
-
     def generate_and_execute_plan(self, request: PlanAndExecuteTaskGoal) -> None:
         retries_before_abortion = 3
         error_counts: Dict[str, int] = defaultdict(int)
+        self.set_item_locations()
         plan = self._domain.create_plan(request.task, request.parameters)
 
         if not plan:
@@ -122,7 +116,7 @@ class TaskServerNode:
                     plan = self._domain.create_plan(request.task, request.parameters)
                     actions = plan.action_plan.actions
                     break
-                executable_action, parameters = self._domain.get_executable_action(action)
+                executable_action, parameters = self._domain.domain.get_executable_action(action)
                 print(action)
 
                 # Execute action.
@@ -134,7 +128,7 @@ class TaskServerNode:
                     return
                 if result is not None:
                     if not result:
-                        error_counts[self._domain.label(action)] += 1
+                        error_counts[self._domain.tables_demo_api.label(action)] += 1
                         # Note: This will also fail if two different failures occur successively.
                         if retries_before_abortion <= 0 or any(count >= 3 for count in error_counts.values()):
                             print("Task could not be completed even after retrying.")
@@ -163,7 +157,7 @@ class TaskServerNode:
 
 
 if __name__ == "__main__":
-    unified_planning.shortcuts.get_environment().credits_stream = None
+    get_environment().credits_stream = None
     try:
         TaskServerNode()
         rospy.spin()
