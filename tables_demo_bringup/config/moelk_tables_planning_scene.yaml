@@ -45,12 +45,12 @@ planning_scene_boxes:
     box_y_dimension: 0.70
     box_z_dimension: 0.72
     box_position_x: 12.07
-    box_position_y: 3.25
+    box_position_y: 3.35
     box_position_z: 0.36
     box_orientation_x: 0.0
     box_orientation_y: 0.0
-    box_orientation_z: 1.0
-    box_orientation_w: 0.0
+    box_orientation_z: 0.06279051952931337
+    box_orientation_w: 0.9980267284282716
   - scene_name: 'table_3'
     frame_id: 'map'
     box_x_dimension: 1.40
