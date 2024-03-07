@@ -61,4 +61,16 @@
 
   <!-- config for tables_demo_planning -->
   <rosparam command="load" file="$(find mobipick_pick_n_place)/config/$(arg world_config)_demo.yaml" ns="mobipick/tables_demo_planning" />
+
+  <!-- HACK -->
+  <!-- moelk_tables: -->
+  <!--
+  <node pkg="tf2_ros" type="static_transform_publisher" name="tf_pub_table1" args="13.22 2.15 0.36 0 0 0.7071 0.7071 map table_1" />
+  <node pkg="tf2_ros" type="static_transform_publisher" name="tf_pub_table2" args="12.07 3.35 0.36 0.0 0.0 0.06279051952931337 0.9980267284282716 map table_2" />
+  <node pkg="tf2_ros" type="static_transform_publisher" name="tf_pub_table3" args="10.42 3.25 0.36 0.0 0.0 1.0 0.0 map table_3" />
+  -->
+  <!-- data_and_ai_meetup: -->
+  <node pkg="tf2_ros" type="static_transform_publisher" name="tf_pub_table1" args="72.15 77.66 0.3599999999999999 0.0 0.0 0.8443279255020151 0.5358267949789965     map table_1" />
+  <node pkg="tf2_ros" type="static_transform_publisher" name="tf_pub_table2" args="74.08 76.84 0.36 -0.0 0.0 0.9759167619387474 -0.21814324139654234                map table_2" />
+  <node pkg="tf2_ros" type="static_transform_publisher" name="tf_pub_table3" args="75.60 77.56 0.31999999999999984 -0.0 0.0 0.9759167619387474 -0.21814324139654234 map table_3" />
 </launch>

@@ -16,6 +16,7 @@
   <exec_depend>grasplan</exec_depend>
   <exec_depend>mir_gazebo</exec_depend>
   <exec_depend>mir_navigation</exec_depend>
+  <exec_depend>mobipick_api</exec_depend>
   <exec_depend>mobipick_gazebo</exec_depend>
   <exec_depend>mobipick_moveit_config</exec_depend>
   <exec_depend>mobipick_pick_n_place</exec_depend>
@@ -24,8 +25,8 @@
   <exec_depend>pbr_objects</exec_depend>
   <exec_depend>pose_selector</exec_depend>
   <exec_depend>robot_api</exec_depend>
-  <exec_depend>mobipick_api</exec_depend>
   <exec_depend>rqt_gui</exec_depend>
   <exec_depend>rqt_robot_steering</exec_depend>
   <exec_depend>rviz</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
 </package>
