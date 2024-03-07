@@ -51,6 +51,7 @@ if __name__ == '__main__':
     # Define environment values.
     demo_items = [
         Item.get("multimeter_1"),
+        Item.get("power_drill_with_grip_1"),
         Item.get("klt_1"),
         Item.get("klt_2"),
         Item.get("klt_3"),
