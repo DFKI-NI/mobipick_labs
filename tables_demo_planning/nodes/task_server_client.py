@@ -58,7 +58,7 @@ def main():
     if len(sys.argv) >= 2:
         goal.task = sys.argv[1]
         goal.parameters = sys.argv[2:]
-        client.send_goal_and_wait()
+        client.send_goal_and_wait(goal)
         res = client.get_result()
         if res.success:
             rospy.loginfo("Task execution succeeded!")
