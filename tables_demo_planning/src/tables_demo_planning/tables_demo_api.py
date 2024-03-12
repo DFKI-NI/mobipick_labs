@@ -4,6 +4,7 @@ import rosparam
 from typing import Dict, Iterable, List, Set, Sequence, Union, Optional, Callable
 from collections import defaultdict
 from geometry_msgs.msg import Pose, Point
+from std_msgs.msg import String
 from unified_planning.plans import ActionInstance
 from tables_demo_planning.components import ArmPose, Item, Location, Robot
 from tables_demo_planning.tables_demo import EnvironmentRepresentation, TablesDemoDomain
@@ -115,6 +116,7 @@ class TablesDemoAPI:
 
         # Initialize plan visualization
         self.visualization = SubPlanVisualization()
+        self.espeak_pub = rospy.Publisher("/espeak_node/speak_line", String, queue_size=1)
 
         # Readable labels for parameters
         self.parameter_labels: Dict[str, str] = {
@@ -197,6 +199,7 @@ class TablesDemoAPI:
                         break
 
                 self.visualization.execute(action_name)
+                self.espeak_pub.publish(self.label(action))
 
                 # Execute action.
                 result = executable_action(
@@ -240,6 +243,7 @@ class TablesDemoAPI:
                             )
                             print(subaction)
                             self.visualization.execute(subaction_name)
+                            self.espeak_pub.publish(self.label(subaction))
                             # Execute search action.
                             result = executable_subaction(
                                 *(subparameters[1:] if hasattr(self.mobipick, subaction.action.name) else subparameters)
@@ -262,6 +266,7 @@ class TablesDemoAPI:
                                         self.env.newly_perceived_item_locations.clear()
                                         print("- Found another item, search ABORTED.")
                                         self.visualization.cancel(subaction_name)
+                                        self.espeak_pub.publish("Found another item. Make a new plan.")
                                         # Set result to None to trigger replanning.
                                         result = None
                                         break
@@ -279,11 +284,13 @@ class TablesDemoAPI:
                         self.visualization.succeed(action_name)
                     else:
                         self.visualization.fail(action_name)
+                        self.espeak_pub.publish("Action failed.")
                         error_counts[self.domain.label(action)] += 1
                         # Note: This will also fail if two different failures occur successively.
                         if retries_before_abortion <= 0 or any(count >= 3 for count in error_counts.values()):
                             print("Task could not be completed even after retrying.")
                             self.visualization.add_node("Mission impossible", "red")
+                            self.espeak_pub.publish("Mission impossible!")
                             return
 
                         retries_before_abortion -= 1
@@ -302,6 +309,7 @@ class TablesDemoAPI:
 
         print("Demo complete.")
         self.visualization.add_node("Demo complete", "green")
+        self.espeak_pub.publish("Demo complete.")
 
     def get_robot_at(self, robot: Robot, pose: Pose) -> bool:
         base_pose_name = None

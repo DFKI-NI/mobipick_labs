@@ -56,6 +56,7 @@ class HierarchicalDomain:
         self.domain = self.tables_demo_api.domain
         self.env = self.tables_demo_api.env
         self.visualization = self.tables_demo_api.visualization
+        self.espeak_pub = self.tables_demo_api.espeak_pub
 
         # UP types
         type_robot = self.domain.get_type(Robot)
@@ -878,6 +879,7 @@ class HierarchicalDomain:
                         break
 
                 self.visualization.execute(action_name)
+                self.espeak_pub.publish(self.tables_demo_api.label(action))
 
                 # Execute action.
                 result = executable_action(
@@ -925,6 +927,7 @@ class HierarchicalDomain:
                             )
                             print(subaction)
                             self.visualization.execute(subaction_name)
+                            self.espeak_pub.publish(self.tables_demo_api.label(subaction))
                             # Execute search action.
                             result = executable_subaction(
                                 *(
@@ -951,6 +954,7 @@ class HierarchicalDomain:
                                         self.env.newly_perceived_item_locations.clear()
                                         print("- Found another item, search ABORTED.")
                                         self.visualization.cancel(subaction_name)
+                                        self.espeak_pub.publish("Found another item. Make a new plan.")
                                         # Set result to None to trigger replanning.
                                         result = None
                                         break
@@ -968,11 +972,13 @@ class HierarchicalDomain:
                         self.visualization.succeed(action_name)
                     else:
                         self.visualization.fail(action_name)
+                        self.espeak_pub.publish("Action failed.")
                         error_counts[self.domain.label(action)] += 1
                         # Note: This will also fail if two different failures occur successively.
                         if retries_before_abortion <= 0 or any(count >= 3 for count in error_counts.values()):
                             print("Task could not be completed even after retrying.")
                             self.visualization.add_node("Mission impossible", "red")
+                            self.espeak_pub.publish("Mission impossible!")
                             return
 
                         retries_before_abortion -= 1
@@ -991,3 +997,4 @@ class HierarchicalDomain:
 
         print("Demo complete.")
         self.visualization.add_node("Demo complete", "green")
+        self.espeak_pub.publish("Demo complete.")
