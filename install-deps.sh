@@ -16,6 +16,6 @@ vcs pull
 mobipick/install-deps.sh
 
 # Install Unified Planning Embedded Systems Bridge
-pip install up-esb==0.1.0
+pip install up-esb==0.1.8
 pip install up-fast-downward==0.4.1
 pip install unified-planning==1.1.0
