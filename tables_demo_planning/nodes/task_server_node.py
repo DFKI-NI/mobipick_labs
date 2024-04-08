@@ -6,9 +6,10 @@ from collections import defaultdict
 from typing import Dict, List
 from up_esb.plexmo import PlanDispatcher
 from tables_demo_planning.msg import (
-    PlanAndExecuteTaskAction,
-    PlanAndExecuteTaskGoal,
-    PlanAndExecuteTaskResult,
+    PlanAndExecuteTasksAction,
+    PlanAndExecuteTasksGoal,
+    PlanAndExecuteTasksResult,
+    PlanAndExecuteTasksFeedback,
 )
 from unified_planning.shortcuts import get_environment
 from tables_demo_planning.components import Item, Location
@@ -47,7 +48,7 @@ class TaskServerNode:
 
         self._task_server = actionlib.SimpleActionServer(
             task_server_name,
-            PlanAndExecuteTaskAction,
+            PlanAndExecuteTasksAction,
             execute_cb=self.generate_and_execute_plan,
             auto_start=False,
         )
@@ -90,70 +91,85 @@ class TaskServerNode:
                 del initial_item_locations[item]
         self._domain.env.believed_item_locations.update(initial_item_locations)
 
-    def generate_and_execute_plan(self, request: PlanAndExecuteTaskGoal) -> None:
+    def generate_and_execute_plan(self, request: PlanAndExecuteTasksGoal) -> None:
         retries_before_abortion = 3
         error_counts: Dict[str, int] = defaultdict(int)
         self.set_item_locations()
-        plan = self._domain.create_plan(request.task, request.parameters)
 
-        if not plan:
-            print("Could not find a plan. Exiting.")
-            self._task_server.set_aborted(
-                result=PlanAndExecuteTaskResult(success=False, message="Could not find a plan!")
-            )
-            return
+        result_msg = PlanAndExecuteTasksResult()
 
-        print("> Plan:")
-        print("\n".join(map(str, plan.action_plan.actions)))
+        for task in request.tasks:
+            plan = self._domain.create_plan(task.task, task.parameters)
 
-        actions = plan.action_plan.actions
+            exec_result = True
+            exec_msg = f"{task.task}{task.parameters} successfully executed!"
 
-        # Loop action execution as long as there are actions.
-        while actions:
-            print("> Execution:")
-            for action in actions:
-                if action.action.name == "trigger_replanning":
-                    plan = self._domain.create_plan(request.task, request.parameters)
-                    actions = plan.action_plan.actions
-                    break
-                executable_action, parameters = self._domain.domain.get_executable_action(action)
-                print(action)
+            if not plan:
+                print("Could not find a plan for task.")
+                result_msg.success.append(False)
+                result_msg.message.append(f"Could not find a plan for task {task.task}{task.parameters}!")
+                continue
 
-                # Execute action.
-                result = executable_action(*parameters)
-                if rospy.is_shutdown():
-                    self._task_server.set_aborted(
-                        PlanAndExecuteTaskResult(success=False, message="Plan execution failed!")
-                    )
-                    return
-                if result is not None:
-                    if not result:
-                        error_counts[self._domain.tables_demo_api.label(action)] += 1
-                        # Note: This will also fail if two different failures occur successively.
-                        if retries_before_abortion <= 0 or any(count >= 3 for count in error_counts.values()):
-                            print("Task could not be completed even after retrying.")
-                            return
+            print("> Plan:")
+            print("\n".join(map(str, plan.action_plan.actions)))
 
-                        retries_before_abortion -= 1
-                        plan = self._domain.create_plan(request.task, request.parameters)
-                        actions = plan.action_plan.actions
+            actions = plan.action_plan.actions
+
+            # Loop action execution as long as there are actions.
+            while actions:
+                print("> Execution:")
+                for action in actions:
+                    executable_action, parameters = self._domain.domain.get_executable_action(action)
+                    print(action)
+
+                    # Execute action.
+                    result = executable_action(*parameters)
+                    if rospy.is_shutdown():
+                        result_msg.success.append(False)
+                        result_msg.message.append(
+                            f"Plan execution failed for task {task.task}{task.parameters}. ROS Node was shut down!"
+                        )
+                        self._task_server.set_aborted(result_msg)
+                        return
+                    if result is not None:
+                        if not result:
+                            error_counts[self._domain.tables_demo_api.label(action)] += 1
+                            # Note: This will also fail if two different failures occur successively.
+                            if retries_before_abortion <= 0 or any(count >= 3 for count in error_counts.values()):
+                                print("Task could not be completed even after retrying.")
+                                result_msg.success.append(False)
+                                result_msg.message.append(
+                                    f"Task {task.task}{task.parameters} could not be completed even after retrying."
+                                )
+                                self._task_server.set_aborted(result_msg)
+                                return
+
+                            retries_before_abortion -= 1
+                            plan = self._domain.create_plan(task.task, task.parameters)
+                            actions = plan.action_plan.actions if plan is not None else None
+                            break
+                    else:
+                        retries_before_abortion = 3
+                        plan = self._domain.create_plan(task.task, task.parameters)
+                        actions = plan.action_plan.actions if plan is not None else None
                         break
                 else:
-                    retries_before_abortion = 3
-                    plan = self._domain.create_plan(request.task, request.parameters)
-                    actions = plan.action_plan.actions
                     break
-            else:
-                self._task_server.set_aborted(PlanAndExecuteTaskResult(success=False, message="Plan execution failed!"))
-                break
-            if actions is None:
-                print("Execution ended because no plan could be found.")
-                self._task_server.set_aborted(PlanAndExecuteTaskResult(success=False, message="Plan execution failed!"))
-                break
+                if actions is None:
+                    exec_result = False
+                    exec_msg = (
+                        f"Plan execution ended because no plan could be found for task {task.task}{task.parameters}!"
+                    )
+                    break
+            self._task_server.publish_feedback(PlanAndExecuteTasksFeedback(success=exec_result, message=exec_msg))
+            result_msg.success.append(exec_result)
+            result_msg.message.append(exec_msg)
 
-        print("Demo complete.")
-
-        self._task_server.set_succeeded(PlanAndExecuteTaskResult(success=True, message="Successfully executed task!"))
+        if not any(result_msg.success):
+            self._task_server.set_aborted(result_msg)
+        else:
+            print("Tasks complete.")
+            self._task_server.set_succeeded(result_msg)
 
 
 if __name__ == "__main__":

@@ -1,6 +1,0 @@
-string task
-string[] parameters
----
-bool success
-string message
----

@@ -39,10 +39,7 @@
 import sys
 import rospy
 import actionlib
-from tables_demo_planning.msg import (
-    PlanAndExecuteTaskAction,
-    PlanAndExecuteTaskGoal,
-)
+from tables_demo_planning.msg import PlanAndExecuteTasksAction, PlanAndExecuteTasksGoal, Task
 
 
 def main():
@@ -51,19 +48,16 @@ def main():
         "~task_server_name",
         default="/mobipick/task_planning",
     )
-    client = actionlib.SimpleActionClient(task_server_name, PlanAndExecuteTaskAction)
+    client = actionlib.SimpleActionClient(task_server_name, PlanAndExecuteTasksAction)
     client.wait_for_server()
 
-    goal = PlanAndExecuteTaskGoal()
+    goal = PlanAndExecuteTasksGoal()
     if len(sys.argv) >= 2:
-        goal.task = sys.argv[1]
-        goal.parameters = sys.argv[2:]
+        goal.tasks.append(Task(task=sys.argv[1], parameters=sys.argv[2:]))
         client.send_goal_and_wait(goal)
         res = client.get_result()
-        if res.success:
-            rospy.loginfo("Task execution succeeded!")
-        else:
-            rospy.loginfo("Task execution failed: %s" % res.message)
+        for msg in res.message:
+            rospy.loginfo(msg)
 
     else:
         rospy.logerr("Missing arguments")

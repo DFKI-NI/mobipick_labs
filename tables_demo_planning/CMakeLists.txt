@@ -3,10 +3,16 @@ project(tables_demo_planning)
 
 find_package(catkin REQUIRED message_generation actionlib_msgs)
 
+add_message_files(
+  FILES
+  Task.msg
+)
+
+
 add_action_files(
   DIRECTORY action
   FILES
-  PlanAndExecuteTask.action
+  PlanAndExecuteTasks.action
 )
 
 ###################################
