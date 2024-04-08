@@ -9,7 +9,7 @@ repositories:
     version: master
   grasplan:
     type: git
-    url: https://github.com/aprilprojecteu/grasplan.git
+    url: https://github.com/DFKI-NI/grasplan.git
     version: noetic
   mobipick:
     type: git
