@@ -868,6 +868,33 @@ p, li { white-space: pre-wrap; }
     </property>
    </widget>
   </widget>
+  <widget class="QGroupBox" name="groupBox_10">
+   <property name="geometry">
+    <rect>
+     <x>420</x>
+     <y>530</y>
+     <width>321</width>
+     <height>121</height>
+    </rect>
+   </property>
+   <property name="title">
+    <string>Miscellaneous</string>
+   </property>
+   <widget class="QPushButton" name="cmdHandOverObject">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>40</y>
+      <width>89</width>
+      <height>61</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Handover
+object</string>
+    </property>
+   </widget>
+  </widget>
  </widget>
  <resources/>
  <connections/>

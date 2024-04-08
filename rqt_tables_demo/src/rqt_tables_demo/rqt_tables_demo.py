@@ -200,6 +200,7 @@ class RqtTablesDemo(Plugin):
         self._widget.cmdManipUpdate.clicked.connect(self.manipulation_update)
         self._widget.cmdPlaceObj.clicked.connect(self.place_object)
         self._widget.cmdInsertObj.clicked.connect(self.insert_object)
+        self._widget.cmdHandOverObject.clicked.connect(self.hand_over_object)
 
         self._widget.chkPickEnableId.stateChanged.connect(self.chk_pick_enable_id_changed)
 
@@ -519,3 +520,16 @@ class RqtTablesDemo(Plugin):
                 rospy.logerr('Failed to insert object, timeout?')
         else:
             rospy.logerr(f'action server {insert_object_server_name} not available')
+
+    def hand_over_object(self):
+        self.mobipick.arm.move('handover')
+        rospy.loginfo('waiting for user to excert force on object')
+        # observe force torque sensor using a treshold and a timeout
+        if not self.mobipick.arm.observe_force_torque(5.0, 25.0):
+            rospy.logerr('Failed to handover object within 25 seconds')
+            self.mobipick.arm.move('transport')
+            return False
+
+        self.mobipick.arm.execute('ReleaseGripper')
+        rospy.loginfo('Success at handing over object')
+        return True
