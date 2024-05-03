@@ -16,6 +16,12 @@ The tables demo consists of an environment with items on multiple tables, in whi
 For details about the event at which this demo was presented, see its (DFKI internal)
 [Mobipick tables demo wiki page](https://git.ni.dfki.de/mobipick/documentation/-/wikis/Mobipick-tables-demo).
 
+YouTube overview
+----------------
+
+[![Mobipick Labs on YouTube](http://img.youtube.com/vi/4-GgOg2nuGE/0.jpg)](http://www.youtube.com/watch?v=4-GgOg2nuGE
+"Mobipick Labs System Demonstration")
+
 Installation
 ------------
 
