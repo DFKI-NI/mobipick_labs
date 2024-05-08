@@ -166,7 +166,7 @@ class RqtTablesDemo(Plugin):
         except Exception:
             self.is_pose_selector_available = False
             self._widget.groupMoveAndActivatePS.setEnabled(False)
-            self._widget.groupPoseSelector.setEnabled(False)
+            self._widget.PoseSelector_groupBox.setEnabled(False)
             rospy.logwarn('pose selector not available, this functionality will not be available')
 
         # services to actuate (open/close) gripper
