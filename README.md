@@ -237,3 +237,19 @@ To run pre-commit automatically before committing in the local repo, install the
 
 ```bash
 pre-commit install
+```
+
+Citation
+--------
+
+If you use this work in your research, consider citing our 
+[PlanRob 2023 paper](https://icaps23.icaps-conference.org/program/workshops/planrob/PlanRob-23_paper_9.pdf):
+
+```plain
+@inproceedings{lima2023physics,
+  title={A Physics-Based Simulated Robotics Testbed for Planning and Acting Research},
+  author={Lima, O and G{\"u}nther, M and Sung, A and Stock, S and Vinci, M and Smith, A and Krause, JC and Hertzberg, J},
+  booktitle={ICAPS Workshop on Planning and Robotics (PlanRob 2023)},
+  year={2023}
+}
+```
