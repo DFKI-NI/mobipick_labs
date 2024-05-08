@@ -9,7 +9,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>741</width>
+    <width>752</width>
     <height>853</height>
    </rect>
   </property>
@@ -73,15 +73,15 @@
         <item row="0" column="2">
          <widget class="QPushButton" name="cmdNavigationGo">
           <property name="sizePolicy">
-           <sizepolicy hsizetype="Fixed" vsizetype="Expanding">
+           <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
             <horstretch>0</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
           </property>
           <property name="maximumSize">
            <size>
-            <width>81</width>
-            <height>77</height>
+            <width>16777215</width>
+            <height>16777215</height>
            </size>
           </property>
           <property name="text">
@@ -380,18 +380,18 @@
                 </widget>
                </item>
                <item>
-                <layout class="QHBoxLayout" name="horizontalLayout_7">
+                <layout class="QHBoxLayout" name="horizontalLayout_7" stretch="2,0,2">
                  <item>
                   <widget class="QTextEdit" name="txtPickTimeout">
                    <property name="sizePolicy">
-                    <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                    <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
                      <horstretch>0</horstretch>
                      <verstretch>0</verstretch>
                     </sizepolicy>
                    </property>
                    <property name="maximumSize">
                     <size>
-                     <width>45</width>
+                     <width>500</width>
                      <height>30</height>
                     </size>
                    </property>
@@ -509,25 +509,18 @@ obj</string>
                     </widget>
                    </item>
                    <item>
-                    <layout class="QGridLayout" name="gridLayout_4">
-                     <item row="0" column="1">
-                      <widget class="QLabel" name="label_10">
-                       <property name="text">
-                        <string>s</string>
-                       </property>
-                      </widget>
-                     </item>
-                     <item row="0" column="0">
+                    <layout class="QHBoxLayout" name="horizontalLayout_9" stretch="2,0,2">
+                     <item>
                       <widget class="QTextEdit" name="txtPlaceTimeout">
                        <property name="sizePolicy">
-                        <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
                          <horstretch>0</horstretch>
                          <verstretch>0</verstretch>
                         </sizepolicy>
                        </property>
                        <property name="maximumSize">
                         <size>
-                         <width>45</width>
+                         <width>500</width>
                          <height>30</height>
                         </size>
                        </property>
@@ -540,7 +533,14 @@ p, li { white-space: pre-wrap; }
                        </property>
                       </widget>
                      </item>
-                     <item row="0" column="2">
+                     <item>
+                      <widget class="QLabel" name="label_10">
+                       <property name="text">
+                        <string>s</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item>
                       <spacer name="horizontalSpacer_2">
                        <property name="orientation">
                         <enum>Qt::Horizontal</enum>
@@ -635,18 +635,18 @@ obj</string>
                   </widget>
                  </item>
                  <item>
-                  <layout class="QHBoxLayout" name="horizontalLayout_5">
+                  <layout class="QHBoxLayout" name="horizontalLayout_5" stretch="2,0,2">
                    <item>
                     <widget class="QTextEdit" name="txtInsertTimeout">
                      <property name="sizePolicy">
-                      <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                      <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
                        <horstretch>0</horstretch>
                        <verstretch>0</verstretch>
                       </sizepolicy>
                      </property>
                      <property name="maximumSize">
                       <size>
-                       <width>45</width>
+                       <width>500</width>
                        <height>30</height>
                       </size>
                      </property>
@@ -853,6 +853,11 @@ obj</string>
                <horstretch>0</horstretch>
                <verstretch>0</verstretch>
               </sizepolicy>
+             </property>
+             <property name="font">
+              <font>
+               <underline>false</underline>
+              </font>
              </property>
             </widget>
            </item>
