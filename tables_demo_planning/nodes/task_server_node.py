@@ -23,16 +23,23 @@ class TaskServerNode:
             default="/mobipick/task_planning",
         )
 
-        demo_items = [
-            Item.get("multimeter_1"),
-            Item.get("relay_1"),
-            Item.get("screwdriver_1"),
-            Item.get("power_drill_with_grip_1"),
-            Item.get("hot_glue_gun_1"),
-            Item.get("klt_1"),
-            Item.get("klt_2"),
-            Item.get("klt_3"),
-        ]
+        # default values
+        initial_item_locations = {
+            "multimeter_1": "table_3",
+            "relay_1": "table_3",
+            "screwdriver_1": "table_3",
+            "power_drill_with_grip_1": "table_2",
+            "hot_glue_gun_1": "table_3",
+            "klt_1": "table_2",
+            "klt_2": "table_1",
+            "klt_3": "table_3",
+        }
+
+        initial_item_locations_param = rospy.get_param("~initial_item_locations", default=initial_item_locations)
+
+        self.initial_item_locations = {}
+        for item, location in initial_item_locations_param.items():
+            self.initial_item_locations[Item.get(item)] = Location.get(location)
 
         domain_class = rospy.get_param("~domain_class", default="HierarchicalDomain")
         domain_module = rospy.get_param("~domain_module", default="tables_demo_planning.hierarchical_domain")
@@ -40,7 +47,9 @@ class TaskServerNode:
         try:
             # Initialize domain by importing python class and calling __init__ without arguments
             # using the module and class specified in the ros parameters
-            self._domain = getattr(__import__(domain_module, fromlist=[domain_class]), domain_class)(demo_items)
+            self._domain = getattr(__import__(domain_module, fromlist=[domain_class]), domain_class)(
+                list(self.initial_item_locations.keys())
+            )
         except ImportError as e:
             print(f"Could not import {domain_module} module for {domain_class} domain: {e}")
 
@@ -76,20 +85,12 @@ class TaskServerNode:
     def set_item_locations(self) -> None:
         # TODO OLD still using items and locations from castle demo
         # HACK hardcoded initial object locations
-        initial_item_locations = {}
-        initial_item_locations[Item.get("multimeter_1")] = Location.get("table_3")
-        initial_item_locations[Item.get("relay_1")] = Location.get("table_3")
-        initial_item_locations[Item.get("screwdriver_1")] = Location.get("table_3")
-        initial_item_locations[Item.get("power_drill_with_grip_1")] = Location.get("table_2")
-        initial_item_locations[Item.get("hot_glue_gun_1")] = Location.get("table_2")
-        initial_item_locations[Item.get("klt_1")] = Location.get("table_2")
-        initial_item_locations[Item.get("klt_2")] = Location.get("table_1")
-        initial_item_locations[Item.get("klt_3")] = Location.get("table_3")
         # add only items, which are not already set to avoid overriding perceived locations
-        for item in list(initial_item_locations.keys()):
-            if item in self._domain.env.believed_item_locations:
-                del initial_item_locations[item]
-        self._domain.env.believed_item_locations.update(initial_item_locations)
+        item_loc = {}
+        for item, loc in self.initial_item_locations.items():
+            if item not in self._domain.env.believed_item_locations:
+                item_loc[item] = loc
+        self._domain.env.believed_item_locations.update(item_loc)
 
     def generate_and_execute_plan(self, request: PlanAndExecuteTasksGoal) -> None:
         retries_before_abortion = 3
