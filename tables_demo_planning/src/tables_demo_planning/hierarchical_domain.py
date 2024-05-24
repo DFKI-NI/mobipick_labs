@@ -828,14 +828,19 @@ class HierarchicalDomain:
         problem.task_network._subtasks.clear()
 
     def create_task_from_string(self, task_name: str, parameters: List[str]) -> Optional[Task]:
-        param_objs = [self.domain.objects[param] for param in parameters]
-        if self.problem.has_task(task_name):
-            task = self.problem.get_task(task_name)
-        elif self.problem.has_action(task_name):
-            return Subtask(self.problem.action(task_name), *param_objs)
-        else:
-            return None
-        return task(*param_objs)
+        try:
+            parameterized_task = None
+            param_objs = [self.domain.objects[param] for param in parameters]
+            if self.problem.has_task(task_name):
+                parameterized_task = self.problem.get_task(task_name)(*param_objs)
+            elif self.problem.has_action(task_name):
+                parameterized_task = Subtask(self.problem.action(task_name), *param_objs)
+        except ValueError as e:
+            rospy.logerr(f"Task {task_name}: {e}")
+        except KeyError as e:
+            rospy.logerr(f"Parameter {e} does not exist in planning domain!")
+
+        return parameterized_task
 
     def create_plan(self, task_name: str, parameters: List[str]):
         """Create a plan that can be used in the task server"""
