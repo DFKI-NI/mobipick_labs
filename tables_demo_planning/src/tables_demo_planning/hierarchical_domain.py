@@ -899,7 +899,11 @@ class HierarchicalDomain:
                         print("Picking up KLT OBSOLETE.")
                         self.visualization.cancel(action_name)
                         print("Replanning")
-                        actions = self.replan()
+                        plan = self.replan()
+                        if plan is None:
+                            print("Execution ended because no plan could be found.")
+                            return
+                        actions = plan.action_plan.actions
                         break
 
                 self.visualization.execute(action_name)
@@ -919,7 +923,11 @@ class HierarchicalDomain:
                         if self.env.believed_item_locations[self.env.item_search] != Location.get("anywhere"):
                             print(f"Search for {self.env.item_search.name} OBSOLETE.")
                             self.visualization.cancel(action_name)
-                            actions = self.replan()
+                            plan = self.replan()
+                            if plan is None:
+                                print("Execution ended because no plan could be found.")
+                                return
+                            actions = plan.action_plan.actions
                             break
 
                         # Search for item by creating and executing a subplan.
@@ -929,8 +937,9 @@ class HierarchicalDomain:
                             self.subproblem,
                             self.search_item(self.domain.robot, self.domain.objects[self.env.item_search.name]),
                         )
-                        subactions = self.solve_problem(self.subproblem)
-                        assert subactions, f"No solution for: {self.subproblem}"
+                        subplan = self.solve_problem(self.subproblem)
+                        assert subplan, f"No solution for: {self.subproblem}"
+                        subactions = subplan.action_plan.actions
                         print("- Search plan:")
                         print('\n'.join(map(str, subactions)))
                         self.visualization.set_actions(
@@ -1006,12 +1015,20 @@ class HierarchicalDomain:
                             return
 
                         retries_before_abortion -= 1
-                        actions = self.replan()
+                        plan = self.replan()
+                        if plan is None:
+                            print("Execution ended because no plan could be found.")
+                            return
+                        actions = plan.action_plan.actions
                         break
                 else:
                     self.visualization.cancel(action_name)
                     retries_before_abortion = self.tables_demo_api.RETRIES_BEFORE_ABORTION
-                    actions = self.replan()
+                    plan = self.replan()
+                    if plan is None:
+                        print("Execution ended because no plan could be found.")
+                        return
+                    actions = plan.action_plan.actions
                     break
             else:
                 break
