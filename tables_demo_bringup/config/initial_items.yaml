@@ -1,0 +1,10 @@
+initial_item_locations: {
+  "multimeter_1": "table_3",
+  "relay_1": "table_3",
+  "screwdriver_1": "table_3",
+  "power_drill_with_grip_1": "table_2",
+  "hot_glue_gun_1": "table_3",
+  "klt_1": "table_2",
+  "klt_2": "table_1",
+  "klt_3": "table_3",
+}

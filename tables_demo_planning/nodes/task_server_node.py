@@ -12,7 +12,6 @@ from tables_demo_planning.msg import (
     PlanAndExecuteTasksFeedback,
 )
 from unified_planning.shortcuts import get_environment
-from tables_demo_planning.components import Item, Location
 
 
 class TaskServerNode:
@@ -23,35 +22,17 @@ class TaskServerNode:
             default="/mobipick/task_planning",
         )
 
-        # default values
-        initial_item_locations = {
-            "multimeter_1": "table_3",
-            "relay_1": "table_3",
-            "screwdriver_1": "table_3",
-            "power_drill_with_grip_1": "table_2",
-            "hot_glue_gun_1": "table_3",
-            "klt_1": "table_2",
-            "klt_2": "table_1",
-            "klt_3": "table_3",
-        }
-
-        initial_item_locations_param = rospy.get_param("~initial_item_locations", default=initial_item_locations)
-
-        self.initial_item_locations = {}
-        for item, location in initial_item_locations_param.items():
-            self.initial_item_locations[Item.get(item)] = Location.get(location)
-
         domain_class = rospy.get_param("~domain_class", default="HierarchicalDomain")
         domain_module = rospy.get_param("~domain_module", default="tables_demo_planning.hierarchical_domain")
 
         try:
             # Initialize domain by importing python class and calling __init__ without arguments
             # using the module and class specified in the ros parameters
-            self._domain = getattr(__import__(domain_module, fromlist=[domain_class]), domain_class)(
-                list(self.initial_item_locations.keys())
-            )
+            self._domain = getattr(__import__(domain_module, fromlist=[domain_class]), domain_class)()
         except ImportError as e:
             print(f"Could not import {domain_module} module for {domain_class} domain: {e}")
+
+        self.initial_item_locations = self._domain.tables_demo_api.initial_item_locations
 
         self._dispatcher = PlanDispatcher()
 

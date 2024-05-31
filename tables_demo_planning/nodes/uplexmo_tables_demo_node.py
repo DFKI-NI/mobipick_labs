@@ -44,8 +44,8 @@ Development in progress.
 import sys
 import rospy
 import unified_planning
-from typing import Optional, Set, Dict
-from tables_demo_planning.components import Item, Location
+from typing import Optional, Set
+from tables_demo_planning.components import Location
 from tables_demo_planning.tables_demo_api import TablesDemoAPI
 from tables_demo_planning.subplan_visualization import SubPlanVisualization
 from unified_planning.plans import ActionInstance
@@ -54,8 +54,8 @@ from unified_planning.model import UPState
 
 
 class TablesDemoOrchestrator:
-    def __init__(self, item_locations: Dict[Item, Location]) -> None:
-        self._demo_api = TablesDemoAPI(item_locations)
+    def __init__(self) -> None:
+        self._demo_api = TablesDemoAPI()
         self.visualization = SubPlanVisualization()
         self.espeak_pub: Optional[rospy.Publisher] = None
         self._trigger_replanning = False  # Temporary solution until it is provided by dispatcher
@@ -182,7 +182,7 @@ class TablesDemoOrchestrator:
                 "Scenario: Mobipick shall bring the box with the multimeter"
                 f" inside to {self._demo_api.domain.objects[target_location.name]}."
             )
-            self._demo_api.domain.set_goals(self._demo_api.problem, list(item_locations.keys()), target_location)
+            self._demo_api.domain.set_goals(self._demo_api.problem, self._demo_api.demo_items, target_location)
 
         self._executed_actions: Set[str] = set()
 
@@ -214,18 +214,10 @@ class TablesDemoOrchestrator:
 if __name__ == '__main__':
     unified_planning.shortcuts.get_environment().credits_stream = None
 
-    # Define environment values.
-    item_locations = {
-        Item.get("multimeter_1"): Location.get("table_3"),
-        Item.get("klt_1"): Location.get("table_2"),
-        Item.get("klt_2"): Location.get("table_1"),
-        Item.get("klt_3"): Location.get("table_3"),
-    }
-
     try:
         # Define goal.
         goal_strs = sys.argv[1:]
-        tdo = TablesDemoOrchestrator(item_locations)
+        tdo = TablesDemoOrchestrator()
 
         if goal_strs:
             tdo.generate_and_execute_plan(goal_strs)

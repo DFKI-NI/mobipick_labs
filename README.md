@@ -242,7 +242,7 @@ pre-commit install
 Citation
 --------
 
-If you use this work in your research, consider citing our 
+If you use this work in your research, consider citing our
 [PlanRob 2023 paper](https://icaps23.icaps-conference.org/program/workshops/planrob/PlanRob-23_paper_9.pdf):
 
 ```plain
