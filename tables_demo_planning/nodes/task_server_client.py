@@ -33,32 +33,39 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 #
 #
-# Authors: Alexander Sung, Oscar Lima, Marc Vinci, Sebastian Stock
-
-"""Main execution node of the tables demo."""
+# Authors: Sebastian Stock, Marc Vinci
 
 
 import sys
 import rospy
-import unified_planning
-from tables_demo_planning.components import Location
-from tables_demo_planning.tables_demo_api import TablesDemoAPI
+import actionlib
+from tables_demo_planning.msg import PlanAndExecuteTasksAction, PlanAndExecuteTasksGoal, Task
 
 
-if __name__ == '__main__':
-    unified_planning.shortcuts.get_environment().credits_stream = None
+def main():
+    rospy.init_node("task_server_client_node")
+    task_server_name = rospy.get_param(
+        "~task_server_name",
+        default="/mobipick/task_planning",
+    )
+    client = actionlib.SimpleActionClient(task_server_name, PlanAndExecuteTasksAction)
+    client.wait_for_server()
 
+    goal = PlanAndExecuteTasksGoal()
+    if len(sys.argv) >= 2:
+        goal.tasks.append(Task(task=sys.argv[1], parameters=sys.argv[2:]))
+        client.send_goal_and_wait(goal)
+        res = client.get_result()
+        for msg in res.message:
+            rospy.loginfo(msg)
+
+    else:
+        rospy.logerr("Missing arguments")
+        rospy.logerr("Usage: task_server_client task_name [arg1] [arg2] ... [arg_n]")
+
+
+if __name__ == "__main__":
     try:
-        api = TablesDemoAPI()
-        # Define goal.
-        goal_strs = sys.argv[1:]
-        if goal_strs:
-            api.domain.set_goals_by_strs(api.problem, goal_strs)
-            api.run()
-        else:  # Standard tables Demo goal
-            target_location = Location.get("table_2")
-            api.domain.set_goals(api.problem, api.demo_items, target_location)
-            print(f"Scenario: Mobipick shall bring a KLT with a multimeter inside to {target_location.name}.")
-            api.run(target_location)
+        main()
     except rospy.ROSInterruptException:
         pass

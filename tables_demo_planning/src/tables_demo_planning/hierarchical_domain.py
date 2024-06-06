@@ -42,7 +42,7 @@ from geometry_msgs.msg import Pose
 from unified_planning.model import Fluent, InstantaneousAction, Object, Action, Problem
 from unified_planning.model.htn import HierarchicalProblem, Method, Task, Subtask
 from unified_planning.shortcuts import Equals, Not, Or, OneshotPlanner
-from unified_planning.plans import PlanKind, ActionInstance
+from unified_planning.plans import PlanKind, HierarchicalPlan
 from unified_planning.model.metrics import MinimizeSequentialPlanLength
 from unified_planning.engines import OptimalityGuarantee
 from tables_demo_planning.components import Robot, ArmPose, Item, Location
@@ -50,8 +50,8 @@ from tables_demo_planning.tables_demo_api import TablesDemoAPI
 
 
 class HierarchicalDomain:
-    def __init__(self, api_items: Iterable[Item]) -> None:
-        self.tables_demo_api = TablesDemoAPI(api_items)
+    def __init__(self) -> None:
+        self.tables_demo_api = TablesDemoAPI()
         # Aliases for domain, env and visualization variable
         self.domain = self.tables_demo_api.domain
         self.env = self.tables_demo_api.env
@@ -792,7 +792,7 @@ class HierarchicalDomain:
 
         return problem
 
-    def solve_problem(self, problem: Problem) -> Optional[List[ActionInstance]]:
+    def solve_problem(self, problem: Problem) -> Optional[HierarchicalPlan]:
         """Solve planning problem and return plan."""
         result = OneshotPlanner(
             name="aries", problem_kind=problem.kind, optimality_guarantee=OptimalityGuarantee.SOLVED_OPTIMALLY
@@ -807,17 +807,14 @@ class HierarchicalDomain:
         if result.plan is not None:
             plan = result.plan
             if plan.kind == PlanKind.HIERARCHICAL_PLAN:
-                # First check if contained action plan is time-triggered plan
-                # (if aries returns an empty plan it is a time-triggered, which
-                # cant be converted to sequential and produces an error)
+                # Check if contained action plan is of type time-triggered plan
+                # (if aries returns an empty plan it is a time-triggered plan)
                 if plan.action_plan and plan.action_plan.kind == PlanKind.TIME_TRIGGERED_PLAN:
                     return None
-                # Convert hierarchical plan to sequential plan for execution
-                plan = plan.convert_to(PlanKind.SEQUENTIAL_PLAN, self.problem)
-            return plan.actions if plan.actions else None
+            return plan
         return None
 
-    def replan(self) -> Optional[List[ActionInstance]]:
+    def replan(self) -> Optional[HierarchicalPlan]:
         """Print believed item locations, initialize UP problem, and solve it."""
         self.env.print_believed_item_locations()
         self.domain.set_initial_values(self.problem)
@@ -829,6 +826,31 @@ class HierarchicalDomain:
 
     def clear_tasks(self, problem: HierarchicalProblem) -> None:
         problem.task_network._subtasks.clear()
+
+    def create_task_from_string(self, task_name: str, parameters: List[str]) -> Optional[Task]:
+        try:
+            parameterized_task = None
+            param_objs = [self.domain.objects[param] for param in parameters]
+            if self.problem.has_task(task_name):
+                parameterized_task = self.problem.get_task(task_name)(*param_objs)
+            elif self.problem.has_action(task_name):
+                parameterized_task = Subtask(self.problem.action(task_name), *param_objs)
+        except ValueError as e:
+            rospy.logerr(f"Task {task_name}: {e}")
+        except KeyError as e:
+            rospy.logerr(f"Parameter {e} does not exist in planning domain!")
+
+        return parameterized_task
+
+    def create_plan(self, task_name: str, parameters: List[str]):
+        """Create a plan that can be used in the task server"""
+        self.clear_tasks(self.problem)
+        task = self.create_task_from_string(task_name, parameters)
+        if task:
+            self.set_task(self.problem, task)
+        else:
+            return None
+        return self.replan()
 
     def run(self, target_item: Item, target_klt: Item, target_location: Location) -> None:
         """Run the mobipick tables demo."""
@@ -846,10 +868,12 @@ class HierarchicalDomain:
                 self.domain.objects[target_location.name],
             ),
         )
-        actions = self.replan()
-        if actions is None:
+        plan = self.replan()
+        if plan is None:
             print("Execution ended because no plan could be found.")
             return
+
+        actions = plan.action_plan.actions
 
         # Loop action execution as long as there are actions.
         while actions:
@@ -875,7 +899,11 @@ class HierarchicalDomain:
                         print("Picking up KLT OBSOLETE.")
                         self.visualization.cancel(action_name)
                         print("Replanning")
-                        actions = self.replan()
+                        plan = self.replan()
+                        if plan is None:
+                            print("Execution ended because no plan could be found.")
+                            return
+                        actions = plan.action_plan.actions
                         break
 
                 self.visualization.execute(action_name)
@@ -895,7 +923,11 @@ class HierarchicalDomain:
                         if self.env.believed_item_locations[self.env.item_search] != Location.get("anywhere"):
                             print(f"Search for {self.env.item_search.name} OBSOLETE.")
                             self.visualization.cancel(action_name)
-                            actions = self.replan()
+                            plan = self.replan()
+                            if plan is None:
+                                print("Execution ended because no plan could be found.")
+                                return
+                            actions = plan.action_plan.actions
                             break
 
                         # Search for item by creating and executing a subplan.
@@ -905,8 +937,9 @@ class HierarchicalDomain:
                             self.subproblem,
                             self.search_item(self.domain.robot, self.domain.objects[self.env.item_search.name]),
                         )
-                        subactions = self.solve_problem(self.subproblem)
-                        assert subactions, f"No solution for: {self.subproblem}"
+                        subplan = self.solve_problem(self.subproblem)
+                        assert subplan, f"No solution for: {self.subproblem}"
+                        subactions = subplan.action_plan.actions
                         print("- Search plan:")
                         print('\n'.join(map(str, subactions)))
                         self.visualization.set_actions(
@@ -982,12 +1015,20 @@ class HierarchicalDomain:
                             return
 
                         retries_before_abortion -= 1
-                        actions = self.replan()
+                        plan = self.replan()
+                        if plan is None:
+                            print("Execution ended because no plan could be found.")
+                            return
+                        actions = plan.action_plan.actions
                         break
                 else:
                     self.visualization.cancel(action_name)
                     retries_before_abortion = self.tables_demo_api.RETRIES_BEFORE_ABORTION
-                    actions = self.replan()
+                    plan = self.replan()
+                    if plan is None:
+                        print("Execution ended because no plan could be found.")
+                        return
+                    actions = plan.action_plan.actions
                     break
             else:
                 break

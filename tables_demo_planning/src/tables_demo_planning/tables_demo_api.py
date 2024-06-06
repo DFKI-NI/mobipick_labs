@@ -1,7 +1,7 @@
 import rospy
 import rosparam
 
-from typing import Dict, Iterable, List, Set, Sequence, Union, Optional, Callable
+from typing import Dict, List, Set, Sequence, Union, Optional, Callable
 from collections import defaultdict
 from geometry_msgs.msg import Pose, Point
 from std_msgs.msg import String
@@ -20,7 +20,7 @@ from tables_demo_planning.subplan_visualization import SubPlanVisualization
 class TablesDemoAPI:
     RETRIES_BEFORE_ABORTION = 2
 
-    def __init__(self, api_items: Iterable[Item]) -> None:
+    def __init__(self) -> None:
         self.mobipick = Robot("mobipick")
         self.mobipick_api = mobipick_api_robot("mobipick", True, True)
         self.domain = TablesDemoDomain(self.mobipick)
@@ -28,16 +28,23 @@ class TablesDemoAPI:
         rosparam_namespace = "/mobipick/tables_demo_planning"
         self.api_poses: Dict[str, Pose] = {}
         table_names: List[str] = []
+        self.initial_item_locations: Dict[Item, Location] = {}
         for param_path in rosparam.list_params(rosparam_namespace):
             assert isinstance(param_path, str)
             param = rosparam.get_param(param_path)
-            param_name = param_path.rsplit('/', maxsplit=1)[-1]
-            # Collect poses from rosparams.
-            if is_instance(param, Sequence[Sequence[Union[float, int]]]) and tuple(map(len, param)) == (3, 4):
-                self.api_poses[param_name] = TuplePose.to_pose(param)
-            # Collect table names from rosparam names.
-            if param_name.startswith("base_table_") and param_name.endswith("_pose"):
-                table_names.append(param_name[5:-5])
+            split_param_path = param_path.rsplit('/', maxsplit=2)
+            param_name = split_param_path[-1]
+            param_file = split_param_path[-2]
+            if "initial_item_locations" in param_file:
+                # Collect items used in the demo from rosparams
+                self.initial_item_locations[Item.get(param_name)] = Location.get(param)
+            elif "poses" in param_file:
+                # Collect poses from rosparams.
+                if is_instance(param, Sequence[Sequence[Union[float, int]]]) and tuple(map(len, param)) == (3, 4):
+                    self.api_poses[param_name] = TuplePose.to_pose(param)
+                # Collect table names from rosparam names.
+                if param_name.startswith("base_table_") and param_name.endswith("_pose"):
+                    table_names.append(param_name[5:-5])
         if len({TuplePose.from_pose(pose) for pose in self.api_poses.values()}) < len(self.api_poses):
             rospy.logwarn(
                 f"Duplicate poses in rosparam namespace '{rosparam_namespace}'"
@@ -49,16 +56,16 @@ class TablesDemoAPI:
         self.api_poses["klt_search_pose"] = Pose(position=Point(x=-5.0))
         self.api_pose_names = {id(pose): name for name, pose in self.api_poses.items()}
         self.poses = self.domain.create_objects(self.api_poses)
-        self.items = self.domain.create_objects({item.name: item for item in api_items})
+        self.items = self.domain.create_objects({item.name: item for item in self.initial_item_locations.keys()})
         self.tables = [self.domain.get(Location, name) for name in table_names]
         self.arm_poses = [
             self.domain.get(ArmPose, arm_pose)
             for arm_pose in ["unknown", "home", "transport", "handover", "observe100cm_right"]
         ]
-        self.env = EnvironmentRepresentation(api_items)
+        self.env = EnvironmentRepresentation(list(self.initial_item_locations.keys()))
         self.env.perceive = lambda _, location: self.perceive(_, location)
         self.env.initialize_robot_states(self.domain.api_robot, self.api_poses["base_home_pose"])
-        self.demo_items = list(api_items)
+        self.demo_items = list(self.initial_item_locations.keys())
 
         self.domain.set_fluent_functions(
             [

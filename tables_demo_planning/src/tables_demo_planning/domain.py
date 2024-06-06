@@ -249,7 +249,7 @@ class Domain(Bridge):
         store_item.add_effect(self.robot_has(robot, item1), False)
         store_item.add_effect(self.robot_has(robot, self.get(Item, "nothing")), True)
         for arm_pose in self.get_objects_for_type(ArmPose).values():
-            store_item.add_effect(self.robot_arm_at(robot, arm_pose), arm_pose == self.get(ArmPose, "arm_pose_home"))
+            store_item.add_effect(self.robot_arm_at(robot, arm_pose), arm_pose == self.get(ArmPose, "home"))
         store_item.add_effect(self.believe_item_at(item1, self.get(Location, "on_robot")), False)
         store_item.add_effect(self.believe_item_at(item1, self.get(Location, "in_klt")), True)
         store_item.add_effect(self.believe_item_in(item1, item2), True)

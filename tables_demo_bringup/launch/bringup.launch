@@ -61,4 +61,6 @@
 
   <!-- config for tables_demo_planning -->
   <rosparam command="load" file="$(find mobipick_pick_n_place)/config/$(arg world_config)_demo.yaml" ns="mobipick/tables_demo_planning" />
+  <!-- config for items used in the demos-->
+  <rosparam command="load" file="$(find tables_demo_bringup)/config/initial_items.yaml" ns="mobipick/tables_demo_planning" />
 </launch>

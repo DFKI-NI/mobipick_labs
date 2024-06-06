@@ -204,6 +204,46 @@ If no `simulate_user_interaction` command is given within a timeout of 30
 seconds, plan execution will fail (as expected, since the handover was
 unsuccessful).
 
+Hierarchical planning using ROS task server
+------------------
+
+Used to send hierarchical tasks directly to the planner and executor.
+
+On the real robot:
+
+```bash
+roslaunch mobipick_bringup mobipick_bringup_both.launch
+roslaunch pbr_dope dope.launch
+rosrun tables_demo_planning task_server_node.py
+```
+
+For Gazebo:
+
+```bash
+roslaunch tables_demo_bringup demo_sim.launch
+rosrun tables_demo_planning task_server_node.py
+```
+
+Now tasks can be sent to the robot using the ROS client provided:
+
+```bash
+rosrun tables_demo_planning task_server_client.py task_name parameter_1 ... parameter_n
+```
+
+Depending on the chosen task, different parameters have to be sent to the server.
+Available tasks and their parameters can be seen
+[here](https://github.com/DFKI-NI/mobipick_labs/blob/4d8e48adc9d2b78682e91e4ad9c091baa03fc4ec/tables_demo_planning/src/tables_demo_planning/hierarchical_domain.py#L89-L98).
+
+Example task to move the multimeter_1 from its current location to table_2:
+
+```bash
+rosrun tables_demo_planning task_server_client.py move_item mobipick multimeter_1 table_2
+```
+
+Additionally it is possible to send tasks to the task server using the provided
+[ROS action message](https://github.com/DFKI-NI/mobipick_labs/blob/aaf5639ced33866c17eb036fcd22b27cd72cff21/tables_demo_planning/action/PlanAndExecuteTasks.action).
+The default topic to send ROS actions to is `/mobipick/task_planning`.
+
 
 Plan visualization
 ------------------
@@ -242,7 +282,7 @@ pre-commit install
 Citation
 --------
 
-If you use this work in your research, consider citing our 
+If you use this work in your research, consider citing our
 [PlanRob 2023 paper](https://icaps23.icaps-conference.org/program/workshops/planrob/PlanRob-23_paper_9.pdf):
 
 ```plain
