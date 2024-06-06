@@ -843,12 +843,12 @@ class HierarchicalDomain:
         else:
             return None
         return self.replan()
-    
+
     @staticmethod
     def get_actions_from_plan(plan) -> Optional[List]:
         """For a given plan extract the list of actions and check plan kind"""
         if plan.action_plan.kind == PlanKind.SEQUENTIAL_PLAN:
-                return plan.action_plan.actions
+            return plan.action_plan.actions
         elif plan.action_plan.kind == PlanKind.TIME_TRIGGERED_PLAN:
             # For empty plans aries returns a time_triggered_plan
             if len(plan.action_plan.timed_actions) == 0:

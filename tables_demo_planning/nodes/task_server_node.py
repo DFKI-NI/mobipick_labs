@@ -98,16 +98,16 @@ class TaskServerNode:
                 actions = HierarchicalDomain.get_actions_from_plan(plan)
                 if actions is None:
                     result_msg.success.append(False)
-                    result_msg.message.append(f"Received unexpected kind of plan!")
+                    result_msg.message.append("Received unexpected kind of plan!")
                     continue
             elif plan.kind == PlanKind.SEQUENTIAL_PLAN:
                 actions = plan.actions
             else:
                 rospy.logerr("Received unexpected kind of plan!")
                 result_msg.success.append(False)
-                result_msg.message.append(f"Received unexpected kind of plan!")
+                result_msg.message.append("Received unexpected kind of plan!")
                 continue
-            
+
             print("> Plan:")
             print("\n".join(map(str, actions)))
 
