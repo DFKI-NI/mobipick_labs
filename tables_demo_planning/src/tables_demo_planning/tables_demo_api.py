@@ -5,7 +5,7 @@ from typing import Dict, List, Set, Sequence, Union, Optional, Callable
 from collections import defaultdict
 from geometry_msgs.msg import Pose, Point
 from std_msgs.msg import String
-from unified_planning.plans import ActionInstance
+from unified_planning.plans import ActionInstance, Plan
 from tables_demo_planning.components import ArmPose, Item, Location, Robot
 from tables_demo_planning.tables_demo import EnvironmentRepresentation, TablesDemoDomain
 
@@ -160,7 +160,7 @@ class TablesDemoAPI:
         parameter_labels = [self.parameter_labels.get(parameter.name, str(parameter)) for parameter in parameters]
         return self.method_labels[action.action.name](parameter_labels)
 
-    def replan(self) -> Optional[List[ActionInstance]]:
+    def replan(self) -> Optional[Plan]:
         self.env.print_believed_item_locations()
         self.domain.set_initial_values(self.problem)
         return self.domain.solve(self.problem)
