@@ -804,15 +804,7 @@ class HierarchicalDomain:
             else:
                 rospy.logerr(f"Error during plan generation: {result.status}")
                 return None
-        if result.plan is not None:
-            plan = result.plan
-            if plan.kind == PlanKind.HIERARCHICAL_PLAN:
-                # Check if contained action plan is of type time-triggered plan
-                # (if aries returns an empty plan it is a time-triggered plan)
-                if plan.action_plan and plan.action_plan.kind == PlanKind.TIME_TRIGGERED_PLAN:
-                    return None
-            return plan
-        return None
+        return result.plan
 
     def replan(self) -> Optional[HierarchicalPlan]:
         """Print believed item locations, initialize UP problem, and solve it."""
@@ -852,6 +844,22 @@ class HierarchicalDomain:
             return None
         return self.replan()
 
+    @staticmethod
+    def get_actions_from_plan(plan) -> Optional[List]:
+        """For a given plan extract the list of actions and check plan kind"""
+        if plan.action_plan.kind == PlanKind.SEQUENTIAL_PLAN:
+            return plan.action_plan.actions
+        elif plan.action_plan.kind == PlanKind.TIME_TRIGGERED_PLAN:
+            # For empty plans aries returns a time_triggered_plan
+            if len(plan.action_plan.timed_actions) == 0:
+                return []
+            else:
+                rospy.logerr("Error: received a non-empty time-triggered plan but expected a sequential plan")
+                return None
+        else:
+            rospy.logerr("Error: received unexpected kind of plan")
+            return None
+
     def run(self, target_item: Item, target_klt: Item, target_location: Location) -> None:
         """Run the mobipick tables demo."""
         retries_before_abortion = self.tables_demo_api.RETRIES_BEFORE_ABORTION
@@ -873,7 +881,9 @@ class HierarchicalDomain:
             print("Execution ended because no plan could be found.")
             return
 
-        actions = plan.action_plan.actions
+        actions = self.get_actions_from_plan(plan)
+        if actions is None:
+            return
 
         # Loop action execution as long as there are actions.
         while actions:
@@ -903,7 +913,7 @@ class HierarchicalDomain:
                         if plan is None:
                             print("Execution ended because no plan could be found.")
                             return
-                        actions = plan.action_plan.actions
+                        actions = self.get_actions_from_plan(plan)
                         break
 
                 self.visualization.execute(action_name)
@@ -927,7 +937,7 @@ class HierarchicalDomain:
                             if plan is None:
                                 print("Execution ended because no plan could be found.")
                                 return
-                            actions = plan.action_plan.actions
+                            actions = self.get_actions_from_plan(plan)
                             break
 
                         # Search for item by creating and executing a subplan.
@@ -939,7 +949,7 @@ class HierarchicalDomain:
                         )
                         subplan = self.solve_problem(self.subproblem)
                         assert subplan, f"No solution for: {self.subproblem}"
-                        subactions = subplan.action_plan.actions
+                        subactions = self.get_actions_from_plan(subplan)
                         print("- Search plan:")
                         print('\n'.join(map(str, subactions)))
                         self.visualization.set_actions(
@@ -1019,7 +1029,7 @@ class HierarchicalDomain:
                         if plan is None:
                             print("Execution ended because no plan could be found.")
                             return
-                        actions = plan.action_plan.actions
+                        actions = self.get_actions_from_plan(plan)
                         break
                 else:
                     self.visualization.cancel(action_name)
@@ -1028,7 +1038,7 @@ class HierarchicalDomain:
                     if plan is None:
                         print("Execution ended because no plan could be found.")
                         return
-                    actions = plan.action_plan.actions
+                    actions = self.get_actions_from_plan(plan)
                     break
             else:
                 break

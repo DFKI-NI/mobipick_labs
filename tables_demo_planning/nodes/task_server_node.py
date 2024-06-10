@@ -12,6 +12,8 @@ from tables_demo_planning.msg import (
     PlanAndExecuteTasksFeedback,
 )
 from unified_planning.shortcuts import get_environment
+from unified_planning.plans import PlanKind
+from tables_demo_planning.hierarchical_domain import HierarchicalDomain
 
 
 class TaskServerNode:
@@ -92,10 +94,22 @@ class TaskServerNode:
                 result_msg.message.append(f"Could not find a plan for task {task.task}{task.parameters}!")
                 continue
 
-            print("> Plan:")
-            print("\n".join(map(str, plan.action_plan.actions)))
+            if plan.kind == PlanKind.HIERARCHICAL_PLAN:
+                actions = HierarchicalDomain.get_actions_from_plan(plan)
+                if actions is None:
+                    result_msg.success.append(False)
+                    result_msg.message.append("Received unexpected kind of plan!")
+                    continue
+            elif plan.kind == PlanKind.SEQUENTIAL_PLAN:
+                actions = plan.actions
+            else:
+                rospy.logerr("Received unexpected kind of plan!")
+                result_msg.success.append(False)
+                result_msg.message.append("Received unexpected kind of plan!")
+                continue
 
-            actions = plan.action_plan.actions
+            print("> Plan:")
+            print("\n".join(map(str, actions)))
 
             # Loop action execution as long as there are actions.
             while actions:
