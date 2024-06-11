@@ -42,6 +42,11 @@ import actionlib
 from tables_demo_planning.msg import PlanAndExecuteTasksAction, PlanAndExecuteTasksGoal, Task
 
 
+def create_task_from_str(task_str: str) -> Task:
+    task_elements = task_str.split()
+    return Task(task=task_elements[0], parameters=task_elements[1:])
+
+
 def main():
     rospy.init_node("task_server_client_node")
     task_server_name = rospy.get_param(
@@ -53,15 +58,16 @@ def main():
 
     goal = PlanAndExecuteTasksGoal()
     if len(sys.argv) >= 2:
-        goal.tasks.append(Task(task=sys.argv[1], parameters=sys.argv[2:]))
+        goal.tasks = [create_task_from_str(arg) for arg in sys.argv[1:]]
         client.send_goal_and_wait(goal)
         res = client.get_result()
-        for msg in res.message:
-            rospy.loginfo(msg)
-
+        rospy.loginfo(res.message)
     else:
         rospy.logerr("Missing arguments")
-        rospy.logerr("Usage: task_server_client task_name [arg1] [arg2] ... [arg_n]")
+        rospy.logerr(
+            "Usage: task_server_client task_str_0 [task_str_1] ... [task_str_n] \n \
+            with task_str: 'task_name [arg1] [arg2] ... [arg_n]'"
+        )
 
 
 if __name__ == "__main__":
