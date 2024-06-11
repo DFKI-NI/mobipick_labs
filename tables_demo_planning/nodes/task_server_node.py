@@ -82,86 +82,86 @@ class TaskServerNode:
 
         result_msg = PlanAndExecuteTasksResult()
 
-        for task in request.tasks:
-            plan = self._domain.create_plan(task.task, task.parameters)
+        up_tasks = [self._domain.create_task_from_string(rt.task, rt.parameters) for rt in request.tasks]
+        plan = self._domain.plan_tasks(up_tasks)
 
-            exec_result = True
-            exec_msg = f"{task.task}{task.parameters} successfully executed!"
+        exec_result = True
+        exec_msg = "Successfully executed the plan!"
 
-            if not plan:
-                print("Could not find a plan for task.")
-                result_msg.success.append(False)
-                result_msg.message.append(f"Could not find a plan for task {task.task}{task.parameters}!")
-                continue
+        planning_failure = False
+        if not plan:
+            print("Could not find a plan for task.")
+            result_msg.message = "Could not find a plan!"
+            planning_failure = True
 
-            if plan.kind == PlanKind.HIERARCHICAL_PLAN:
-                actions = HierarchicalDomain.get_actions_from_plan(plan)
-                if actions is None:
-                    result_msg.success.append(False)
-                    result_msg.message.append("Received unexpected kind of plan!")
-                    continue
-            elif plan.kind == PlanKind.SEQUENTIAL_PLAN:
-                actions = plan.actions
-            else:
-                rospy.logerr("Received unexpected kind of plan!")
-                result_msg.success.append(False)
-                result_msg.message.append("Received unexpected kind of plan!")
-                continue
+        if plan.kind == PlanKind.HIERARCHICAL_PLAN:
+            actions = HierarchicalDomain.get_actions_from_plan(plan)
+            if actions is None:
+                result_msg.message = "Received unexpected kind of plan!"
+                planning_failure = True
+        elif plan.kind == PlanKind.SEQUENTIAL_PLAN:
+            actions = plan.actions
+        else:
+            rospy.logerr("Received unexpected kind of plan!")
+            result_msg.message = "Received unexpected kind of plan!"
+            planning_failure = True
 
-            print("> Plan:")
-            print("\n".join(map(str, actions)))
+        if planning_failure:
+            result_msg.success = False
+            self._task_server.set_aborted(result_msg)
+            return
 
-            # Loop action execution as long as there are actions.
-            while actions:
-                print("> Execution:")
-                for action in actions:
-                    executable_action, parameters = self._domain.domain.get_executable_action(action)
-                    print(action)
+        print("> Plan:")
+        print("\n".join(map(str, actions)))
 
-                    # Execute action.
-                    result = executable_action(*parameters)
-                    if rospy.is_shutdown():
-                        result_msg.success.append(False)
-                        result_msg.message.append(
-                            f"Plan execution failed for task {task.task}{task.parameters}. ROS Node was shut down!"
-                        )
-                        self._task_server.set_aborted(result_msg)
-                        return
-                    if result is not None:
-                        if not result:
-                            error_counts[self._domain.tables_demo_api.label(action)] += 1
-                            # Note: This will also fail if two different failures occur successively.
-                            if retries_before_abortion <= 0 or any(count >= 3 for count in error_counts.values()):
-                                print("Task could not be completed even after retrying.")
-                                result_msg.success.append(False)
-                                result_msg.message.append(
-                                    f"Task {task.task}{task.parameters} could not be completed even after retrying."
-                                )
-                                self._task_server.set_aborted(result_msg)
-                                return
+        # Loop action execution as long as there are actions.
+        while actions:
+            print("> Execution:")
+            for action in actions:
+                executable_action, parameters = self._domain.domain.get_executable_action(action)
+                print(action)
 
-                            retries_before_abortion -= 1
-                            plan = self._domain.create_plan(task.task, task.parameters)
-                            actions = plan.action_plan.actions if plan is not None else None
-                            break
-                    else:
-                        retries_before_abortion = 3
-                        plan = self._domain.create_plan(task.task, task.parameters)
+                # Execute action.
+                result = executable_action(*parameters)
+                if rospy.is_shutdown():
+                    result_msg.success = False
+                    result_msg.message = "Plan execution failed. ROS Node was shut down!"
+                    self._task_server.set_aborted(result_msg)
+                    return
+                # TODO Is this check for None still needed, e.g., for object search like in the tables demo
+                if result is not None:
+                    if not result:
+                        error_counts[self._domain.tables_demo_api.label(action)] += 1
+                        # Note: This will also fail if two different failures occur successively.
+                        if retries_before_abortion <= 0 or any(count >= 3 for count in error_counts.values()):
+                            print("Task could not be completed even after retrying.")
+                            result_msg.success = False
+                            result_msg.message = "Tasks could not be completed even after retrying."
+                            self._task_server.set_aborted(result_msg)
+                            return
+
+                        retries_before_abortion -= 1
+                        # TODO Check which tasks have already been completed and don't replan for them, again.
+                        plan = self._domain.plan_tasks(up_tasks)
+                        # TODO error handling for actions in the same way as above
                         actions = plan.action_plan.actions if plan is not None else None
                         break
                 else:
+                    retries_before_abortion = 3
+                    plan = self._domain.plan_tasks(up_tasks)
+                    actions = plan.action_plan.actions if plan is not None else None
                     break
-                if actions is None:
-                    exec_result = False
-                    exec_msg = (
-                        f"Plan execution ended because no plan could be found for task {task.task}{task.parameters}!"
-                    )
-                    break
-            self._task_server.publish_feedback(PlanAndExecuteTasksFeedback(success=exec_result, message=exec_msg))
-            result_msg.success.append(exec_result)
-            result_msg.message.append(exec_msg)
+            else:
+                break
+            if actions is None:
+                exec_result = False
+                exec_msg = "Plan execution ended because no plan could be found!"
+                break
+        self._task_server.publish_feedback(PlanAndExecuteTasksFeedback(success=exec_result, message=exec_msg))
+        result_msg.success = exec_result
+        result_msg.message = exec_msg
 
-        if not any(result_msg.success):
+        if not result_msg.success:
             self._task_server.set_aborted(result_msg)
         else:
             print("Tasks complete.")

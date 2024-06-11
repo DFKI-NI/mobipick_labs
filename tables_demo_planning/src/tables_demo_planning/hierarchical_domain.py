@@ -834,6 +834,13 @@ class HierarchicalDomain:
 
         return parameterized_task
 
+    def plan_tasks(self, tasks: List[Task]):
+        """Generate a plan for a list of tasks"""
+        self.clear_tasks(self.problem)
+        for t in tasks:
+            self.set_task(self.problem, t)
+        return self.replan()
+
     def create_plan(self, task_name: str, parameters: List[str]):
         """Create a plan that can be used in the task server"""
         self.clear_tasks(self.problem)
