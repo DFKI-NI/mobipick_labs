@@ -31,7 +31,7 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 #
 #
-# Authors: Alexander Sung, DFKI
+# Authors: Alexander Sung - DFKI, Marc Vinci - DFKI
 
 """
 Helper component which maintains the dot graph of a simple sequential plan,
@@ -39,20 +39,25 @@ visualized by the dot_graph_visualization repository.
 """
 
 
-from typing import List, Sequence
+from typing import Sequence, Optional, Dict
+from dataclasses import dataclass
 from pydot import Dot, Edge, Node
 from std_msgs.msg import String
 import rospy
 
 
+@dataclass
+class VisualizationNode:
+    edge: Optional[Edge]  # Note: incoming edge
+    node: Node
+    action: object
+
+
 class PlanVisualization:
-    def __init__(self, actions: Sequence[object]) -> None:
+    def __init__(self) -> None:
         self.graph: Dot = None
-        self.nodes: List[Node] = []
-        self.edges: List[Edge] = []
-        self.actions: Sequence[object] = []
+        self.nodes: Dict[str, VisualizationNode] = {}
         self.plan_pub = rospy.Publisher("/dot_graph_visualization/dot_graph", String, queue_size=1)
-        self.set_actions(actions)
 
     def visualize(self) -> None:
         """Update the visualization by dot code from self.graph."""
@@ -60,30 +65,44 @@ class PlanVisualization:
 
     def set_actions(self, actions: Sequence[object]) -> None:
         """Create and visualize a new graph, built from actions."""
-        self.actions = actions
         self.graph = Dot("Plan", graph_type="digraph", bgcolor="white")
-        self.nodes = [Node(str(action), style="filled", fillcolor="white") for action in actions]
-        for node in self.nodes:
-            self.graph.add_node(node)
-        self.edges = [Edge(node, self.nodes[number]) for number, node in enumerate(self.nodes[:-1], start=1)]
-        for edge in self.edges:
-            self.graph.add_edge(edge)
+        predecessor = None
+        for action in actions:
+            graph_node = Node(str(action), style="filled", fillcolor="white")
+            self.graph.add_node(graph_node)
+            graph_edge: Optional[Edge] = Edge(predecessor, graph_node) if predecessor else None
+            if graph_edge:
+                self.graph.add_edge(graph_edge)
+            self.nodes[str(action)] = VisualizationNode(graph_edge, graph_node, action)
+            predecessor = graph_node
+        self.visualize()
+
+    def update_fillcolor(self, action: object, value: str) -> None:
+        """Set fillcolor of action to value and update visualization."""
+        self.nodes[str(action)].node.set("fillcolor", value)
         self.visualize()
 
     def execute(self, action: object) -> None:
         """Mark action as being executed."""
-        index = self.actions.index(action)
-        self.nodes[index].set("fillcolor", "yellow")
-        if index > 0:
-            self.edges[index - 1].set("color", "green")
-        self.visualize()
+        action_node = self.nodes[str(action)]
+        if action_node.edge:
+            action_node.edge.set("color", "green")
+        self.update_fillcolor(action, "yellow")
 
     def succeed(self, action: object) -> None:
-        """Mark action as successful."""
-        self.nodes[self.actions.index(action)].set("fillcolor", "green")
-        self.visualize()
+        """Mark action as succeeded."""
+        self.update_fillcolor(action, "green")
 
     def fail(self, action: object) -> None:
         """Mark action as failed."""
-        self.nodes[self.actions.index(action)].set("fillcolor", "red")
-        self.visualize()
+        self.update_fillcolor(action, "red")
+
+    def cancel(self, action: object) -> None:
+        """Mark cation as canceled."""
+        self.update_fillcolor(action, "gray")
+
+    def add_node(self, text: str, fillcolor: str) -> None:
+        """Manually add an unconnected node with text and fillcolor into existing graph."""
+        if self.graph:
+            self.graph.add_node(Node(text, style="filled", fillcolor=fillcolor))
+            self.visualize()
