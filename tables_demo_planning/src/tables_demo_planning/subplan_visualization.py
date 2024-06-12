@@ -31,7 +31,7 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 #
 #
-# Authors: Alexander Sung, DFKI
+# Authors: Alexander Sung - DFKI, Marc Vinci - DFKI
 
 """
 Helper component which maintains the dot graph of a demo specific hierarchical plan,
@@ -39,29 +39,14 @@ visualized by the dot_graph_visualization repository.
 """
 
 
-from typing import Collection, Dict, List, Optional, Sequence, Tuple
-from dataclasses import dataclass
+from typing import Collection, List, Optional, Sequence, Tuple
 from pydot import Dot, Edge, Node
-from std_msgs.msg import String
-import rospy
+from tables_demo_planning.plan_visualization import PlanVisualization, VisualizationNode
 
 
-@dataclass
-class VisualizationNode:
-    edge: Optional[Edge]  # Note: incoming edge
-    node: Node
-    action: object
-
-
-class SubPlanVisualization:
+class SubPlanVisualization(PlanVisualization):
     def __init__(self) -> None:
-        self.graph: Dot = None
-        self.nodes: Dict[str, VisualizationNode] = {}
-        self.plan_pub = rospy.Publisher("/dot_graph_visualization/dot_graph", String, queue_size=1)
-
-    def update(self) -> None:
-        """Update visualization by dot code from self.graph."""
-        self.plan_pub.publish(self.graph.to_string())
+        super().__init__()
 
     def set_actions(
         self,
@@ -93,15 +78,13 @@ class SubPlanVisualization:
                     predecessor = node.action
                 else:
                     del self.nodes[action_name]
-        new_nodes: List[VisualizationNode] = []
         for action in actions:
             graph_node = Node(str(action), style="filled", fillcolor="white")
             self.graph.add_node(graph_node)
             graph_edge: Optional[Edge] = Edge(predecessor, graph_node) if predecessor else None
             if graph_edge:
                 self.graph.add_edge(graph_edge)
-            new_node = self.nodes[str(action)] = VisualizationNode(graph_edge, graph_node, action)
-            new_nodes.append(new_node)
+            self.nodes[str(action)] = VisualizationNode(graph_edge, graph_node, action)
             predecessor = graph_node
         # Reapply nodes kept after predecessor to visualize new nodes to the left of them.
         while nodes:
@@ -111,34 +94,4 @@ class SubPlanVisualization:
                 self.graph.add_node(node.node)
                 if node.edge:
                     self.graph.add_edge(node.edge)
-        self.update()
-
-    def update_fillcolor(self, action: object, value: str) -> None:
-        """Set fillcolor of action to value and update visualization."""
-        self.nodes[str(action)].node.set("fillcolor", value)
-        self.update()
-
-    def execute(self, action: object) -> None:
-        """Mark action as being executed."""
-        action_node = self.nodes[str(action)]
-        if action_node.edge:
-            action_node.edge.set("color", "green")
-        self.update_fillcolor(action, "yellow")
-
-    def succeed(self, action: object) -> None:
-        """Mark action as succeeded."""
-        self.update_fillcolor(action, "green")
-
-    def fail(self, action: object) -> None:
-        """Mark action as failed."""
-        self.update_fillcolor(action, "red")
-
-    def cancel(self, action: object) -> None:
-        """Mark cation as canceled."""
-        self.update_fillcolor(action, "gray")
-
-    def add_node(self, text: str, fillcolor: str) -> None:
-        """Manually add an unconnected node with text and fillcolor into existing graph."""
-        if self.graph:
-            self.graph.add_node(Node(text, style="filled", fillcolor=fillcolor))
-            self.update()
+        self.visualize()

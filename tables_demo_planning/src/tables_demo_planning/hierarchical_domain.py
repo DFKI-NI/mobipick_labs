@@ -36,7 +36,7 @@
 """Addition of hierarchical methods and tasks to the Mobipick domain."""
 
 import rospy
-from typing import Iterable, Optional, Union, Dict, List, Set
+from typing import Iterable, Optional, Union, Dict, List
 from collections import defaultdict
 from geometry_msgs.msg import Pose
 from unified_planning.model import Fluent, InstantaneousAction, Object, Action, Problem
@@ -47,6 +47,7 @@ from unified_planning.model.metrics import MinimizeSequentialPlanLength
 from unified_planning.engines import OptimalityGuarantee
 from tables_demo_planning.components import Robot, ArmPose, Item, Location
 from tables_demo_planning.tables_demo_api import TablesDemoAPI
+from tables_demo_planning.UP_plan_visualization import UPPlanVisualization
 
 
 class HierarchicalDomain:
@@ -55,8 +56,8 @@ class HierarchicalDomain:
         # Aliases for domain, env and visualization variable
         self.domain = self.tables_demo_api.domain
         self.env = self.tables_demo_api.env
-        self.visualization = self.tables_demo_api.visualization
         self.espeak_pub = self.tables_demo_api.espeak_pub
+        self.visualization = UPPlanVisualization()
 
         # UP types
         type_robot = self.domain.get_type(Robot)
@@ -864,7 +865,7 @@ class HierarchicalDomain:
         """Run the mobipick tables demo."""
         retries_before_abortion = self.tables_demo_api.RETRIES_BEFORE_ABORTION
         error_counts: Dict[str, int] = defaultdict(int)
-        executed_action_names: Set[str] = set()  # Note: For visualization purposes only.
+
         # Solve overall problem.
         self.clear_tasks(self.problem)
         self.set_task(
@@ -889,17 +890,10 @@ class HierarchicalDomain:
         while actions:
             print("> Plan:")
             print('\n'.join(map(str, actions)))
-            self.visualization.set_actions(
-                [
-                    f"{number + len(executed_action_names)} {self.tables_demo_api.label(action)}"
-                    for number, action in enumerate(actions, start=1)
-                ],
-                preserve_actions=executed_action_names,
-            )
+            self.visualization.set_plan(plan)
             print("> Execution:")
             for action in actions:
                 executable_action, parameters = self.domain.get_executable_action(action)
-                action_name = f"{len(executed_action_names) + 1} {self.tables_demo_api.label(action)}"
                 print(action)
                 # Explicitly do not pick up KLT from target_table since planning does not handle it yet.
                 if target_location and action.action.name == "pick_item" and parameters[-1].name.startswith("klt_"):
@@ -907,7 +901,7 @@ class HierarchicalDomain:
                     location = self.env.resolve_search_location(parameters[-2])
                     if location == target_location:
                         print("Picking up KLT OBSOLETE.")
-                        self.visualization.cancel(action_name)
+                        self.visualization.cancel(action)
                         print("Replanning")
                         plan = self.replan()
                         if plan is None:
@@ -916,14 +910,13 @@ class HierarchicalDomain:
                         actions = self.get_actions_from_plan(plan)
                         break
 
-                self.visualization.execute(action_name)
-                self.espeak_pub.publish(self.tables_demo_api.label(action))
+                self.visualization.execute(action)
+                self.espeak_pub.publish(self.visualization.label(action))
 
                 # Execute action.
                 result = executable_action(
                     *(parameters[1:] if hasattr(self.tables_demo_api.mobipick, action.action.name) else parameters)
                 )
-                executed_action_names.add(action_name)
 
                 # Handle item search as an inner execution loop.
                 # Rationale: It has additional stop criteria, and might continue the outer loop.
@@ -932,7 +925,7 @@ class HierarchicalDomain:
                         # Check whether an obsolete item search invalidates the previous plan.
                         if self.env.believed_item_locations[self.env.item_search] != Location.get("anywhere"):
                             print(f"Search for {self.env.item_search.name} OBSOLETE.")
-                            self.visualization.cancel(action_name)
+                            self.visualization.cancel(action)
                             plan = self.replan()
                             if plan is None:
                                 print("Execution ended because no plan could be found.")
@@ -952,25 +945,14 @@ class HierarchicalDomain:
                         subactions = self.get_actions_from_plan(subplan)
                         print("- Search plan:")
                         print('\n'.join(map(str, subactions)))
-                        self.visualization.set_actions(
-                            [
-                                f"{len(executed_action_names)}{chr(number)} {self.tables_demo_api.label(subaction)}"
-                                for number, subaction in enumerate(subactions, start=97)
-                            ],
-                            preserve_actions=executed_action_names,
-                            predecessor=action_name,
-                        )
+                        self.visualization.set_subplan(subplan, action)
                         print("- Search execution:")
                         subaction_execution_count = 0
                         for subaction in subactions:
                             executable_subaction, subparameters = self.domain.get_executable_action(subaction)
-                            subaction_name = (
-                                f"{len(executed_action_names)}{chr(subaction_execution_count + 97)}"
-                                f" {self.tables_demo_api.label(subaction)}"
-                            )
                             print(subaction)
-                            self.visualization.execute(subaction_name)
-                            self.espeak_pub.publish(self.tables_demo_api.label(subaction))
+                            self.visualization.execute(subaction)
+                            self.espeak_pub.publish(self.visualization.label(subaction))
                             # Execute search action.
                             result = executable_subaction(
                                 *(
@@ -990,19 +972,19 @@ class HierarchicalDomain:
                                         and len(self.env.newly_perceived_item_locations) <= 1
                                     ):
                                         print("- Continue with plan.")
-                                        self.visualization.succeed(subaction_name)
+                                        self.visualization.succeed(subaction)
                                         break
                                     # Check if the search found another item.
                                     elif self.env.newly_perceived_item_locations:
                                         self.env.newly_perceived_item_locations.clear()
                                         print("- Found another item, search ABORTED.")
-                                        self.visualization.cancel(subaction_name)
+                                        self.visualization.cancel(subaction)
                                         self.espeak_pub.publish("Found another item. Make a new plan.")
                                         # Set result to None to trigger replanning.
                                         result = None
                                         break
                                 else:
-                                    self.visualization.fail(subaction_name)
+                                    self.visualization.fail(subaction)
                                     break
                         # Note: The conclude action at the end of any search always fails.
                     finally:
@@ -1012,9 +994,9 @@ class HierarchicalDomain:
                 if result is not None:
                     if result:
                         retries_before_abortion = self.tables_demo_api.RETRIES_BEFORE_ABORTION
-                        self.visualization.succeed(action_name)
+                        self.visualization.succeed(action)
                     else:
-                        self.visualization.fail(action_name)
+                        self.visualization.fail(action)
                         self.espeak_pub.publish("Action failed.")
                         error_counts[self.domain.label(action)] += 1
                         # Note: This will also fail if two different failures occur successively.
@@ -1032,7 +1014,7 @@ class HierarchicalDomain:
                         actions = self.get_actions_from_plan(plan)
                         break
                 else:
-                    self.visualization.cancel(action_name)
+                    self.visualization.cancel(action)
                     retries_before_abortion = self.tables_demo_api.RETRIES_BEFORE_ABORTION
                     plan = self.replan()
                     if plan is None:

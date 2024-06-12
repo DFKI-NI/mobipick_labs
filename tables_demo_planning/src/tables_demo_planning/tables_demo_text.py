@@ -4,6 +4,7 @@ from geometry_msgs.msg import Point, Pose
 from unified_planning.plans import ActionInstance
 from tables_demo_planning.components import ArmPose, Item, Location, Robot
 from tables_demo_planning.tables_demo import EnvironmentRepresentation, TablesDemoDomain
+from tables_demo_planning.UP_plan_visualization import UPPlanVisualization
 
 """This script provides text-based simulation and execution methods without ROS."""
 
@@ -158,6 +159,9 @@ class Simulation:
         self.problem = self.domain.initialize_tables_demo_problem()
         self.subproblem = self.domain.initialize_item_search_problem()
 
+        # Initialize plan visualization
+        self.visualization = UPPlanVisualization()
+
     def replan(self) -> Optional[List[ActionInstance]]:
         self.env.print_believed_item_locations()
         self.domain.set_initial_values(self.problem)
@@ -179,6 +183,7 @@ class Simulation:
         while plan.actions:
             print("> Plan:")
             print('\n'.join(map(str, plan.actions)))
+            self.visualization.set_plan(plan)
             print("> Execution:")
             for action in plan.actions:
                 executable_action, parameters = self.domain.get_executable_action(action)
@@ -189,8 +194,11 @@ class Simulation:
                     location = self.env.resolve_search_location(parameters[-2])
                     if location == target_location:
                         print("Picking up KLT OBSOLETE.")
+                        self.visualization.cancel(action)
                         plan = self.replan()
                         break
+
+                self.visualization.execute(action)
 
                 # Execute action.
                 result = executable_action(
@@ -204,6 +212,7 @@ class Simulation:
                         # Check whether an obsolete item search invalidates the previous plan.
                         if self.env.believed_item_locations[self.env.item_search] != Location.get("anywhere"):
                             print(f"Search for {self.env.item_search.name} OBSOLETE.")
+                            self.visualization.cancel(action)
                             plan = self.replan()
                             break
 
@@ -214,11 +223,13 @@ class Simulation:
                         assert subplan, f"No solution for: {self.subproblem}"
                         print("- Search plan:")
                         print('\n'.join(map(str, subplan.actions)))
+                        self.visualization.set_subplan(subplan, action)
                         print("- Search execution:")
                         subaction_execution_count = 0
                         for subaction in subplan.actions:
                             executable_subaction, subparameters = self.domain.get_executable_action(subaction)
                             print(subaction)
+                            self.visualization.execute(subaction)
                             # Execute search action.
                             result = executable_subaction(
                                 *(subparameters[1:] if hasattr(self.mobipick, subaction.action.name) else subparameters)
@@ -234,15 +245,18 @@ class Simulation:
                                         and len(self.env.newly_perceived_item_locations) <= 1
                                     ):
                                         print("- Continue with plan.")
+                                        self.visualization.succeed(subaction)
                                         break
                                     # Check if the search found another item.
                                     elif self.env.newly_perceived_item_locations:
                                         self.env.newly_perceived_item_locations.clear()
                                         print("- Found another item, search ABORTED.")
+                                        self.visualization.cancel(subaction)
                                         # Set result to None to trigger replanning.
                                         result = None
                                         break
                                 else:
+                                    self.visualization.fail(subaction)
                                     break
                         # Note: The conclude action at the end of any search always fails.
                     finally:
@@ -252,17 +266,21 @@ class Simulation:
                 if result is not None:
                     if result:
                         retries_before_abortion = self.RETRIES_BEFORE_ABORTION
+                        self.visualization.succeed(action)
                     else:
+                        self.visualization.fail(action)
                         error_counts[self.domain.label(action)] += 1
                         # Note: This will also fail if two different failures occur successively.
                         if retries_before_abortion <= 0 or any(count >= 3 for count in error_counts.values()):
                             print("Task could not be completed even after retrying.")
+                            self.visualization.add_node("Mission impossible", "red")
                             return
 
                         retries_before_abortion -= 1
                         plan = self.replan()
                         break
                 else:
+                    self.visualization.cancel(action)
                     retries_before_abortion = self.RETRIES_BEFORE_ABORTION
                     plan = self.replan()
                     break
@@ -273,3 +291,4 @@ class Simulation:
                 return
 
         print("Demo complete.")
+        self.visualization.add_node("Demo complete", "green")
