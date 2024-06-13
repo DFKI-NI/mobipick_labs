@@ -230,10 +230,11 @@ class UPPlanVisualization:
         unique_node_list = []
         unique_edge_list = []
 
-        for a in plan.action_plan.actions:
-            # find root of each action in the plan
-            # UP decomposition does not contain the action ordering
-            root_to_leaf_list.append(self.UP_decomposition_recursion(plan.decomposition, a))
+        if hasattr(plan.action_plan, "actions"):
+            for a in plan.action_plan.actions:
+                # find root of each action in the plan
+                # UP decomposition does not contain the action ordering
+                root_to_leaf_list.append(self.UP_decomposition_recursion(plan.decomposition, a))
 
         node_id = len(self.nodes) + 1
         for action_path in root_to_leaf_list:
