@@ -3,7 +3,7 @@
 import rospy
 import actionlib
 from collections import defaultdict
-from typing import Dict, List, Set
+from typing import Dict, List
 from std_msgs.msg import String
 from up_esb.plexmo import PlanDispatcher
 from tables_demo_planning.msg import (
@@ -15,7 +15,7 @@ from tables_demo_planning.msg import (
 from unified_planning.shortcuts import get_environment
 from unified_planning.plans import PlanKind
 from tables_demo_planning.hierarchical_domain import HierarchicalDomain
-from tables_demo_planning.subplan_visualization import SubPlanVisualization
+from tables_demo_planning.UP_plan_visualization import UPPlanVisualization
 
 
 class TaskServerNode:
@@ -37,7 +37,7 @@ class TaskServerNode:
             print(f"Could not import {domain_module} module for {domain_class} domain: {e}")
 
         # Initialize plan visualization
-        self.visualization = SubPlanVisualization()
+        self.visualization = UPPlanVisualization()
         self.espeak_pub = rospy.Publisher("/espeak_node/speak_line", String, queue_size=1)
 
         self.initial_item_locations = self._domain.tables_demo_api.initial_item_locations
@@ -114,29 +114,25 @@ class TaskServerNode:
                 result_msg.message.append("Received unexpected kind of plan!")
                 continue
 
+            if len(actions) == 0:
+                empty_plan_printout = f"The plan for task {task.task}{task.parameters} is empty."
+                print(empty_plan_printout)
+                self.espeak_pub.publish(empty_plan_printout)
+
             # Loop action execution as long as there are actions.
-            executed_action_names: Set[str] = set()  # Note: For visualization purposes only.
             while actions:
                 print("> Plan:")
                 print("\n".join(map(str, actions)))
-                self.visualization.set_actions(
-                    [
-                        f"{number + len(executed_action_names)} {self._domain.tables_demo_api.label(action)}"
-                        for number, action in enumerate(actions, start=1)
-                    ],
-                    preserve_actions=executed_action_names,
-                )
+                self.visualization.set_plan(plan)
                 print("> Execution:")
                 for action in actions:
                     executable_action, parameters = self._domain.domain.get_executable_action(action)
                     print(action)
-                    action_name = f"{len(executed_action_names) + 1} {self._domain.tables_demo_api.label(action)}"
-                    self.visualization.execute(action_name)
-                    self.espeak_pub.publish(self._domain.tables_demo_api.label(action))
+                    self.visualization.execute(action)
+                    self.espeak_pub.publish(self.visualization.label(action))
 
                     # Execute action.
                     result = executable_action(*parameters)
-                    executed_action_names.add(action_name)
                     if rospy.is_shutdown():
                         result_msg.success.append(False)
                         result_msg.message.append(
@@ -147,11 +143,11 @@ class TaskServerNode:
                     if result is not None:
                         if result:
                             retries_before_abortion = self._domain.tables_demo_api.RETRIES_BEFORE_ABORTION
-                            self.visualization.succeed(action_name)
+                            self.visualization.succeed(action)
                         else:
-                            self.visualization.fail(action_name)
+                            self.visualization.fail(action)
                             self.espeak_pub.publish("Action failed.")
-                            error_counts[self._domain.tables_demo_api.label(action)] += 1
+                            error_counts[self.visualization.label(action)] += 1
                             # Note: This will also fail if two different failures occur successively.
                             if retries_before_abortion <= 0 or any(count >= 3 for count in error_counts.values()):
                                 print("Task could not be completed even after retrying.")
@@ -187,9 +183,8 @@ class TaskServerNode:
         if not any(result_msg.success):
             self._task_server.set_aborted(result_msg)
         else:
-            print("Tasks successfully executed.")
-            self.visualization.add_node("Plan complete", "green")
-            self.espeak_pub.publish("Tasks successfully executed.")
+            print("Plan successfully executed.")
+            self.espeak_pub.publish("Plan successfully executed.")
             self._task_server.set_succeeded(result_msg)
 
 
