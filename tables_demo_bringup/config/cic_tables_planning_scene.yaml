@@ -48,7 +48,7 @@ planning_scene_boxes:
     box_orientation_w: 1.0
   - scene_name: 'table_2'
     frame_id: 'map'
-    box_x_dimension: 1.6
+    box_x_dimension: 0.8
     box_y_dimension: 0.8
     box_z_dimension: 0.715
     box_position_x: 19.565
@@ -60,7 +60,7 @@ planning_scene_boxes:
     box_orientation_w: 1.0
   - scene_name: 'table_3'
     frame_id: 'map'
-    box_x_dimension: 1.6
+    box_x_dimension: 0.8
     box_y_dimension: 0.8
     box_z_dimension: 0.715
     box_position_x: 21.265
