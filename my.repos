@@ -15,6 +15,10 @@ repositories:
     type: git
     url: https://github.com/DFKI-NI/mobipick.git
     version: noetic
+  mobipick_api:
+    type: git
+    url: https://github.com/DFKI-NI/mobipick_api.git
+    version: noetic
   object_pose_msgs:
     type: git
     url: https://github.com/DFKI-NI/object_pose_msgs.git
@@ -31,10 +35,6 @@ repositories:
     type: git
     url: https://github.com/DFKI-NI/robot_api.git
     version: releases
-  mobipick_api:
-    type: git
-    url: https://github.com/DFKI-NI/mobipick_api.git
-    version: noetic
   symbolic_fact_generation:
     type: git
     url: https://github.com/DFKI-NI/symbolic_fact_generation.git
