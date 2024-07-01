@@ -51,6 +51,7 @@ from unified_planning.shortcuts import get_environment
 from unified_planning.plans import PlanKind
 from tables_demo_planning.hierarchical_domain import HierarchicalDomain
 from tables_demo_planning.UP_plan_visualization import UPPlanVisualization
+from tables_demo_planning.components import Location, Item
 
 
 class TaskServerNode:
@@ -154,6 +155,11 @@ class TaskServerNode:
                 print(empty_plan_printout)
                 self.espeak_pub.publish(empty_plan_printout)
 
+            # Variables to handle item search
+            item_to_search = None
+            if task.task == "search_item":
+                item_to_search = task.parameters[1]
+
             # Loop action execution as long as there are actions.
             while actions:
                 print("> Plan:")
@@ -161,6 +167,13 @@ class TaskServerNode:
                 self.visualization.set_plan(plan)
                 print("> Execution:")
                 for action in actions:
+                    # if an item search is ongoing, stop when item is found
+                    if item_to_search is not None and self._domain.env.believed_item_locations[
+                        Item.get(item_to_search)
+                    ] != Location.get("anywhere"):
+                        print(f"Search for {item_to_search} finished.")
+                        self.visualization.cancel(action)
+                        break
                     executable_action, parameters = self._domain.domain.get_executable_action(action)
                     print(action)
                     self.visualization.execute(action)
@@ -210,6 +223,10 @@ class TaskServerNode:
                     exec_msg = (
                         f"Plan execution ended because no plan could be found for task {task.task}{task.parameters}!"
                     )
+                    break
+                elif item_to_search is not None and self._domain.env.believed_item_locations[
+                    Item.get(item_to_search)
+                ] != Location.get("anywhere"):
                     break
             self._task_server.publish_feedback(PlanAndExecuteTasksFeedback(success=exec_result, message=exec_msg))
             result_msg.success.append(exec_result)
