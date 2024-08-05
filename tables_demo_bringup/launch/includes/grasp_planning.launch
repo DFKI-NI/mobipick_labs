@@ -26,6 +26,8 @@
     <param name="pose_selector_get_all_poses_srv_name" type="string" value="/pick_pose_selector_node/pose_selector_get_all" />
     <param name="pose_selector_delete_srv_name" type="string" value="/pick_pose_selector_node/pose_selector_delete" />
     <param name="detach_all_objects" value="true" />
+    <!-- no need to perceive the object in grasplan, planning handles it -->
+    <param name="perceive_object" value="false" />
     <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/pick_params.yaml" command="load" />
     <rosparam file="$(arg planning_scene_config)" command="load" />
     <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/grasp_planning_core_params.yaml" command="load" />
