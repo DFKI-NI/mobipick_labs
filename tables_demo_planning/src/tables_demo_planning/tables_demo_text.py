@@ -1,3 +1,5 @@
+"""This script provides text-based simulation and execution methods without ROS."""
+
 from typing import Dict, List, Optional
 from collections import defaultdict
 from geometry_msgs.msg import Point, Pose
@@ -5,8 +7,6 @@ from unified_planning.plans import ActionInstance
 from tables_demo_planning.components import ArmPose, Item, Location, Robot
 from tables_demo_planning.tables_demo import EnvironmentRepresentation, TablesDemoDomain
 from tables_demo_planning.UP_plan_visualization import UPPlanVisualization
-
-"""This script provides text-based simulation and execution methods without ROS."""
 
 
 # Note: Purpose of this Robot subclass is to showcase usage of methods for robot actions

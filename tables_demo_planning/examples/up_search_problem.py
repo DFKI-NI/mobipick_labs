@@ -3,7 +3,6 @@ Standalone planning example using replanning with interim goal on failed action.
 This script was used during development but it not part of the demo.
 """
 
-
 import time
 import rospy
 from random import randrange
