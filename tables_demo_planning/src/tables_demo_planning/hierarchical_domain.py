@@ -513,7 +513,12 @@ class HierarchicalDomain:
         self.search_item_full.add_precondition(
             self.domain.believe_item_at(self.search_item_full.item, self.domain.anywhere)
         )
-        for location in self.domain.get_table_objects():
+        # only search at tables specified in parameter
+        for location in [
+            obj
+            for name, obj in self.domain.get_objects_for_type(Location).items()
+            if name in self.tables_demo_api.tables_to_search_at
+        ]:
             self.search_item_full.add_subtask(self.perceive, self.search_item_full.robot, location)
 
         # TABLES DEMO

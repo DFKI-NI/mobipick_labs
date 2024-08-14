@@ -118,9 +118,15 @@ class Domain(Bridge):
         """Return UP Objects representing KLT items in the Mobipick domain."""
         return [obj for name, obj in self.get_objects_for_type(Item).items() if name.startswith("klt_")]
 
-    def get_table_objects(self) -> List[Object]:
-        """Return UP Objects representing table locations in the Mobipick domain."""
-        return [obj for name, obj in self.get_objects_for_type(Location).items() if name.startswith("table_")]
+    def get_table_objects(self, table_names: List[str] = []) -> List[Object]:
+        """
+        Return UP Objects representing table locations with given name in the Mobipick domain.
+         Leaving names empty returns all table locations.
+        """
+        if table_names:
+            return [obj for name, obj in self.get_objects_for_type(Location).items() if name in table_names]
+        else:
+            return [obj for name, obj in self.get_objects_for_type(Location).items() if name.startswith("table_")]
 
     def create_move_base_action(self, _callable: Callable[[Robot, Pose, Pose], object]) -> InstantaneousAction:
         """
@@ -335,7 +341,9 @@ class Domain(Bridge):
         search_klt.add_effect(self.believe_item_at(item, self.get(Location, "anywhere")), False)
         search_klt.add_effect(self.believe_item_at(item, self.get(Location, "klt_search_location")), True)
 
-    def create_conclude_tool_search_action(self, _callable: Callable[[Item], object]) -> InstantaneousAction:
+    def create_conclude_tool_search_action(
+        self, _callable: Callable[[Item], object], tables_to_search_at: List[str]
+    ) -> InstantaneousAction:
         """
         Create plannable action using _callable which concludes the search for tool Item
          while it being 'anywhere'. Afterwards, it is at 'tool_search_location'.
@@ -343,14 +351,16 @@ class Domain(Bridge):
         assert _callable.__name__ == "conclude_tool_search"
         conclude_tool_search, (item,) = self.create_action_from_function(_callable)
         conclude_tool_search.add_precondition(self.believe_item_at(item, self.get(Location, "anywhere")))
-        for table in self.get_table_objects():
+        for table in self.get_table_objects(tables_to_search_at):
             conclude_tool_search.add_precondition(self.searched_at(table))
         for klt in self.get_klt_objects():
             conclude_tool_search.add_precondition(Not(Equals(item, klt)))
         conclude_tool_search.add_effect(self.believe_item_at(item, self.get(Location, "anywhere")), False)
         conclude_tool_search.add_effect(self.believe_item_at(item, self.get(Location, "tool_search_location")), True)
 
-    def create_conclude_klt_search_action(self, _callable: Callable[[Item], object]) -> InstantaneousAction:
+    def create_conclude_klt_search_action(
+        self, _callable: Callable[[Item], object], tables_to_search_at: List[str]
+    ) -> InstantaneousAction:
         """
         Create plannable action using _callable which concludes the search for KLT Item
          while it being 'anywhere'. Afterwards, it is at 'klt_search_location'.
@@ -358,7 +368,7 @@ class Domain(Bridge):
         assert _callable.__name__ == "conclude_klt_search"
         conclude_klt_search, (item,) = self.create_action_from_function(_callable)
         conclude_klt_search.add_precondition(self.believe_item_at(item, self.get(Location, "anywhere")))
-        for table in self.get_table_objects():
+        for table in self.get_table_objects(tables_to_search_at):
             conclude_klt_search.add_precondition(self.searched_at(table))
         for tool in self.get_tool_objects():
             conclude_klt_search.add_precondition(Not(Equals(item, tool)))
