@@ -275,7 +275,10 @@ class Domain(Bridge):
         return hand_over_item
 
     def create_search_at_action(
-        self, _callable: Callable[[Robot, Pose, Location], object], arm_pose_names: List[str]
+        self,
+        _callable: Callable[[Robot, Pose, Location], object],
+        arm_pose_names: List[str],
+        allow_search_same_table: bool,
     ) -> InstantaneousAction:
         """
         Create plannable action using _callable with which Robot searches Location
@@ -287,10 +290,11 @@ class Domain(Bridge):
         search_at, (robot, pose, location) = self.create_action_from_function(_callable)
         search_at.add_precondition(self.robot_at(robot, pose))
         search_at.add_precondition(Or(self.robot_arm_at(robot, self.get(ArmPose, name)) for name in arm_pose_names))
-        search_at.add_precondition(Not(self.searched_at(location)))
+        if not allow_search_same_table:
+            search_at.add_precondition(Not(self.searched_at(location)))
+            search_at.add_effect(self.searched_at(location), True)
         search_at.add_precondition(Or(Equals(location, table) for table in self.get_table_objects()))
         search_at.add_precondition(self.pose_at(pose, location))
-        search_at.add_effect(self.searched_at(location), True)
         for arm_pose in self.get_objects_for_type(ArmPose).values():
             search_at.add_effect(
                 self.robot_arm_at(robot, arm_pose), arm_pose == self.get(ArmPose, "observe100cm_right")
