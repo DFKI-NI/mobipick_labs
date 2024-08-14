@@ -38,7 +38,7 @@
 import rospy
 import actionlib
 from collections import defaultdict
-from typing import Dict, List
+from typing import Dict
 from std_msgs.msg import String
 from up_esb.plexmo import PlanDispatcher
 from tables_demo_planning.msg import (
@@ -92,24 +92,7 @@ class TaskServerNode:
     def preempt_cb(self) -> None:
         self._domain.problem.clear_goals()
 
-    def set_goals(self, task: str, parameters: List[str]) -> None:
-        """Set the goals given by the task message."""
-        # TODO OLD uses goals and fluents from castle demo
-        # Used to map tasks send via ros message to goals for the planner
-        self._domain.problem.clear_goals()
-        if task == "bring_item" and parameters and len(parameters) == 1:
-            self._domain.problem.add_goal(self._domain.item_offered(self._domain.objects[parameters[0]]))
-        elif task == "move_item" and parameters and len(parameters) == 2:
-            self._domain.problem.add_goal(
-                self._domain.believe_item_at(
-                    self._domain.objects[parameters[0]],
-                    self._domain.objects[parameters[1]],
-                )
-            )
-
     def set_item_locations(self) -> None:
-        # TODO OLD still using items and locations from castle demo
-        # HACK hardcoded initial object locations
         # add only items, which are not already set to avoid overriding perceived locations
         item_loc = {}
         for item, loc in self.initial_item_locations.items():
