@@ -114,6 +114,19 @@ class Domain(Bridge):
             or name.startswith("screwdriver_")
         ]
 
+    def get_part_objects(self) -> List[Object]:
+        """Return UP Objects representing insect hotel parts in the Mobipick domain."""
+        return [
+            obj
+            for name, obj in self.get_objects_for_type(Item).items()
+            if name.startswith("red_part_")
+            or name.startswith("yellow_part_")
+            or name.startswith("magenta_part_")
+            or name.startswith("purple_part_")
+            or name.startswith("bright_green_part_")
+            or name.startswith("dark_green_part_")
+        ]
+
     def get_klt_objects(self) -> List[Object]:
         """Return UP Objects representing KLT items in the Mobipick domain."""
         return [obj for name, obj in self.get_objects_for_type(Item).items() if name.startswith("klt_")]
@@ -198,6 +211,8 @@ class Domain(Bridge):
             ),
         )
         pick_item.add_precondition(Not(Equals(item, self.get(Item, "nothing"))))
+        for part in self.get_part_objects():
+            pick_item.add_precondition(Not(Equals(item, part)))
         pick_item.add_effect(self.robot_has(robot, self.get(Item, "nothing")), False)
         pick_item.add_effect(self.robot_has(robot, item), True)
         for arm_pose in self.get_objects_for_type(ArmPose).values():
@@ -250,6 +265,8 @@ class Domain(Bridge):
             store_item.add_precondition(Not(Equals(item1, klt)))
         for tool in self.get_tool_objects():
             store_item.add_precondition(Not(Equals(item2, tool)))
+        for part in self.get_part_objects():
+            store_item.add_precondition(Not(Equals(item2, part)))
         store_item.add_precondition(self.pose_at(pose, location))
         store_item.add_precondition(Not(Equals(location, self.get(Location, "anywhere"))))
         store_item.add_effect(self.robot_has(robot, item1), False)
@@ -336,6 +353,8 @@ class Domain(Bridge):
         search_klt.add_precondition(self.believe_item_at(item, self.get(Location, "anywhere")))
         for tool in self.get_tool_objects():
             search_klt.add_precondition(Not(Equals(item, tool)))
+        for part in self.get_part_objects():
+            search_klt.add_precondition(Not(Equals(item, part)))
         for pose in self.get_objects_for_type(Pose).values():
             search_klt.add_effect(self.robot_at(robot, pose), pose == self.get(Pose, "klt_search_pose"))
         search_klt.add_effect(self.believe_item_at(item, self.get(Location, "anywhere")), False)
@@ -372,5 +391,7 @@ class Domain(Bridge):
             conclude_klt_search.add_precondition(self.searched_at(table))
         for tool in self.get_tool_objects():
             conclude_klt_search.add_precondition(Not(Equals(item, tool)))
+        for part in self.get_part_objects():
+            conclude_klt_search.add_precondition(Not(Equals(item, part)))
         conclude_klt_search.add_effect(self.believe_item_at(item, self.get(Location, "anywhere")), False)
         conclude_klt_search.add_effect(self.believe_item_at(item, self.get(Location, "klt_search_location")), True)
