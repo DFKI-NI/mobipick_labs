@@ -63,7 +63,7 @@ planning_scene_boxes:
     box_x_dimension: 0.8
     box_y_dimension: 0.8
     box_z_dimension: 0.715
-    box_position_x: 21.265
+    box_position_x: 21.165
     box_position_y: 13.84
     box_position_z: 0.3575
     box_orientation_x: 0.0
