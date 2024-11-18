@@ -402,7 +402,7 @@ class RqtTablesDemo(Plugin):
             resp = self.activate_pose_selector_srv(True)
             rospy.loginfo(f'pose selector response to activation request: {resp}')
             # wait until pose selector gets updates
-            rospy.sleep(1.0)
+            rospy.sleep(3.0)
             # deactivate pose selector detections
             rospy.loginfo('deactivating pose selector')
             resp = self.activate_pose_selector_srv(False)
