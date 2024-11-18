@@ -3,10 +3,12 @@ import rospy
 import rospkg
 import tf
 import actionlib
+import threading
 
 from qt_gui.plugin import Plugin
 from python_qt_binding import loadUi
-from python_qt_binding.QtWidgets import QWidget
+from python_qt_binding.QtWidgets import QWidget, QApplication
+from PyQt5.QtCore import Qt, QMetaObject, Q_ARG, QThread
 
 from grasplan.tools.common import objectToPick
 from geometry_msgs.msg import PoseStamped
@@ -18,6 +20,46 @@ from grasplan.msg import PickObjectAction, PickObjectGoal, PlaceObjectAction
 from grasplan.msg import PlaceObjectGoal, InsertObjectAction, InsertObjectGoal
 
 import robot_api
+
+from functools import wraps
+
+
+def disable_during_execution(groupbox_attr):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(self, *args, **kwargs):
+            # Access the QGroupBox from self using groupbox_attr
+            groupbox = getattr(self._widget, groupbox_attr)
+
+            # Check if the function is running in the main thread
+            in_main_thread = QThread.currentThread() == QApplication.instance().thread()
+
+            if in_main_thread:
+                # Directly disable and enable in the main thread
+                groupbox.setEnabled(False)
+                # Process events to update UI immediately
+                QApplication.processEvents()
+                try:
+                    # Execute the actual function with just `self`, ignoring other args
+                    result = func(self)
+                finally:
+                    # Re-enable the group box after function execution
+                    groupbox.setEnabled(True)
+                    # Process events again to update UI
+                    QApplication.processEvents()
+            else:
+                # If in a background thread, use invokeMethod to safely modify UI in the main thread
+                QMetaObject.invokeMethod(groupbox, "setEnabled", Qt.QueuedConnection, Q_ARG(bool, False))
+                try:
+                    result = func(self)
+                finally:
+                    QMetaObject.invokeMethod(groupbox, "setEnabled", Qt.QueuedConnection, Q_ARG(bool, True))
+
+            return result
+
+        return wrapper
+
+    return decorator
 
 
 class RqtTablesDemo(Plugin):
@@ -48,6 +90,7 @@ class RqtTablesDemo(Plugin):
         # a flag to know if pose selector is available or not
         self.is_pose_selector_available = False
         self.is_gripper_srv_available = False
+        self.action_client = None
 
         # make array of checkboxes that represent objects to ignore from planning scene when picking
         self.ignore_from_ps_chks = []
@@ -201,6 +244,7 @@ class RqtTablesDemo(Plugin):
         self._widget.cmdPlaceObj.clicked.connect(self.place_object)
         self._widget.cmdInsertObj.clicked.connect(self.insert_object)
         self._widget.cmdHandOverObject.clicked.connect(self.hand_over_object)
+        self._widget.cmdCancel.clicked.connect(self.cancel)
 
         self._widget.chkPickEnableId.stateChanged.connect(self.chk_pick_enable_id_changed)
 
@@ -268,7 +312,7 @@ class RqtTablesDemo(Plugin):
             if obj.obj_class in self.hole_objects:  # hole_objects: objects where other objects can be inserted
                 self._widget.comboInsertHole.addItems([obj.get_object_class_and_id_as_string()])
 
-        rospy.loginfo('update succesful!')
+        rospy.loginfo('update successful!')
 
     def transform_pose(self, input_pose, target_reference_frame):
         if input_pose is None:
@@ -302,6 +346,7 @@ class RqtTablesDemo(Plugin):
         except rospy.ServiceException as e:
             print("Service call failed: %s" % e)
 
+    @disable_during_execution('Navigation_groupBox')
     def navigation_go(self):
         waypoint_as_text = self._widget.comboNavigationWaypoints.currentText()
         if self._widget.optNavigationNavigate.isChecked():
@@ -323,12 +368,18 @@ class RqtTablesDemo(Plugin):
             pose_stamped_msg.pose.orientation.w = self.wp_dic[waypoint_as_text][6]
             self.set_model_pose('mobipick', pose_stamped_msg)
 
+    @disable_during_execution('Manipulation_groupBox')
     def manipulation_go(self):
         arm_pose = self._widget.comboArmPoses.currentText()
         rospy.loginfo(f'Moving arm to pose: {arm_pose}')
         self.mobipick.arm.move(arm_pose)
 
     def perceive_objs(self):
+        self.pick_thread = threading.Thread(target=self._perceive_objs_task)
+        self.pick_thread.start()
+
+    @disable_during_execution('Perception_groupBox')
+    def _perceive_objs_task(self):
         if not self.is_pose_selector_available:
             rospy.logerr("pose selector is not available, can't perceive")
             return
@@ -406,44 +457,65 @@ class RqtTablesDemo(Plugin):
             rospy.loginfo(resp.poses)
 
     def pick_object(self):
+        self.pick_thread = threading.Thread(target=self._pick_object_task)
+        self.pick_thread.start()
+
+    @disable_during_execution('Manipulation_groupBox')
+    def _pick_object_task(self):
+        # Retrieve parameters from UI elements
         object_to_pick = self._widget.comboPickObj.currentText()
         support_surface_name = self._widget.comboPickSurfaces.currentText()
-        timeout = float(self._widget.txtPickTimeout.toPlainText())
+        try:
+            timeout = float(self._widget.txtPickTimeout.toPlainText())
+        except ValueError:
+            rospy.logerr('Invalid timeout value. Please enter a valid number.')
+            return
+
         pick_object_server_name = 'pick_object'
-        action_client = actionlib.SimpleActionClient(pick_object_server_name, PickObjectAction)
-        rospy.loginfo(f'waiting for {pick_object_server_name} action server')
-        if action_client.wait_for_server(timeout=rospy.Duration.from_sec(self.wait_for_services)):
-            rospy.loginfo(f'found {pick_object_server_name} action server')
+        self.action_client = actionlib.SimpleActionClient(pick_object_server_name, PickObjectAction)
+
+        # Wait for the action server to be available
+        rospy.loginfo(f'Waiting for {pick_object_server_name} action server...')
+        if self.action_client.wait_for_server(timeout=rospy.Duration.from_sec(self.wait_for_services)):
+            rospy.loginfo(f'Connected to {pick_object_server_name} action server')
+
+            # Set up the goal
             goal = PickObjectGoal()
             goal.object_name = object_to_pick
             goal.support_surface_name = support_surface_name
-            for chk in self.ignore_from_ps_chks:
-                if chk.isChecked():
-                    if chk.text() != '-':
-                        goal.ignore_object_list.append(chk.text())
+            goal.ignore_object_list = [
+                chk.text() for chk in self.ignore_from_ps_chks if chk.isChecked() and chk.text() != '-'
+            ]
+
             rospy.loginfo(
-                f'sending -> pick {object_to_pick} from {support_surface_name} <- '
-                'goal to {pick_object_server_name} action server'
+                f'Sending goal: pick {object_to_pick} from {support_surface_name} to {pick_object_server_name}'
             )
-            if len(goal.ignore_object_list) > 0:
-                rospy.logwarn(
-                    f'the following objects: {goal.ignore_object_list} will not be added to the planning scene'
-                )
+
+            # Log ignored objects if any
+            if goal.ignore_object_list:
+                rospy.logwarn(f'Ignoring these objects in planning: {goal.ignore_object_list}')
             else:
-                rospy.loginfo('all objects are taken into account in planning scene')
-            action_client.send_goal(goal)
-            rospy.loginfo(f'waiting for result from {pick_object_server_name} action server')
-            if action_client.wait_for_result(rospy.Duration.from_sec(timeout)):
-                result = action_client.get_result()
-                rospy.loginfo(f'{pick_object_server_name} is done with execution, resuĺt was = "{result}"')
+                rospy.loginfo('All objects will be considered in the planning scene')
+
+            # Send the goal to the action server
+            self.action_client.send_goal(goal)
+
+            # Wait for result with specified timeout
+            rospy.loginfo(f'Waiting for result from {pick_object_server_name} action server...')
+            if self.action_client.wait_for_result(rospy.Duration.from_sec(timeout)):
+                result = self.action_client.get_result()
+                rospy.loginfo(f'{pick_object_server_name} completed execution with result = "{result}"')
                 if result.success:
-                    rospy.loginfo(f'Succesfully picked {object_to_pick}')
+                    rospy.loginfo(f'Successfully picked {object_to_pick}')
                 else:
                     rospy.logerr(f'Failed to pick {object_to_pick}')
             else:
-                rospy.logerr(f'Failed to pick {object_to_pick}, timeout?')
+                # Timeout handling with goal cancellation
+                self.action_client.cancel_goal()
+                rospy.logerr(f'Failed to pick {object_to_pick} within the allocated time. Goal cancellation was sent.')
         else:
-            rospy.logerr(f'action server {pick_object_server_name} not available')
+            rospy.logerr(f'Action server {pick_object_server_name} not available within the timeout period')
+        self.action_client = None
 
     def open_gripper(self):
         # rosservice call /mobipick/pose_teacher/open_gripper
@@ -460,66 +532,111 @@ class RqtTablesDemo(Plugin):
             rospy.logerr('gripper service was not available when node started and therefore is unavailable')
 
     def place_object(self):
+        self.pick_thread = threading.Thread(target=self._place_object_task)
+        self.pick_thread.start()
+
+    @disable_during_execution('Manipulation_groupBox')
+    def _place_object_task(self):
+        # Retrieve parameters from UI elements
         support_surface_name = self._widget.comboPlaceSurfaces.currentText()
-        timeout = float(self._widget.txtPlaceTimeout.toPlainText())
+        try:
+            timeout = float(self._widget.txtPlaceTimeout.toPlainText())
+        except ValueError:
+            rospy.logerr('Invalid timeout value. Please enter a valid number.')
+            return
+
         place_object_server_name = 'place_object'
-        action_client = actionlib.SimpleActionClient(place_object_server_name, PlaceObjectAction)
-        rospy.loginfo(f'waiting for {place_object_server_name} action server')
-        if action_client.wait_for_server(timeout=rospy.Duration.from_sec(self.wait_for_services)):
-            rospy.loginfo(f'found {place_object_server_name} action server')
+        self.action_client = actionlib.SimpleActionClient(place_object_server_name, PlaceObjectAction)
+
+        # Wait for the action server to be available
+        rospy.loginfo(f'Waiting for {place_object_server_name} action server...')
+        if self.action_client.wait_for_server(timeout=rospy.Duration.from_sec(self.wait_for_services)):
+            rospy.loginfo(f'Connected to {place_object_server_name} action server')
+
+            # Set up the goal
             goal = PlaceObjectGoal()
             goal.support_surface_name = support_surface_name
-            if self._widget.chkPlaceObjObserveBeforePlacing.isChecked():
-                goal.observe_before_place = True
-            else:
-                goal.observe_before_place = False
-            rospy.loginfo(f'sending place goal to {place_object_server_name} action server')
-            action_client.send_goal(goal)
-            rospy.loginfo(f'waiting for result from {place_object_server_name} action server')
-            if action_client.wait_for_result(rospy.Duration.from_sec(timeout)):
-                result = action_client.get_result()
-                rospy.loginfo(f'{place_object_server_name} is done with execution, resuĺt was = "{result}"')
+            goal.observe_before_place = self._widget.chkPlaceObjObserveBeforePlacing.isChecked()
+
+            rospy.loginfo(f'Sending place goal to {place_object_server_name} action server')
+
+            # Send the goal to the action server
+            self.action_client.send_goal(goal)
+
+            # Wait for result with specified timeout
+            rospy.loginfo(f'Waiting for result from {place_object_server_name} action server...')
+            if self.action_client.wait_for_result(rospy.Duration.from_sec(timeout)):
+                result = self.action_client.get_result()
+                rospy.loginfo(f'{place_object_server_name} completed execution with result = "{result}"')
                 if result.success:
-                    rospy.loginfo('Succesfully placed object')
+                    rospy.loginfo('Successfully placed object')
                 else:
                     rospy.logerr('Failed to place object')
             else:
-                rospy.logerr('Failed to place object, timeout?')
+                # Cancel the goal if timeout occurs
+                self.action_client.cancel_goal()
+                rospy.logerr('Failed to place object within the allocated time. Goal cancellation was sent.')
         else:
-            rospy.logerr(f'action server {place_object_server_name} not available')
+            rospy.logerr(f'Action server {place_object_server_name} not available within the timeout period')
+
+        # Indicate that the place action is no longer running
+        self.action_client = None
 
     def insert_object(self):
+        self.pick_thread = threading.Thread(target=self._insert_object_task)
+        self.pick_thread.start()
+
+    @disable_during_execution('Manipulation_groupBox')
+    def _insert_object_task(self):
+        # Retrieve parameters from UI elements
         support_surface_name = self._widget.comboInsertHole.currentText()
-        if not self._widget.chkObserveBeforeInsert.isChecked():
-            if support_surface_name == '':
-                rospy.logerr('cannot insert, container object has not being perceived')
-                return
-        timeout = float(self._widget.txtInsertTimeout.toPlainText())
+        observe_before_insert = self._widget.chkObserveBeforeInsert.isChecked()
+        try:
+            timeout = float(self._widget.txtInsertTimeout.toPlainText())
+        except ValueError:
+            rospy.logerr('Invalid timeout value. Please enter a valid number.')
+            return
+
+        # Check if support surface is available when observation is not selected
+        if not observe_before_insert and not support_surface_name:
+            rospy.logerr('Cannot insert, container object has not been perceived.')
+            return
+
         insert_object_server_name = 'insert_object'
-        action_client = actionlib.SimpleActionClient(insert_object_server_name, InsertObjectAction)
-        rospy.loginfo(f'waiting for {insert_object_server_name} action server')
-        if action_client.wait_for_server(timeout=rospy.Duration.from_sec(self.wait_for_services)):
-            rospy.loginfo(f'found {insert_object_server_name} action server')
+        self.action_client = actionlib.SimpleActionClient(insert_object_server_name, InsertObjectAction)
+
+        # Wait for the action server to be available
+        rospy.loginfo(f'Waiting for {insert_object_server_name} action server...')
+        if self.action_client.wait_for_server(timeout=rospy.Duration.from_sec(self.wait_for_services)):
+            rospy.loginfo(f'Connected to {insert_object_server_name} action server')
+
+            # Set up the goal
             goal = InsertObjectGoal()
             goal.support_surface_name = support_surface_name
-            if self._widget.chkObserveBeforeInsert.isChecked():
-                goal.observe_before_insert = True
-            else:
-                goal.observe_before_insert = False
-            rospy.loginfo(f'sending insert goal to {insert_object_server_name} action server')
-            action_client.send_goal(goal)
-            rospy.loginfo(f'waiting for result from {insert_object_server_name} action server')
-            if action_client.wait_for_result(rospy.Duration.from_sec(timeout)):
-                result = action_client.get_result()
-                rospy.loginfo(f'{insert_object_server_name} is done with execution, resuĺt was = "{result}"')
+            goal.observe_before_insert = observe_before_insert
+            rospy.loginfo(f'Sending insert goal to {insert_object_server_name} action server')
+
+            # Send the goal to the action server
+            self.action_client.send_goal(goal)
+
+            # Wait for result with specified timeout
+            rospy.loginfo(f'Waiting for result from {insert_object_server_name} action server...')
+            if self.action_client.wait_for_result(rospy.Duration.from_sec(timeout)):
+                result = self.action_client.get_result()
+                rospy.loginfo(f'{insert_object_server_name} completed execution with result = "{result}"')
                 if result.success:
-                    rospy.loginfo('Succesfully inserted object')
+                    rospy.loginfo('Successfully inserted object')
                 else:
                     rospy.logerr('Failed to insert object')
             else:
-                rospy.logerr('Failed to insert object, timeout?')
+                # Cancel the goal if timeout occurs
+                self.action_client.cancel_goal()
+                rospy.logerr('Failed to insert object within the allocated time. Goal cancellation was sent.')
         else:
-            rospy.logerr(f'action server {insert_object_server_name} not available')
+            rospy.logerr(f'Action server {insert_object_server_name} not available within the timeout period')
+
+        # Indicate that the insert action is no longer running
+        self.action_client = None
 
     def hand_over_object(self):
         self.mobipick.arm.move('handover')
@@ -533,3 +650,12 @@ class RqtTablesDemo(Plugin):
         self.mobipick.arm.execute('ReleaseGripper')
         rospy.loginfo('Success at handing over object')
         return True
+
+    def cancel(self):
+        # TODO: extend the code to handle move base and perception (arm movement) cancellation as well
+        if not self.action_client:
+            rospy.logerr('cannot cancel goal, NOTE: cancel is implemented only for pick, place and insert')
+        else:
+            action_client_name = self.action_client.action_client.ns
+            rospy.loginfo(f'sending request to cancel {action_client_name} goal.')
+            self.action_client.cancel_goal()

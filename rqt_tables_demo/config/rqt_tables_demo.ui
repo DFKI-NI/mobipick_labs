@@ -887,7 +887,7 @@ obj</string>
        </property>
        <layout class="QVBoxLayout" name="verticalLayout_4">
         <item>
-         <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="1,2">
+         <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="1,2,0">
           <item>
            <widget class="QPushButton" name="cmdHandOverObject">
             <property name="sizePolicy">
@@ -914,6 +914,19 @@ object</string>
              </size>
             </property>
            </spacer>
+          </item>
+          <item>
+           <widget class="QPushButton" name="cmdCancel">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="text">
+             <string>Cancel</string>
+            </property>
+           </widget>
           </item>
          </layout>
         </item>
