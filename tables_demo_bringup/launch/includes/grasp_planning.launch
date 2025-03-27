@@ -46,6 +46,14 @@
               command="load" ns="handcoded_grasp_planner_transforms" />
     <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/object_grasps/handcoded_grasp_planner_hot_glue_gun.yaml"
               command="load" ns="handcoded_grasp_planner_transforms" />
+    <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/object_grasps/handcoded_grasp_planner_soup.yaml"
+              command="load" ns="handcoded_grasp_planner_transforms" />
+    <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/object_grasps/handcoded_grasp_planner_bleach.yaml"
+              command="load" ns="handcoded_grasp_planner_transforms" />
+    <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/object_grasps/handcoded_grasp_planner_mustard.yaml"
+              command="load" ns="handcoded_grasp_planner_transforms" />
+    <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/object_grasps/handcoded_grasp_planner_meat.yaml"
+              command="load" ns="handcoded_grasp_planner_transforms" />
   </node>
 
 </launch>
