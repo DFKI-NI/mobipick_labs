@@ -29,6 +29,8 @@ class TablesDemoAPI:
         self.api_poses: Dict[str, Pose] = {}
         table_names: List[str] = []
         self.initial_item_locations: Dict[Item, Location] = {}
+        self._allow_search_same_table = False
+        self.tables_to_search_at = [table.name for table in self.domain.get_table_objects()]
         for param_path in rosparam.list_params(rosparam_namespace):
             assert isinstance(param_path, str)
             param = rosparam.get_param(param_path)
@@ -45,6 +47,10 @@ class TablesDemoAPI:
                 # Collect table names from rosparam names.
                 if param_name.startswith("base_table_") and param_name.endswith("_pose"):
                     table_names.append(param_name[5:-5])
+            elif "allow_search_same_table" in param_name:
+                self._allow_search_same_table = param
+            elif "tables_to_search_at" in param_name:
+                self.tables_to_search_at = param
         if len({TuplePose.from_pose(pose) for pose in self.api_poses.values()}) < len(self.api_poses):
             rospy.logwarn(
                 f"Duplicate poses in rosparam namespace '{rosparam_namespace}'"
@@ -86,11 +92,13 @@ class TablesDemoAPI:
         self.domain.create_place_item_action(self.place_item)
         self.domain.create_store_item_action(self.store_item)
         self.domain.create_hand_over_item_action(self.hand_over_item)
-        self.domain.create_search_at_action(self.env.search_at, ["home", "observe100cm_right", "transport"])
+        self.domain.create_search_at_action(
+            self.env.search_at, ["home", "observe100cm_right", "transport"], self._allow_search_same_table
+        )
         self.domain.create_search_tool_action(self.env.search_tool)
         self.domain.create_search_klt_action(self.env.search_klt)
-        self.domain.create_conclude_tool_search_action(self.env.conclude_tool_search)
-        self.domain.create_conclude_klt_search_action(self.env.conclude_klt_search)
+        self.domain.create_conclude_tool_search_action(self.env.conclude_tool_search, self.tables_to_search_at)
+        self.domain.create_conclude_klt_search_action(self.env.conclude_klt_search, self.tables_to_search_at)
         self.problem = self.domain.initialize_tables_demo_problem()
         self.subproblem = self.domain.initialize_item_search_problem()
 
@@ -438,6 +446,10 @@ class TablesDemoAPI:
         for klt_contents in self.env.believed_klt_contents.values():
             for content in klt_contents:
                 self.env.believed_item_locations[content] = Location.get("in_klt")
-        self.env.searched_locations.add(location)
+
+        # remove searched_at fluent to be able to redo the search if parameter is set
+        if not self._allow_search_same_table:
+            self.env.searched_locations.add(location)
+
         self.env.print_believed_item_locations()
         return perceived_item_locations

@@ -5,6 +5,9 @@
   <arg name="objects_of_interest" default="[relay, screwdriver, multimeter, power_drill_with_grip, hot_glue_gun, klt, bleach, mustard, soup, meat]"/>
   <arg name="dope_converter_config" default="$(find pbr_objects)/config/class_ids.yaml" />
 
+  <arg name="allow_search_same_table" default="false" doc="allows to search tables again without restarting the planning domain, only works when using hierarchical planning"/>
+  <arg name="tables_to_search_at" default="[table_1, table_2, table_3]" doc="list of table names to search at during item and klt search"/>
+
   <!-- please run separately! : -->
   <!--roslaunch mobipick_bringup mobipick_bringup_both.launch -->
 
@@ -63,4 +66,6 @@
   <rosparam command="load" file="$(find mobipick_pick_n_place)/config/$(arg world_config)_demo.yaml" ns="mobipick/tables_demo_planning" />
   <!-- config for items used in the demos-->
   <rosparam command="load" file="$(find tables_demo_bringup)/config/initial_items.yaml" ns="mobipick/tables_demo_planning" />
+  <rosparam param="allow_search_same_table" ns="mobipick/tables_demo_planning" subst_value="True">$(arg allow_search_same_table)</rosparam>
+  <rosparam param="tables_to_search_at" ns="mobipick/tables_demo_planning" subst_value="True">$(arg tables_to_search_at)</rosparam>
 </launch>

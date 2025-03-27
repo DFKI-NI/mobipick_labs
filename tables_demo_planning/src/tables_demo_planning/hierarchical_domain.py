@@ -93,6 +93,7 @@ class HierarchicalDomain:
         self.get_item = Task("get_item", robot=type_robot, item=type_item)
         self.put_item = Task("put_item", robot=type_robot, item=type_item, location=type_location)
         self.move_item = Task("move_item", robot=type_robot, item=type_item, location=type_location)
+        self.move_box_with_item = Task("move_box_with_item", robot=type_robot, item=type_item, location=type_location)
         self.insert_item = Task("insert_item", robot=type_robot, item=type_item, klt=type_item)
         self.bring_item = Task("bring_item", robot=type_robot, item=type_item)
         self.search_item = Task("search_item", robot=type_robot, item=type_item)
@@ -339,6 +340,48 @@ class HierarchicalDomain:
         )
         self.move_item_full.set_ordered(s1, s2)
 
+        # MOVE BOX CONTAINING ITEM
+        # box containing item already at location, nothing to do
+        self.move_box_with_item_noop = Method(
+            "move_box_with_item_noop", robot=type_robot, box=type_item, item=type_item, location=type_location
+        )
+        self.move_box_with_item_noop.set_task(
+            self.move_box_with_item,
+            self.move_box_with_item_noop.robot,
+            self.move_box_with_item_noop.item,
+            self.move_box_with_item_noop.location,
+        )
+        self.move_box_with_item_noop.add_precondition(
+            self.domain.believe_item_in(self.move_box_with_item_noop.item, self.move_box_with_item_noop.box)
+        )
+        self.move_box_with_item_noop.add_precondition(
+            self.domain.believe_item_at(self.move_box_with_item_noop.box, self.move_box_with_item_noop.location)
+        )
+
+        # move box containing the specified item from one location to another location
+        self.move_box_with_item_full = Method(
+            "move_box_with_item_full", robot=type_robot, box=type_item, item=type_item, location=type_location
+        )
+        self.move_box_with_item_full.set_task(
+            self.move_box_with_item,
+            self.move_box_with_item_full.robot,
+            self.move_box_with_item_full.item,
+            self.move_box_with_item_full.location,
+        )
+        self.move_box_with_item_full.add_precondition(
+            self.domain.believe_item_in(self.move_box_with_item_full.item, self.move_box_with_item_full.box)
+        )
+        s1 = self.move_box_with_item_full.add_subtask(
+            self.get_item, self.move_box_with_item_full.robot, self.move_box_with_item_full.box
+        )
+        s2 = self.move_box_with_item_full.add_subtask(
+            self.put_item,
+            self.move_box_with_item_full.robot,
+            self.move_box_with_item_full.box,
+            self.move_box_with_item_full.location,
+        )
+        self.move_box_with_item_full.set_ordered(s1, s2)
+
         # INSERT ITEM
         # item already in klt
         self.insert_item_noop = Method(
@@ -513,7 +556,12 @@ class HierarchicalDomain:
         self.search_item_full.add_precondition(
             self.domain.believe_item_at(self.search_item_full.item, self.domain.anywhere)
         )
-        for location in self.domain.get_table_objects():
+        # only search at tables specified in parameter
+        for location in [
+            obj
+            for name, obj in self.domain.get_objects_for_type(Location).items()
+            if name in self.tables_demo_api.tables_to_search_at
+        ]:
             self.search_item_full.add_subtask(self.perceive, self.search_item_full.robot, location)
 
         # TABLES DEMO
@@ -707,6 +755,8 @@ class HierarchicalDomain:
                 self.put_item_full,
                 self.move_item_noop,
                 self.move_item_full,
+                self.move_box_with_item_noop,
+                self.move_box_with_item_full,
                 self.bring_item_handover,
                 self.bring_item_drive,
                 self.bring_item_full,
@@ -729,6 +779,7 @@ class HierarchicalDomain:
                 self.get_item,
                 self.put_item,
                 self.move_item,
+                self.move_box_with_item,
                 self.bring_item,
                 self.search_item,
                 self.insert_item,

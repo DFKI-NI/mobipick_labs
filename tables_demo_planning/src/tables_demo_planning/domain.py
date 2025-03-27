@@ -114,13 +114,32 @@ class Domain(Bridge):
             or name.startswith("screwdriver_")
         ]
 
+    def get_part_objects(self) -> List[Object]:
+        """Return UP Objects representing insect hotel parts in the Mobipick domain."""
+        return [
+            obj
+            for name, obj in self.get_objects_for_type(Item).items()
+            if name.startswith("red_part_")
+            or name.startswith("yellow_part_")
+            or name.startswith("magenta_part_")
+            or name.startswith("purple_part_")
+            or name.startswith("bright_green_part_")
+            or name.startswith("dark_green_part_")
+        ]
+
     def get_klt_objects(self) -> List[Object]:
         """Return UP Objects representing KLT items in the Mobipick domain."""
         return [obj for name, obj in self.get_objects_for_type(Item).items() if name.startswith("klt_")]
 
-    def get_table_objects(self) -> List[Object]:
-        """Return UP Objects representing table locations in the Mobipick domain."""
-        return [obj for name, obj in self.get_objects_for_type(Location).items() if name.startswith("table_")]
+    def get_table_objects(self, table_names: List[str] = []) -> List[Object]:
+        """
+        Return UP Objects representing table locations with given name in the Mobipick domain.
+         Leaving names empty returns all table locations.
+        """
+        if table_names:
+            return [obj for name, obj in self.get_objects_for_type(Location).items() if name in table_names]
+        else:
+            return [obj for name, obj in self.get_objects_for_type(Location).items() if name.startswith("table_")]
 
     def create_move_base_action(self, _callable: Callable[[Robot, Pose, Pose], object]) -> InstantaneousAction:
         """
@@ -192,6 +211,8 @@ class Domain(Bridge):
             ),
         )
         pick_item.add_precondition(Not(Equals(item, self.get(Item, "nothing"))))
+        for part in self.get_part_objects():
+            pick_item.add_precondition(Not(Equals(item, part)))
         pick_item.add_effect(self.robot_has(robot, self.get(Item, "nothing")), False)
         pick_item.add_effect(self.robot_has(robot, item), True)
         for arm_pose in self.get_objects_for_type(ArmPose).values():
@@ -244,6 +265,8 @@ class Domain(Bridge):
             store_item.add_precondition(Not(Equals(item1, klt)))
         for tool in self.get_tool_objects():
             store_item.add_precondition(Not(Equals(item2, tool)))
+        for part in self.get_part_objects():
+            store_item.add_precondition(Not(Equals(item2, part)))
         store_item.add_precondition(self.pose_at(pose, location))
         store_item.add_precondition(Not(Equals(location, self.get(Location, "anywhere"))))
         store_item.add_effect(self.robot_has(robot, item1), False)
@@ -275,7 +298,10 @@ class Domain(Bridge):
         return hand_over_item
 
     def create_search_at_action(
-        self, _callable: Callable[[Robot, Pose, Location], object], arm_pose_names: List[str]
+        self,
+        _callable: Callable[[Robot, Pose, Location], object],
+        arm_pose_names: List[str],
+        allow_search_same_table: bool,
     ) -> InstantaneousAction:
         """
         Create plannable action using _callable with which Robot searches Location
@@ -287,10 +313,11 @@ class Domain(Bridge):
         search_at, (robot, pose, location) = self.create_action_from_function(_callable)
         search_at.add_precondition(self.robot_at(robot, pose))
         search_at.add_precondition(Or(self.robot_arm_at(robot, self.get(ArmPose, name)) for name in arm_pose_names))
-        search_at.add_precondition(Not(self.searched_at(location)))
+        if not allow_search_same_table:
+            search_at.add_precondition(Not(self.searched_at(location)))
+            search_at.add_effect(self.searched_at(location), True)
         search_at.add_precondition(Or(Equals(location, table) for table in self.get_table_objects()))
         search_at.add_precondition(self.pose_at(pose, location))
-        search_at.add_effect(self.searched_at(location), True)
         for arm_pose in self.get_objects_for_type(ArmPose).values():
             search_at.add_effect(
                 self.robot_arm_at(robot, arm_pose), arm_pose == self.get(ArmPose, "observe100cm_right")
@@ -326,12 +353,16 @@ class Domain(Bridge):
         search_klt.add_precondition(self.believe_item_at(item, self.get(Location, "anywhere")))
         for tool in self.get_tool_objects():
             search_klt.add_precondition(Not(Equals(item, tool)))
+        for part in self.get_part_objects():
+            search_klt.add_precondition(Not(Equals(item, part)))
         for pose in self.get_objects_for_type(Pose).values():
             search_klt.add_effect(self.robot_at(robot, pose), pose == self.get(Pose, "klt_search_pose"))
         search_klt.add_effect(self.believe_item_at(item, self.get(Location, "anywhere")), False)
         search_klt.add_effect(self.believe_item_at(item, self.get(Location, "klt_search_location")), True)
 
-    def create_conclude_tool_search_action(self, _callable: Callable[[Item], object]) -> InstantaneousAction:
+    def create_conclude_tool_search_action(
+        self, _callable: Callable[[Item], object], tables_to_search_at: List[str]
+    ) -> InstantaneousAction:
         """
         Create plannable action using _callable which concludes the search for tool Item
          while it being 'anywhere'. Afterwards, it is at 'tool_search_location'.
@@ -339,14 +370,16 @@ class Domain(Bridge):
         assert _callable.__name__ == "conclude_tool_search"
         conclude_tool_search, (item,) = self.create_action_from_function(_callable)
         conclude_tool_search.add_precondition(self.believe_item_at(item, self.get(Location, "anywhere")))
-        for table in self.get_table_objects():
+        for table in self.get_table_objects(tables_to_search_at):
             conclude_tool_search.add_precondition(self.searched_at(table))
         for klt in self.get_klt_objects():
             conclude_tool_search.add_precondition(Not(Equals(item, klt)))
         conclude_tool_search.add_effect(self.believe_item_at(item, self.get(Location, "anywhere")), False)
         conclude_tool_search.add_effect(self.believe_item_at(item, self.get(Location, "tool_search_location")), True)
 
-    def create_conclude_klt_search_action(self, _callable: Callable[[Item], object]) -> InstantaneousAction:
+    def create_conclude_klt_search_action(
+        self, _callable: Callable[[Item], object], tables_to_search_at: List[str]
+    ) -> InstantaneousAction:
         """
         Create plannable action using _callable which concludes the search for KLT Item
          while it being 'anywhere'. Afterwards, it is at 'klt_search_location'.
@@ -354,9 +387,11 @@ class Domain(Bridge):
         assert _callable.__name__ == "conclude_klt_search"
         conclude_klt_search, (item,) = self.create_action_from_function(_callable)
         conclude_klt_search.add_precondition(self.believe_item_at(item, self.get(Location, "anywhere")))
-        for table in self.get_table_objects():
+        for table in self.get_table_objects(tables_to_search_at):
             conclude_klt_search.add_precondition(self.searched_at(table))
         for tool in self.get_tool_objects():
             conclude_klt_search.add_precondition(Not(Equals(item, tool)))
+        for part in self.get_part_objects():
+            conclude_klt_search.add_precondition(Not(Equals(item, part)))
         conclude_klt_search.add_effect(self.believe_item_at(item, self.get(Location, "anywhere")), False)
         conclude_klt_search.add_effect(self.believe_item_at(item, self.get(Location, "klt_search_location")), True)
