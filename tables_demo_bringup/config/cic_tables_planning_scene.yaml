@@ -50,7 +50,7 @@ planning_scene_boxes:
     frame_id: 'map'
     box_x_dimension: 0.8
     box_y_dimension: 0.8
-    box_z_dimension: 0.715
+    box_z_dimension: 0.72
     box_position_x: 19.565
     box_position_y: 13.76
     box_position_z: 0.3575
@@ -62,7 +62,7 @@ planning_scene_boxes:
     frame_id: 'map'
     box_x_dimension: 0.8
     box_y_dimension: 0.8
-    box_z_dimension: 0.715
+    box_z_dimension: 0.72
     box_position_x: 21.165
     box_position_y: 13.84
     box_position_z: 0.3575
