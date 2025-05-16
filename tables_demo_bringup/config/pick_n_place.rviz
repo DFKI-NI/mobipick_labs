@@ -1186,7 +1186,7 @@ Visualization Manager:
                 Show Trail: false
             Robot Alpha: 1
             Show Robot Collision: false
-            Show Robot Visual: true
+            Show Robot Visual: false
           Value: true
         - Class: rviz/Marker
           Enabled: true
