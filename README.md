@@ -206,6 +206,169 @@ rqt plugin, then call it with:
 rqt --standalone dot_graph_visualization
 ```
 
+Launch file structure and world configs
+---------------------------------------
+
+This section documents the launch file structure in `mobipick_labs` and
+`mobipick`, with a focus on how to add a new "world config" (i.e., the config
+files required to run the system in a new environment / with a different table
+arrangement etc.).
+
+### Launch File Structure for Gazebo Simulation
+
+The top-level launch file for the Gazebo simulation is `demo_sim.launch`. This file accepts several key arguments:
+
+#### Example Command
+
+```bash
+roslaunch tables_demo_bringup demo_sim.launch \
+  world:=pbr_cic \
+  world_config:=cic_tables \
+  robot_x:=20.50 \
+  robot_y:=15.20 \
+  robot_yaw:=1.57
+```
+
+#### Important Arguments
+
+1. **world**: Specifies which Gazebo world to load (only the building, no tables or objects).
+   - **Options**: `pbr_moelk` (default), `pbr_cic`
+   - **Effect**: Passed to `mobipick_gazebo/tables_demo.launch` to spawn the
+     specified Gazebo world.
+
+2. **world_config**: Defines the arrangement of objects and tables.
+   - **Options**: `moelk_tables`, `cic_tables`, `truck_assembly`
+   - **Effect**:
+      - Passed to `mobipick_gazebo/tables_demo.launch` to launch
+        `mobipick_gazebo/launch/worlds/<world_config>_spawn_sim_objects.launch`,
+        which spawns the scenario-specific table and object arrangement in
+        Gazebo.
+      - Includes `includes/navigation/<world_config>.launch` to set up
+        `move_base` and localization with the appropriate maps and virtual
+        walls.
+      - Passed to `tables_demo_bringup/launch/bringup.launch` to load:
+         - `tables_demo_bringup/config/<world_config>_planning_scene.yaml` for
+           grasplan (defines MoveIt planning scene collision boxes, including
+           tables, walls, and ceiling).
+         - `mobipick_pick_n_place/config/<world_config>_demo.yaml` for
+           `tables_demo_planning` (defines move_base target poses in front of
+           tables, home pose, handover pose, etc.).
+
+3. **robot_x, robot_y, robot_yaw**: Specifies the robot's initial position and orientation in the simulation.
+   - **Requirement**: Must match the selected `world` and `world_config`.
+   - **Suggestion**: Ideally, the `base_home_pose` from
+     `mobipick_pick_n_place/config/<world_config>_demo.yaml` should be used
+     here.
+   - **Effect**: Passed to `mobipick_gazebo/tables_demo.launch`.
+
+#### World Config Definitions
+
+Each `world_config` is characterized by four scenario-specific launch and YAML files:
+
+1. **Spawn Simulation Objects**:
+   - `mobipick/mobipick_gazebo/launch/worlds/<world_config>_spawn_sim_objects.launch`
+   - **Purpose**: Spawns tables and objects in Gazebo.
+
+2. **Base Pose Configuration**:
+   - `mobipick/mobipick_pick_n_place/config/<world_config>_demo.yaml`
+   - **Purpose**: Defines `move_base` goal poses in front of the tables, home pose, handover pose, and other parameters.
+
+3. **Planning Scene Configuration**:
+   - `mobipick_labs/tables_demo_bringup/config/<world_config>_planning_scene.yaml`
+   - **Purpose**: Defines planning scene boxes for MoveIt (tables, walls,
+     ceiling, other static obstacles); also used by grasplan (for picking and
+     placing from tables).
+
+4. **Navigation Launch File**:
+   - `mobipick_labs/tables_demo_bringup/launch/includes/navigation/<world_config>.launch`
+   - **Purpose**: Launches `move_base` with the appropriate map and virtual
+     walls matching the environment and table arrangement. Maps are typically
+     stored in the `pbr_maps` repository.
+
+### Running on Real Robot vs. Gazebo Simulation
+
+- **Real Robot**:
+   - Only **Base Pose Configuration** (2) and **Planning Scene Configuration** (3) are required.
+   - Launch only `bringup.launch`.
+
+- **Gazebo Simulation**:
+   - All four files are required.
+   - Launch `demo_sim.launch` which orchestrates the entire setup.
+
+Adapting to a new environment
+-----------------------------
+
+To add a new `world_config` and adapt the demo to a new physical environment, follow these steps:
+
+### A. Mapping and Configuration
+
+1. **Map the Environment**:
+   - Use the MiR web interface to map the new environment.
+
+2. **Define Forbidden Areas**:
+   - In the MiR web interface, draw forbidden areas for tables and other obstacles.
+   - **Note**: Be precise; overly generous forbidden zones may prevent the robot from navigating close to tables.
+
+3. **Determine move_base Goal Poses**:
+   - Launch RViz and use it to send the robot to various poses in front of each table.
+   - Move the robot arm to the `observe100cm_right` configuration using:
+
+    ```bash
+    roslaunch mobipick_moveit_config moveit_rviz.launch
+    ```
+
+   - Verify that the front edge of each table is just visible in the camera image.
+   - While navigating, run:
+
+    ```bash
+    rostopic echo /mobipick/move_base/goal
+    ```
+
+    Capture the poses displayed in the terminal and use them to create the
+    `mobipick_pick_n_place/config/<world_config>_demo.yaml` file (Base Pose
+    Configuration).
+
+4. **Create Planning Scene Boxes**:
+   - With the robot arm still in the `observe100cm_right` configuration, record
+     a rosbag while manually controlling the robot to drive slowly around the
+     scene, observing all tables and their edges.
+   - Use the recorded rosbag with the helper launch file to generate
+     `mobipick_labs/tables_demo_bringup/config/<world_config>_planning_scene.yaml`
+     (Planning Scene Configuration) by running:
+
+     ```bash
+     roslaunch grasplan find_planning_scene_boxes_helper.launch
+     ```
+
+### B. Setting Up Gazebo Simulation (Optional)
+
+If a Gazebo simulation for the new environment is desired, proceed with the following:
+
+1. **Export the Map**:
+   - Use the MiR web interface to export the map, or run:
+
+     ```bash
+     rosrun map_server map_saver map:=/mobipick/map
+     ```
+
+2. **Process the Maps**:
+   - Extract both the regular occupancy map and the forbidden zones map (virtual walls).
+   - Convert these maps to PNG format.
+   - Create accompanying YAML files and save them in the `pbr_maps` repository.
+
+3. **Create Navigation Launch File**:
+   - Develop a launch file that loads the processed maps.
+   - This will be your
+     `mobipick_labs/tables_demo_bringup/launch/includes/navigation/<world_config>.launch`
+     (Navigation Launch File).
+
+4. **Create Gazebo Launch File**:
+   - Develop a Gazebo launch file that aligns table positions with the new map.
+   - This will be your
+     `mobipick/mobipick_gazebo/launch/worlds/<world_config>_spawn_sim_objects.launch`
+     (Spawn Simulation Objects).
+
+
 pre-commit Formatting Checks
 ----------------------------
 
