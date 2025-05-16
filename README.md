@@ -88,17 +88,6 @@ rosrun tables_demo_planning tables_demo_node.py
 
 The optional components above for speaker and visualization work in simulation as well.
 
-Tables demo using plexmo
-----------------------------------
-
-To use plexmo instead of the original version of plan execution use
-`uplexmo_tables_demo_node.py` instead of `tables_demo_node.py` for starting the
-tables demo:
-
-```bash
-rosrun tables_demo_planning uplexmo_tables_demo_node.py
-```
-
 Grasping/Placing/Inserting objects demo (using grasplan)
 --------------------------------------
 
@@ -164,45 +153,6 @@ roslaunch pbr_dope dope.launch
 roslaunch mobipick_pick_n_place mobipick_pick_n_place.launch world:=moelk_tables_demo
 rosservice call /mobipick/continue_statemachine
 ```
-
-
-Pick-and-place demo (using plexmo)
-----------------------------------
-
-An alternative version of this demo exists which makes use of the generic plan
-execution and monitoring module
-[plexmo](https://github.com/aiplan4eu/embedded-systems-bridge/tree/master/up_esb/plexmo).
-
-This demo can either be run on the real robot like this:
-
-```bash
-roslaunch mobipick_bringup mobipick_bringup_both.launch
-roslaunch pbr_dope dope.launch
-rosrun tables_demo_planning uplexmo_pick_n_place_demo_node.py
-```
-
-... or in Gazebo like this:
-
-```bash
-roslaunch tables_demo_bringup demo_sim.launch
-rosrun tables_demo_planning uplexmo_pick_n_place_demo_node.py
-```
-
-When running in Gazebo, run the following as soon as the robot has reached the "handover" pose:
-
-```bash
-rosservice call /mobipick/simulate_user_interaction before the timeout
-```
-
-This will cause the robot to open its gripper, since we simulated a user
-holding the power drill with the command above. Since nobody is actually
-holding the power drill in Gazebo, it will drop to the floor. Since the robot
-cannot detect this, it will assume that the handover was successful and
-continue with the demo.
-
-If no `simulate_user_interaction` command is given within a timeout of 30
-seconds, plan execution will fail (as expected, since the handover was
-unsuccessful).
 
 Hierarchical planning using ROS task server
 ------------------
