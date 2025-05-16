@@ -14,7 +14,7 @@ exclude_rule 'header-style'
 rule 'line-length', :line_length => 120, :ignore_code_blocks => true, :tables => false
 
 # Unordered list indentation
-rule 'ul-indent', :indent => 2
+rule 'ul-indent'
 
 # Ordered list item prefix
 rule 'ol-prefix', :style => 'ordered'
