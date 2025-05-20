@@ -348,7 +348,7 @@ If a Gazebo simulation for the new environment is desired, proceed with the foll
    - Use the MiR web interface to export the map, or run:
 
      ```bash
-     rosrun map_server map_saver map:=/mobipick/map
+     rosrun map_server map_saver
      ```
 
 2. **Process the Maps**:
