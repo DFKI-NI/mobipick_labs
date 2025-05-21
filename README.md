@@ -99,9 +99,11 @@ Goal of the robot in this demo is to
 
 ```bash
 roscore
-roslaunch tables_demo_bringup demo_sim.launch robot_x:=12.43 robot_y:=2.21 robot_yaw:=1.5708
+roslaunch tables_demo_bringup demo_sim.launch
 rosrun rviz rviz -d `rospack find tables_demo_bringup`/config/pick_n_place.rviz __ns:=mobipick
 ```
+
+Move the robot to the appropriate table (`robot_x:=12.43 robot_y:=2.21 robot_yaw:=1.5708`) using RViz.
 
 Pick
 
@@ -129,11 +131,7 @@ Insert
 rosrun grasplan insert_obj_test_action_client __ns:=mobipick klt_3 true
 ```
 
-If you want to grasp the other objects you can use the following robot pose.
-
-```bash
-roslaunch tables_demo_bringup demo_sim.launch robot_x:=10.46 robot_y:=2.47 robot_yaw:=3.1415
-```
+If you want to grasp the other objects, you can use the following robot pose: `robot_x:=10.46 robot_y:=2.47 robot_yaw:=3.1415`.
 
 If you want to grasp another object after picking, please place the object first.
 
@@ -216,50 +214,34 @@ arrangement etc.).
 
 ### Launch File Structure for Gazebo Simulation
 
-The top-level launch file for the Gazebo simulation is `demo_sim.launch`. This file accepts several key arguments:
+The top-level launch file for the Gazebo simulation is `demo_sim.launch`.
 
 #### Example Command
 
 ```bash
-roslaunch tables_demo_bringup demo_sim.launch \
-  world:=pbr_cic \
-  world_config:=cic_tables \
-  robot_x:=20.50 \
-  robot_y:=15.20 \
-  robot_yaw:=1.57
+roslaunch tables_demo_bringup demo_sim.launch world_config:=cic_tables
 ```
 
 #### Important Arguments
 
-1. **world**: Specifies which Gazebo world to load (only the building, no tables or objects).
-   - **Options**: `pbr_moelk` (default), `pbr_cic`
-   - **Effect**: Passed to `mobipick_gazebo/tables_demo.launch` to spawn the
-     specified Gazebo world.
+**world_config**: Defines which environment to run in, including the arrangement of objects and tables.
 
-2. **world_config**: Defines the arrangement of objects and tables.
-   - **Options**: `moelk_tables`, `cic_tables`, `truck_assembly`
-   - **Effect**:
-      - Passed to `mobipick_gazebo/tables_demo.launch` to launch
-        `mobipick_gazebo/launch/worlds/<world_config>_spawn_sim_objects.launch`,
-        which spawns the scenario-specific table and object arrangement in
-        Gazebo.
-      - Includes `includes/navigation/<world_config>.launch` to set up
-        `move_base` and localization with the appropriate maps and virtual
-        walls.
-      - Passed to `tables_demo_bringup/launch/bringup.launch` to load:
-         - `tables_demo_bringup/config/<world_config>_planning_scene.yaml` for
-           grasplan (defines MoveIt planning scene collision boxes, including
-           tables, walls, and ceiling).
-         - `mobipick_pick_n_place/config/<world_config>_demo.yaml` for
-           `tables_demo_planning` (defines move_base target poses in front of
-           tables, home pose, handover pose, etc.).
-
-3. **robot_x, robot_y, robot_yaw**: Specifies the robot's initial position and orientation in the simulation.
-   - **Requirement**: Must match the selected `world` and `world_config`.
-   - **Suggestion**: Ideally, the `base_home_pose` from
-     `mobipick_pick_n_place/config/<world_config>_demo.yaml` should be used
-     here.
-   - **Effect**: Passed to `mobipick_gazebo/tables_demo.launch`.
+- **Options**: `moelk_tables`, `cic_tables`, `truck_assembly`
+- **Effect**:
+   - Passed to
+     `mobipick_gazebo/launch/worlds/<world_config>_spawn_sim_objects.launch`,
+     which loads the Gazebo world and spawns the scenario-specific table and
+     object arrangement.
+   - Includes `includes/navigation/<world_config>.launch` to set up
+     `move_base` and localization with the appropriate maps and virtual
+     walls.
+   - Passed to `tables_demo_bringup/launch/bringup.launch` to load:
+      - `tables_demo_bringup/config/<world_config>_planning_scene.yaml` for
+        grasplan (defines MoveIt planning scene collision boxes, including
+        tables, walls, and ceiling).
+      - `mobipick_pick_n_place/config/<world_config>_demo.yaml` for
+        `tables_demo_planning` (defines move_base target poses in front of
+        tables, home pose, handover pose, etc.).
 
 #### World Config Definitions
 
@@ -267,7 +249,7 @@ Each `world_config` is characterized by four scenario-specific launch and YAML f
 
 1. **Spawn Simulation Objects**:
    - `mobipick/mobipick_gazebo/launch/worlds/<world_config>_spawn_sim_objects.launch`
-   - **Purpose**: Spawns tables and objects in Gazebo.
+   - **Purpose**: Starts Gazebo with a given world and spawns the Mobipick, tables and objects.
 
 2. **Base Pose Configuration**:
    - `mobipick/mobipick_pick_n_place/config/<world_config>_demo.yaml`
