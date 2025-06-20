@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <launch>
-  <arg name="world_config" default="moelk_tables" doc="objects arrangement, options: moelk_tables, cic_tables, truck_assembly" />
+  <arg name="world_config" default="moelk_tables" doc="objects arrangement, options: moelk_tables, cic_tables" />
 
   <!-- controls the simulation speed -->
   <arg name="physics_profile" default="fast" doc="options: slow, fast" />

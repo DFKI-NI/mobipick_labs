@@ -226,7 +226,7 @@ roslaunch tables_demo_bringup demo_sim.launch world_config:=cic_tables
 
 **world_config**: Defines which environment to run in, including the arrangement of objects and tables.
 
-- **Options**: `moelk_tables`, `cic_tables`, `truck_assembly`
+- **Options**: `moelk_tables`, `cic_tables`
 - **Effect**:
    - Passed to
      `mobipick_gazebo/launch/worlds/<world_config>_spawn_sim_objects.launch`,
