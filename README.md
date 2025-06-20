@@ -148,7 +148,7 @@ Goal of the robot in this demo is to
 ```bash
 roslaunch mobipick_bringup mobipick_bringup_both.launch
 roslaunch pbr_dope dope.launch
-roslaunch mobipick_pick_n_place mobipick_pick_n_place.launch world_config:=moelk_tables_demo
+roslaunch mobipick_pick_n_place mobipick_pick_n_place.launch world_config:=moelk_tables
 rosservice call /mobipick/continue_statemachine
 ```
 
