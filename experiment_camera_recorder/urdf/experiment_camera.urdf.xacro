@@ -1,0 +1,60 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro" name="experiment_camera">
+  <xacro:arg name="width" default="1280" />
+  <xacro:arg name="height" default="720" />
+  <xacro:arg name="update_rate" default="10.0" />
+  <xacro:arg name="horizontal_fov" default="1.0472" />
+
+  <!--
+    A static URDF link still needs valid inertial data to survive urdf2sdf
+    conversion. This has no visual or collision geometry and therefore remains
+    invisible and non-colliding in Gazebo.
+  -->
+  <link name="experiment_camera_link">
+    <inertial>
+      <mass value="0.001" />
+      <inertia ixx="0.000001" ixy="0" ixz="0"
+               iyy="0.000001" iyz="0" izz="0.000001" />
+    </inertial>
+  </link>
+
+  <gazebo>
+    <static>true</static>
+  </gazebo>
+
+  <gazebo reference="experiment_camera_link">
+    <sensor name="experiment_camera_sensor" type="camera">
+      <always_on>true</always_on>
+      <update_rate>$(arg update_rate)</update_rate>
+      <visualize>false</visualize>
+      <camera>
+        <horizontal_fov>$(arg horizontal_fov)</horizontal_fov>
+        <image>
+          <width>$(arg width)</width>
+          <height>$(arg height)</height>
+          <format>R8G8B8</format>
+        </image>
+        <clip>
+          <near>0.05</near>
+          <far>100.0</far>
+        </clip>
+      </camera>
+      <plugin name="experiment_camera_controller" filename="libgazebo_ros_camera.so">
+        <alwaysOn>true</alwaysOn>
+        <updateRate>$(arg update_rate)</updateRate>
+        <cameraName>experiment_camera</cameraName>
+        <!-- cameraName supplies the /experiment_camera namespace. -->
+        <robotNamespace>/</robotNamespace>
+        <imageTopicName>image_raw</imageTopicName>
+        <cameraInfoTopicName>camera_info</cameraInfoTopicName>
+        <frameName>experiment_camera_link</frameName>
+        <hackBaseline>0.0</hackBaseline>
+        <distortionK1>0.0</distortionK1>
+        <distortionK2>0.0</distortionK2>
+        <distortionK3>0.0</distortionK3>
+        <distortionT1>0.0</distortionT1>
+        <distortionT2>0.0</distortionT2>
+      </plugin>
+    </sensor>
+  </gazebo>
+</robot>

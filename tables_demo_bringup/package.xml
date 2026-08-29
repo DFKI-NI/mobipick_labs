@@ -13,6 +13,7 @@
 
   <buildtool_depend>catkin</buildtool_depend>
   <exec_depend>espeak_ros</exec_depend>
+  <exec_depend>experiment_camera_recorder</exec_depend>
   <exec_depend>grasplan</exec_depend>
   <exec_depend>mir_gazebo</exec_depend>
   <exec_depend>mir_navigation</exec_depend>

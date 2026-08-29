@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="x" default="11.5" />
+  <arg name="y" default="2.5" />
+  <arg name="z" default="3.0" />
+  <arg name="roll" default="0.0" />
+  <arg name="pitch" default="0.65" />
+  <arg name="yaw" default="0.0" />
+  <arg name="width" default="1280" />
+  <arg name="height" default="720" />
+  <arg name="update_rate" default="10.0" />
+  <arg name="record" default="false" />
+  <arg name="record_frequency" default="0.2" />
+  <arg name="output_dir" default="" />
+  <arg name="jpeg_quality" default="90" />
+
+  <param name="experiment_camera_description"
+         command="$(find xacro)/xacro '$(find experiment_camera_recorder)/urdf/experiment_camera.urdf.xacro'
+                  width:=$(arg width) height:=$(arg height) update_rate:=$(arg update_rate)" />
+
+  <node pkg="gazebo_ros" type="spawn_model" name="spawn_experiment_camera" output="screen"
+        args="-urdf -param experiment_camera_description -model experiment_camera
+              -x $(arg x) -y $(arg y) -z $(arg z)
+              -R $(arg roll) -P $(arg pitch) -Y $(arg yaw)" />
+
+  <node if="$(arg record)" pkg="experiment_camera_recorder" type="frame_recorder.py"
+        name="experiment_camera_frame_recorder" output="screen">
+    <param name="image_topic" value="/experiment_camera/image_raw" />
+    <param name="frequency" value="$(arg record_frequency)" />
+    <param name="output_dir" value="$(arg output_dir)" />
+    <param name="jpeg_quality" value="$(arg jpeg_quality)" />
+  </node>
+</launch>

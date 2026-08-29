@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="output_file" default="$(find experiment_camera_recorder)/launch/configured_camera.launch" />
+  <node pkg="experiment_camera_recorder" type="pose_tuner.py" name="experiment_camera_pose_tuner" output="screen">
+    <param name="image_topic" value="/experiment_camera/image_raw" />
+    <param name="model_name" value="experiment_camera" />
+    <param name="output_file" value="$(arg output_file)" />
+  </node>
+</launch>

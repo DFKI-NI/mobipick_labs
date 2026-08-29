@@ -8,6 +8,12 @@
   <!-- if true, gzclient is started -->
   <arg name="gui" default="true" />
 
+  <!-- Transparent overview camera and sparse experiment image recorder. -->
+  <arg name="experiment_camera" default="true" />
+  <arg name="record_experiment_images" default="false" />
+  <arg name="experiment_image_frequency" default="0.2" />
+  <arg name="experiment_image_output_dir" default="" />
+
   <!-- start Gazebo and spawn objects in the simulated world -->
   <include file="$(find mobipick_gazebo)/launch/worlds/$(arg world_config)_spawn_sim_objects.launch">
     <arg name="physics_profile" value="$(arg physics_profile)" />
@@ -16,6 +22,12 @@
 
   <!-- automatically unpause gazebo simulation after some time -->
   <node pkg="pbr_gazebo" type="gazebo_unpauser" name="gazebo_unpauser" output="screen" />
+
+  <include if="$(arg experiment_camera)" file="$(find experiment_camera_recorder)/launch/configured_camera.launch">
+    <arg name="record" value="$(arg record_experiment_images)" />
+    <arg name="record_frequency" value="$(arg experiment_image_frequency)" />
+    <arg name="output_dir" value="$(arg experiment_image_output_dir)" />
+  </include>
 
   <!-- object publisher for pick_n_place demo -->
   <node name="gazebo_object_publisher" pkg="mobipick_pick_n_place" type="gazebo_object_publisher" ns="mobipick" output="screen">

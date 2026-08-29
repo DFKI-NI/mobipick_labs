@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>experiment_camera_recorder</name>
+  <version>0.1.0</version>
+  <description>A transparent Gazebo RGB camera, sparse frame recorder, and camera pose tuning GUI for experiments.</description>
+
+  <maintainer email="oscar.lima@dfki.de">Oscar Lima</maintainer>
+  <license>BSD</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <exec_depend>cv_bridge</exec_depend>
+  <exec_depend>gazebo_msgs</exec_depend>
+  <exec_depend>gazebo_plugins</exec_depend>
+  <exec_depend>gazebo_ros</exec_depend>
+  <exec_depend>python_qt_binding</exec_depend>
+  <exec_depend>rospy</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>tf</exec_depend>
+  <exec_depend>xacro</exec_depend>
+</package>

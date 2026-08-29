@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<!-- This file is updated by pose_tuner.py when its OK button is clicked. -->
+<launch>
+  <arg name="record" default="false" />
+  <arg name="record_frequency" default="0.2" />
+  <arg name="output_dir" default="" />
+
+  <include file="$(find experiment_camera_recorder)/launch/camera.launch">
+    <arg name="x" value="12.070" />
+    <arg name="y" value="4.720" />
+    <arg name="z" value="3.760" />
+    <arg name="roll" value="-0.1940" />
+    <arg name="pitch" value="0.9080" />
+    <arg name="yaw" value="-1.7740" />
+    <arg name="record" value="$(arg record)" />
+    <arg name="record_frequency" value="$(arg record_frequency)" />
+    <arg name="output_dir" value="$(arg output_dir)" />
+  </include>
+</launch>
