@@ -28,6 +28,9 @@
       <remap from="/logical_image" to="/mobipick/eef_main_cam/rgb/logical_image"/>
     </node>
 
+    <!-- Approximate DOPE's lazy visualisation output with the simulated EEF camera image. -->
+    <include file="$(find mobipick_gazebo)/launch/mobipick/simulated_dope_image_relay.launch" />
+
     <!-- force torque observer -->
     <node name="ft_observer" pkg="mobipick_pick_n_place" type="ft_observer_sim.py" ns="mobipick" output="screen" />
   </group>
