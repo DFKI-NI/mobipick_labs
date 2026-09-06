@@ -463,7 +463,8 @@ class RqtTablesDemo(Plugin):
     @disable_during_execution('Manipulation_groupBox')
     def _pick_object_task(self):
         # Retrieve parameters from UI elements
-        object_to_pick = self._widget.comboPickObj.currentText()
+        manually_entered_object = self._widget.txtPickObjectName.text().strip()
+        object_to_pick = manually_entered_object or self._widget.comboPickObj.currentText()
         support_surface_name = self._widget.comboPickSurfaces.currentText()
         try:
             timeout = float(self._widget.txtPickTimeout.toPlainText())
