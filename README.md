@@ -86,6 +86,10 @@ roslaunch tables_demo_bringup demo_sim.launch
 rosrun tables_demo_planning tables_demo_node.py
 ```
 
+For open-set objects, Grasplan requests candidates from AnyGrasp and owns the
+MoveIt pickup execution by default. To use AnyGrasp's complete execution action
+instead, launch with `anygrasp_handles_execution:=true`.
+
 The optional components above for speaker and visualization work in simulation as well.
 
 Grasping/Placing/Inserting objects demo (using grasplan)

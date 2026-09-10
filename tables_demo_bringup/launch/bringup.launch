@@ -4,6 +4,7 @@
   <arg name="world_config" default="moelk_tables" doc="objects arrangement, options: moelk_tables, cic_tables" />
   <arg name="objects_of_interest" default="[relay, screwdriver, multimeter, power_drill_with_grip, hot_glue_gun, klt, bleach, mustard, soup, meat]"/>
   <arg name="dope_converter_config" default="$(find pbr_objects)/config/class_ids.yaml" />
+  <arg name="anygrasp_handles_execution" default="false" />
 
   <arg name="allow_search_same_table" default="false" doc="allows to search tables again without restarting the planning domain, only works when using hierarchical planning"/>
   <arg name="tables_to_search_at" default="[table_1, table_2, table_3]" doc="list of table names to search at during item and klt search"/>
@@ -55,6 +56,7 @@
   <!-- ::::: Grasp planning ::::: -->
   <include file="$(find tables_demo_bringup)/launch/includes/grasp_planning.launch">
     <arg name="planning_scene_config" value="$(find tables_demo_bringup)/config/$(arg world_config)_planning_scene.yaml" />
+    <arg name="anygrasp_handles_execution" value="$(arg anygrasp_handles_execution)" />
   </include>
 
   <!-- ::::: Place object ::::: -->

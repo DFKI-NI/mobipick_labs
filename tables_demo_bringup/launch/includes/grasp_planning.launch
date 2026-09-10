@@ -1,6 +1,7 @@
 <?xml version="1.0"?>
 <launch>
   <arg name="planning_scene_config" default="$(find tables_demo_bringup)/config/moelk_tables_planning_scene.yaml" />
+  <arg name="anygrasp_handles_execution" default="false" />
 
   <!-- visualise the poses inside the pose selector as textured meshes -->
   <arg name="object_color_rgba_pick" value="[0,0,0,0]"/>
@@ -26,6 +27,7 @@
     <param name="pose_selector_get_all_poses_srv_name" type="string" value="/pick_pose_selector_node/pose_selector_get_all" />
     <param name="pose_selector_delete_srv_name" type="string" value="/pick_pose_selector_node/pose_selector_delete" />
     <param name="detach_all_objects" value="true" />
+    <param name="anygrasp_handles_execution" type="bool" value="$(arg anygrasp_handles_execution)" />
     <!-- no need to perceive the object in grasplan, planning handles it -->
     <param name="perceive_object" value="false" />
     <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/pick_params.yaml" command="load" />

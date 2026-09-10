@@ -1,6 +1,7 @@
 <?xml version="1.0"?>
 <launch>
   <arg name="world_config" default="moelk_tables" doc="objects arrangement, options: moelk_tables, cic_tables" />
+  <arg name="anygrasp_handles_execution" default="false" />
 
   <!-- controls the simulation speed -->
   <arg name="physics_profile" default="fast" doc="options: slow, fast" />
@@ -58,5 +59,6 @@
   <include file="$(find tables_demo_bringup)/launch/bringup.launch" >
     <arg name="simulation" value="true" />
     <arg name="world_config" value="$(arg world_config)" />
+    <arg name="anygrasp_handles_execution" value="$(arg anygrasp_handles_execution)" />
   </include>
 </launch>
