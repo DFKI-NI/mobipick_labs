@@ -2,6 +2,10 @@
 <launch>
   <arg name="planning_scene_config" default="$(find tables_demo_bringup)/config/moelk_tables_planning_scene.yaml" />
   <arg name="anygrasp_handles_execution" default="false" />
+  <!-- GripperCommand.max_effort used for AnyGrasp grasps of unknown objects; the Robotiq action server
+       accepts 30..100, the simulated gripper maps it to a real torque limit. -1 keeps gripper_joint_efforts. -->
+  <arg name="anygrasp_gripper_max_effort" default="50.0" />
+  <arg name="anygrasp_use_gripper_width" default="false" />
 
   <!-- visualise the poses inside the pose selector as textured meshes -->
   <arg name="object_color_rgba_pick" value="[0,0,0,0]"/>
@@ -28,6 +32,8 @@
     <param name="pose_selector_delete_srv_name" type="string" value="/pick_pose_selector_node/pose_selector_delete" />
     <param name="detach_all_objects" value="true" />
     <param name="anygrasp_handles_execution" type="bool" value="$(arg anygrasp_handles_execution)" />
+    <param name="anygrasp_gripper_max_effort" type="double" value="$(arg anygrasp_gripper_max_effort)" />
+    <param name="anygrasp_use_gripper_width" type="bool" value="$(arg anygrasp_use_gripper_width)" />
     <!-- no need to perceive the object in grasplan, planning handles it -->
     <param name="perceive_object" value="false" />
     <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/pick_params.yaml" command="load" />
