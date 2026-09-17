@@ -903,6 +903,58 @@ obj</string>
           </layout>
          </widget>
         </item>
+        <item>
+         <widget class="QGroupBox" name="OpenSet_groupBox">
+          <property name="title">
+           <string>Open-set detection (AnyGrasp: Grounding DINO + SAM2)</string>
+          </property>
+          <layout class="QGridLayout" name="gridLayout_openset" columnstretch="3,2">
+           <item row="0" column="0">
+            <widget class="QLineEdit" name="txtOpenSetPrompt">
+             <property name="toolTip">
+              <string>Free-form description of the object to look for in the current camera view, e.g. &quot;coke can&quot;</string>
+             </property>
+             <property name="placeholderText">
+              <string>object description, e.g. coke can</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="1">
+            <widget class="QPushButton" name="cmdOpenSetDetect">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="text">
+              <string>Detect</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="0" colspan="2">
+            <widget class="QCheckBox" name="chkOpenSetVLM">
+             <property name="toolTip">
+              <string>Ask the VLM verifier service (mobipick_gpt vlm_verifier.launch) to confirm every candidate crop; the VLM verdict overrides the detector score</string>
+             </property>
+             <property name="text">
+              <string>verify detections with VLM</string>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="0" colspan="2">
+            <widget class="QLabel" name="lblOpenSetResult">
+             <property name="text">
+              <string>-</string>
+             </property>
+             <property name="wordWrap">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
        </layout>
       </widget>
      </item>

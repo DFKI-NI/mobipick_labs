@@ -21,6 +21,11 @@ from grasplan.msg import PlaceObjectGoal, InsertObjectAction, InsertObjectGoal
 
 import robot_api
 
+try:
+    from mobipick_api.perception import Perception as OpenSetPerception
+except ImportError:  # mobipick_api is optional; the open-set group box is disabled without it
+    OpenSetPerception = None
+
 from functools import wraps
 
 
@@ -89,6 +94,11 @@ class RqtTablesDemo(Plugin):
         self.mobipick = robot_api.Robot("mobipick")
         # a flag to know if pose selector is available or not
         self.is_pose_selector_available = False
+        # mobipick_api perception client for AnyGrasp's open-set DetectObjects action;
+        # the arm is only used when an observation pose is requested (never from this GUI)
+        self.open_set_perception = None
+        if OpenSetPerception is not None:
+            self.open_set_perception = OpenSetPerception('/mobipick/', self.mobipick.arm, None)
         self.is_gripper_srv_available = False
         self.action_client = None
 
@@ -239,6 +249,8 @@ class RqtTablesDemo(Plugin):
         self._widget.cmdPerceptionPSClear.clicked.connect(self.perception_ps_clear)
         self._widget.cmdPerceptionPSGetAllObjs.clicked.connect(self.perception_ps_get_all_objs)
         self._widget.cmdPerceptionPSClassQuery.clicked.connect(self.perception_ps_class_query)
+        self._widget.cmdOpenSetDetect.clicked.connect(self.open_set_detect)
+        self._widget.txtOpenSetPrompt.returnPressed.connect(self.open_set_detect)
         self._widget.cmdPickObj.clicked.connect(self.pick_object)
         self._widget.cmdManipUpdate.clicked.connect(self.manipulation_update)
         self._widget.cmdPlaceObj.clicked.connect(self.place_object)
@@ -455,6 +467,44 @@ class RqtTablesDemo(Plugin):
         else:
             rospy.loginfo(f'found {len(resp.poses)} instances of class {object_class}')
             rospy.loginfo(resp.poses)
+
+    def open_set_detect(self):
+        # read the widgets in the GUI thread; the task runs in the background
+        self.open_set_request = (self._widget.txtOpenSetPrompt.text().strip(), self._widget.chkOpenSetVLM.isChecked())
+        self.pick_thread = threading.Thread(target=self._open_set_detect_task)
+        self.pick_thread.start()
+
+    def _set_open_set_result(self, text):
+        QMetaObject.invokeMethod(self._widget.lblOpenSetResult, "setText", Qt.QueuedConnection, Q_ARG(str, text))
+
+    @disable_during_execution('OpenSet_groupBox')
+    def _open_set_detect_task(self):
+        if self.open_set_perception is None:
+            rospy.logerr('mobipick_api is not available, cannot run open-set detection')
+            self._set_open_set_result('mobipick_api not available')
+            return
+        object_name, use_vlm = self.open_set_request
+        if not object_name:
+            rospy.logwarn('type an object description first, e.g. "coke can"')
+            self._set_open_set_result('type an object description first')
+            return
+        rospy.loginfo(f'open-set detection of {object_name!r} (VLM verifier: {use_vlm})')
+        self._set_open_set_result(f'detecting {object_name!r}...')
+        result = self.open_set_perception.detect_open_set(object_name, use_vlm_verifier=use_vlm)
+        if result is None:
+            self._set_open_set_result('detection action unavailable or timed out (is AnyGrasp running?)')
+            return
+        lines = [result.message]
+        for detection in result.detections:
+            line = f'{detection.label} {detection.score:.2f} ' + ('accepted' if detection.accepted else 'rejected')
+            if detection.verifier_label:
+                line += f' | VLM: {detection.verifier_label} {detection.verifier_confidence:.2f}'
+            lines.append(line)
+        for obj in result.objects:
+            p = obj.pose.position
+            lines.append(f'pose selector: {obj.class_id}_{obj.instance_id} at ({p.x:.2f}, {p.y:.2f}, {p.z:.2f})')
+        rospy.loginfo('\n'.join(lines))
+        self._set_open_set_result('\n'.join(lines))
 
     def pick_object(self):
         self.pick_thread = threading.Thread(target=self._pick_object_task)
