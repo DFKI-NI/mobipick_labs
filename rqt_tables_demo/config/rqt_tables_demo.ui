@@ -932,7 +932,63 @@ obj</string>
              </property>
             </widget>
            </item>
-           <item row="1" column="0" colspan="2">
+           <item row="1" column="0">
+            <layout class="QHBoxLayout" name="horizontalLayout_openset_thresholds">
+             <item>
+              <widget class="QLabel" name="lblOpenSetBox">
+               <property name="text">
+                <string>box ≥</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QDoubleSpinBox" name="spinOpenSetBoxThreshold">
+               <property name="toolTip">
+                <string>Grounding DINO box confidence threshold for this request (0 = keep the detector node default from dynamic_reconfigure)</string>
+               </property>
+               <property name="decimals">
+                <number>2</number>
+               </property>
+               <property name="maximum">
+                <double>1.000000000000000</double>
+               </property>
+               <property name="singleStep">
+                <double>0.050000000000000</double>
+               </property>
+               <property name="value">
+                <double>0.400000000000000</double>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLabel" name="lblOpenSetAccept">
+               <property name="text">
+                <string>accept ≥</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QDoubleSpinBox" name="spinOpenSetAcceptThreshold">
+               <property name="toolTip">
+                <string>Minimum detector score for a detection to be sent to the pose selector (0 = keep the detector node default from dynamic_reconfigure)</string>
+               </property>
+               <property name="decimals">
+                <number>2</number>
+               </property>
+               <property name="maximum">
+                <double>1.000000000000000</double>
+               </property>
+               <property name="singleStep">
+                <double>0.050000000000000</double>
+               </property>
+               <property name="value">
+                <double>0.400000000000000</double>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item row="1" column="1">
             <widget class="QCheckBox" name="chkOpenSetVLM">
              <property name="toolTip">
               <string>Ask the VLM verifier service (mobipick_gpt vlm_verifier.launch) to confirm every candidate crop; the VLM verdict overrides the detector score</string>

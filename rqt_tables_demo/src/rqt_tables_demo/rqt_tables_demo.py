@@ -470,7 +470,12 @@ class RqtTablesDemo(Plugin):
 
     def open_set_detect(self):
         # read the widgets in the GUI thread; the task runs in the background
-        self.open_set_request = (self._widget.txtOpenSetPrompt.text().strip(), self._widget.chkOpenSetVLM.isChecked())
+        self.open_set_request = (
+            self._widget.txtOpenSetPrompt.text().strip(),
+            self._widget.chkOpenSetVLM.isChecked(),
+            self._widget.spinOpenSetBoxThreshold.value(),
+            self._widget.spinOpenSetAcceptThreshold.value(),
+        )
         self.pick_thread = threading.Thread(target=self._open_set_detect_task)
         self.pick_thread.start()
 
@@ -483,14 +488,16 @@ class RqtTablesDemo(Plugin):
             rospy.logerr('mobipick_api is not available, cannot run open-set detection')
             self._set_open_set_result('mobipick_api not available')
             return
-        object_name, use_vlm = self.open_set_request
+        object_name, use_vlm, box_threshold, accept_threshold = self.open_set_request
         if not object_name:
             rospy.logwarn('type an object description first, e.g. "coke can"')
             self._set_open_set_result('type an object description first')
             return
-        rospy.loginfo(f'open-set detection of {object_name!r} (VLM verifier: {use_vlm})')
+        rospy.loginfo(f'open-set detection of {object_name!r} (VLM verifier: {use_vlm}, '
+                      f'box >= {box_threshold:.2f}, accept >= {accept_threshold:.2f}; 0 = node default)')
         self._set_open_set_result(f'detecting {object_name!r}...')
-        result = self.open_set_perception.detect_open_set(object_name, use_vlm_verifier=use_vlm)
+        result = self.open_set_perception.detect_open_set(
+            object_name, use_vlm_verifier=use_vlm, box_threshold=box_threshold, accept_threshold=accept_threshold)
         if result is None:
             self._set_open_set_result('detection action unavailable or timed out (is AnyGrasp running?)')
             return
