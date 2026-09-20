@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- Videos of the experiment camera (and optionally the robot camera) that only
+       contain the moments the robot moves, plus a sped-up copy of each. -->
+  <arg name="image_topics" default="/experiment_camera/image_raw" />
+  <arg name="output_dir" default="/data/experiment_recordings" />
+  <arg name="name" default="" />
+  <arg name="fps" default="10.0" />
+  <arg name="speedup" default="4.0" />
+  <arg name="auto_pause" default="true" />
+  <arg name="motion_hold_s" default="1.5" />
+  <arg name="start_paused" default="false" />
+  <arg name="overlay" default="true" />
+  <arg name="joint_pattern" default="ur5" />  <!-- the simulated gripper finger reports ~0.18 rad/s at rest -->
+
+  <node pkg="experiment_camera_recorder" type="video_recorder.py" name="experiment_video_recorder" output="screen">
+    <param name="image_topics" value="$(arg image_topics)" />
+    <param name="output_dir" value="$(arg output_dir)" />
+    <param name="name" value="$(arg name)" />
+    <param name="fps" value="$(arg fps)" />
+    <param name="speedup" value="$(arg speedup)" />
+    <param name="auto_pause" value="$(arg auto_pause)" />
+    <param name="motion_hold_s" value="$(arg motion_hold_s)" />
+    <param name="start_paused" value="$(arg start_paused)" />
+    <param name="overlay" value="$(arg overlay)" />
+    <param name="joint_pattern" value="$(arg joint_pattern)" />
+  </node>
+</launch>

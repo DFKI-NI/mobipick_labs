@@ -33,3 +33,36 @@ shown. Clicking **OK** overwrites
 `experiment_camera_recorder/launch/configured_camera.launch` in the workspace.
 `demo_sim.launch` includes that file automatically, so the saved pose is used
 the next time the simulator starts.
+
+## Video of the moving robot
+
+`video_recorder.py` turns one or more image topics into videos that only contain
+the moments the robot moves and cannot be blocked by windows on the screen:
+
+```bash
+roslaunch experiment_camera_recorder video_recorder.launch \
+  image_topics:=/experiment_camera/image_raw,/mobipick/eef_main_cam/rgb/image_raw \
+  name:=insert_sugar
+```
+
+Videos go to `output_dir` (default `/data/experiment_recordings`, a host folder the
+GUI mounts into its containers at the same path).
+
+Per topic it writes `<topic>.mp4` (real time, `fps`, default 10) and
+`<topic>_4x.mp4` (same frames at four times the rate, `speedup`). With
+`auto_pause:=true` (default) frames are written only while `/mobipick/cmd_vel`
+is non-zero or an arm joint (`joint_pattern`, default `ur5`; the simulated gripper finger is noisy at rest) moves faster than
+`joint_velocity_threshold`, kept for `motion_hold_s` after the last motion, so
+idle phases (an agent thinking, perception) are cut. Manual control:
+
+```bash
+rosservice call /experiment_video_recorder/pause      # nothing is written until resume
+rosservice call /experiment_video_recorder/resume
+rostopic pub -1 /experiment_video_recorder/snapshot std_msgs/String "data: 'sugar grasped'"   # JPEG of every topic
+rosservice call /experiment_video_recorder/status     # JSON: frames, recorded seconds, paths
+rosservice call /experiment_video_recorder/stop       # closes the videos, writes summary.json, exits
+```
+
+The output folder (`<output_dir>/<timestamp>_<name>/`) also holds
+`snapshots/NNN_<label>_<topic>.jpg`, `events.jsonl` (pause/resume/snapshot with
+ROS and wall time) and `summary.json`.
