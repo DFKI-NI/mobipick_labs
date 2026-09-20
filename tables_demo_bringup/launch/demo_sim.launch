@@ -5,7 +5,7 @@
 
   <!-- controls the simulation speed -->
   <arg name="physics_profile" default="fast" doc="options: slow, fast" />
-  <arg name="grasp_fix" default="false" doc="Attach grasped objects with the gazebo_grasp_fix plugin instead of relying on friction (legacy hack, off by default)" />
+  <arg name="grasp_fix" default="true" doc="Attach grasped objects with the gazebo_grasp_fix plugin instead of relying on friction (legacy hack, off by default)" />
 
   <!-- if true, gzclient is started -->
   <arg name="gui" default="true" />
