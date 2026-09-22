@@ -56,6 +56,10 @@
   <!-- ::::: Manipulation , MoveIt: arm movement ::::: -->
   <include file="$(find mobipick_moveit_config)/launch/moveit_planning_execution.launch">
     <arg name="use_pointcloud" value="true"/>
+    <!-- Gazebo delivers about one gripper-camera frame per second here, so the octomap
+         is fed from a cheaper variant of the robot config: see the file for why. -->
+    <arg name="pointcloud_sensor_config"
+         value="$(find mobipick_moveit_config)/config/sensors_gripper_cam_pointcloud_sim.yaml"/>
   </include>
 
   <include file="$(find tables_demo_bringup)/launch/bringup.launch" >
