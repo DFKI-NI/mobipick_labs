@@ -62,6 +62,7 @@
   <!-- ::::: Place object ::::: -->
   <include file="$(find tables_demo_bringup)/launch/includes/place.launch">
     <arg name="objects_of_interest" value="$(arg objects_of_interest)" />
+    <arg name="disentangle_without_observe" value="$(eval not simulation)" />
   </include>
 
   <!-- ::::: Insert object ::::: -->
