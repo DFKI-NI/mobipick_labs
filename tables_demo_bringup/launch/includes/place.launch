@@ -2,8 +2,9 @@
 <launch>
 
   <arg name="objects_of_interest" default="[relay, screwdriver, multimeter, power_drill_with_grip, klt]"/>
-  <!-- untangle the arm cable before placing even when the goal does not observe first (real robot) -->
-  <arg name="disentangle_without_observe" default="false"/>
+  <!-- untangle the arm cable before placing even when the goal does not observe first
+       (the planner never asks to observe; the sim does it too so it matches the real robot) -->
+  <arg name="disentangle_without_observe" default="true"/>
 
   <!--place object wrapper node-->
   <node pkg="grasplan" type="place.py" name="place_object_node" output="screen" ns="mobipick" required="true">
