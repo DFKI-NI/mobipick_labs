@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <launch>
 
-  <node pkg="grasplan" type="insert.py" name="insert_object_node" output="screen" ns="mobipick" >
+  <node pkg="grasplan" type="insert.py" name="insert_object_node" output="screen" ns="mobipick" required="true">
     <param name="place_pose_selector_activate_srv_name" type="string" value="/place_pose_selector_node/pose_selector_activate" />
     <param name="place_pose_selector_clear_srv_name" type="string" value="/place_pose_selector_node/pose_selector_clear" />
     <param name="pick_pose_selector_activate_srv_name" type="string" value="/pick_pose_selector_node/pose_selector_activate" />

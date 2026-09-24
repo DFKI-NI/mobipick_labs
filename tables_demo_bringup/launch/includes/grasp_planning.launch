@@ -23,7 +23,7 @@
   </node>
   <!-- pick object script using handcoded grasp planner
        (grasps  defined manually using grasp editor or recorded via gazebo zero gravity environment) -->
-  <node pkg="grasplan" type="pick.py" name="pick_object_node" output="screen" ns="mobipick" >
+  <node pkg="grasplan" type="pick.py" name="pick_object_node" output="screen" ns="mobipick" required="true">
     <param name="import_file" type="string" value="grasplan.grasp_planner.handcoded_grasp_planner" />
     <param name="import_class" type="string" value="HandcodedGraspPlanner" />
     <param name="pose_selector_activate_srv_name" type="string" value="/pick_pose_selector_node/pose_selector_activate" />
