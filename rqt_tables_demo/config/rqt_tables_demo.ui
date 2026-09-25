@@ -1011,6 +1011,213 @@ obj</string>
           </layout>
          </widget>
         </item>
+        <item>
+         <widget class="QGroupBox" name="Perceive_groupBox">
+          <property name="title">
+           <string>Perceive (mobipick_api perceive, the agent's perception action)</string>
+          </property>
+          <layout class="QGridLayout" name="gridLayout_perceive" columnstretch="3,2,2">
+           <item row="0" column="0" colspan="2">
+            <widget class="QLineEdit" name="txtPerceiveTargets">
+             <property name="toolTip">
+              <string>Comma-separated targets: known objects (multimeter, multimeter_1), open-set descriptions (tennis ball) and tables (table_n) may be mixed</string>
+             </property>
+             <property name="placeholderText">
+              <string>targets, e.g. table_2, multimeter, tennis ball</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="2">
+            <widget class="QPushButton" name="cmdPerceive">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="text">
+              <string>Perceive</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="0">
+            <widget class="QComboBox" name="comboPerceiveConfidence">
+             <property name="toolTip">
+              <string>high: open-set targets get close-up inspection + VLM and a committed pose; low: one Grounding DINO view (+ VLM verdict), nothing committed. Known objects (DOPE) are always high.</string>
+             </property>
+             <item>
+              <property name="text">
+               <string>high</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>low</string>
+              </property>
+             </item>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="QCheckBox" name="chkPerceiveVLM">
+             <property name="toolTip">
+              <string>Verify open-set candidates with the VLM (default on)</string>
+             </property>
+             <property name="text">
+              <string>VLM verification</string>
+             </property>
+             <property name="checked">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="2">
+            <widget class="QCheckBox" name="chkPerceiveAlign">
+             <property name="toolTip">
+              <string>High confidence: shift the base to centre the view on the DISC position of each open-set target</string>
+             </property>
+             <property name="text">
+              <string>align base (DISC)</string>
+             </property>
+             <property name="checked">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="1">
+            <widget class="QCheckBox" name="chkPerceiveDopeOnly">
+             <property name="toolTip">
+              <string>Experimentation: closed-set detector only (not with gd_only)</string>
+             </property>
+             <property name="text">
+              <string>dope_only</string>
+             </property>
+             <property name="checked">
+              <bool>false</bool>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="2">
+            <widget class="QCheckBox" name="chkPerceiveGdOnly">
+             <property name="toolTip">
+              <string>Experimentation: Grounding DINO only, known targets looked for as descriptions (not with dope_only)</string>
+             </property>
+             <property name="text">
+              <string>gd_only</string>
+             </property>
+             <property name="checked">
+              <bool>false</bool>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="0" colspan="3">
+            <widget class="QPlainTextEdit" name="txtPerceiveResult">
+             <property name="toolTip">
+              <string>success / partial / failed and one line per target, as returned to the LLM planner</string>
+             </property>
+             <property name="readOnly">
+              <bool>true</bool>
+             </property>
+             <property name="minimumSize">
+              <size>
+               <width>0</width>
+               <height>90</height>
+              </size>
+             </property>
+             <property name="plainText">
+              <string>-</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QGroupBox" name="Inspect_groupBox">
+          <property name="title">
+           <string>Inspect object (InspectObject, testing only: the robot must be at the table)</string>
+          </property>
+          <layout class="QGridLayout" name="gridLayout_inspect" columnstretch="3,2,2">
+           <item row="0" column="0" colspan="2">
+            <widget class="QLineEdit" name="txtInspectQueries">
+             <property name="toolTip">
+              <string>Comma-separated open-set descriptions, inspected at the table the robot stands at</string>
+             </property>
+             <property name="placeholderText">
+              <string>open-set objects, e.g. sugar box, coke</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="2">
+            <widget class="QPushButton" name="cmdInspect">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="text">
+              <string>Inspect</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="0">
+            <widget class="QLineEdit" name="txtInspectTable">
+             <property name="toolTip">
+              <string>Only labels the recorded session; the robot is assumed to be at the right table</string>
+             </property>
+             <property name="placeholderText">
+              <string>table label (optional, session record only)</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="QCheckBox" name="chkInspectVLM">
+             <property name="toolTip">
+              <string>Verify candidates with the VLM (default on); off: the Grounding DINO detections of one close-up are committed</string>
+             </property>
+             <property name="text">
+              <string>VLM verification</string>
+             </property>
+             <property name="checked">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="2">
+            <widget class="QCheckBox" name="chkInspectAlign">
+             <property name="toolTip">
+              <string>Shift the base to centre the observation view on the DISC position of the first query</string>
+             </property>
+             <property name="text">
+              <string>align base (DISC)</string>
+             </property>
+             <property name="checked">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="0" colspan="3">
+            <widget class="QPlainTextEdit" name="txtInspectResult">
+             <property name="toolTip">
+              <string>Committed ids with map positions and one outcome line per query</string>
+             </property>
+             <property name="readOnly">
+              <bool>true</bool>
+             </property>
+             <property name="minimumSize">
+              <size>
+               <width>0</width>
+               <height>90</height>
+              </size>
+             </property>
+             <property name="plainText">
+              <string>-</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
        </layout>
       </widget>
      </item>

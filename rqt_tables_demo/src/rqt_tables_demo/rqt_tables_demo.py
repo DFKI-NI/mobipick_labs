@@ -22,9 +22,9 @@ from grasplan.msg import PlaceObjectGoal, InsertObjectAction, InsertObjectGoal
 import robot_api
 
 try:
-    from mobipick_api.perception import Perception as OpenSetPerception
-except ImportError:  # mobipick_api is optional; the open-set group box is disabled without it
-    OpenSetPerception = None
+    from mobipick_api.perception import Perception as ApiPerception
+except ImportError:  # mobipick_api is optional; the open-set, perceive and inspect group boxes need it
+    ApiPerception = None
 
 from functools import wraps
 
@@ -94,11 +94,11 @@ class RqtTablesDemo(Plugin):
         self.mobipick = robot_api.Robot("mobipick")
         # a flag to know if pose selector is available or not
         self.is_pose_selector_available = False
-        # mobipick_api perception client for AnyGrasp's open-set DetectObjects action;
-        # the arm is only used when an observation pose is requested (never from this GUI)
-        self.open_set_perception = None
-        if OpenSetPerception is not None:
-            self.open_set_perception = OpenSetPerception('/mobipick/', self.mobipick.arm, None)
+        # mobipick_api perception client: AnyGrasp's open-set DetectObjects action, perceive (served by
+        # mobipick_active_perception, closed-set only without it) and InspectObject (testing only)
+        self.api_perception = None
+        if ApiPerception is not None:
+            self.api_perception = ApiPerception('/mobipick/', self.mobipick.arm, None)
         self.is_gripper_srv_available = False
         self.action_client = None
 
@@ -251,6 +251,10 @@ class RqtTablesDemo(Plugin):
         self._widget.cmdPerceptionPSClassQuery.clicked.connect(self.perception_ps_class_query)
         self._widget.cmdOpenSetDetect.clicked.connect(self.open_set_detect)
         self._widget.txtOpenSetPrompt.returnPressed.connect(self.open_set_detect)
+        self._widget.cmdPerceive.clicked.connect(self.perceive_targets)
+        self._widget.txtPerceiveTargets.returnPressed.connect(self.perceive_targets)
+        self._widget.cmdInspect.clicked.connect(self.inspect_object)
+        self._widget.txtInspectQueries.returnPressed.connect(self.inspect_object)
         self._widget.cmdPickObj.clicked.connect(self.pick_object)
         self._widget.cmdManipUpdate.clicked.connect(self.manipulation_update)
         self._widget.cmdPlaceObj.clicked.connect(self.place_object)
@@ -484,7 +488,7 @@ class RqtTablesDemo(Plugin):
 
     @disable_during_execution('OpenSet_groupBox')
     def _open_set_detect_task(self):
-        if self.open_set_perception is None:
+        if self.api_perception is None:
             rospy.logerr('mobipick_api is not available, cannot run open-set detection')
             self._set_open_set_result('mobipick_api not available')
             return
@@ -496,7 +500,7 @@ class RqtTablesDemo(Plugin):
         rospy.loginfo(f'open-set detection of {object_name!r} (VLM verifier: {use_vlm}, '
                       f'box >= {box_threshold:.2f}, accept >= {accept_threshold:.2f}; 0 = node default)')
         self._set_open_set_result(f'detecting {object_name!r}...')
-        result = self.open_set_perception.detect_open_set(
+        result = self.api_perception.detect_open_set(
             object_name, use_vlm_verifier=use_vlm, box_threshold=box_threshold, accept_threshold=accept_threshold)
         if result is None:
             self._set_open_set_result('detection action unavailable or timed out (is AnyGrasp running?)')
@@ -512,6 +516,87 @@ class RqtTablesDemo(Plugin):
             lines.append(f'pose selector: {obj.class_id}_{obj.instance_id} at ({p.x:.2f}, {p.y:.2f}, {p.z:.2f})')
         rospy.loginfo('\n'.join(lines))
         self._set_open_set_result('\n'.join(lines))
+
+    @staticmethod
+    def _split_list(text):
+        return [item.strip() for item in text.split(',') if item.strip()]
+
+    def _set_text(self, widget, text):
+        QMetaObject.invokeMethod(widget, "setPlainText", Qt.QueuedConnection, Q_ARG(str, text))
+
+    def perceive_targets(self):
+        # read the widgets in the GUI thread; the task runs in the background
+        self.perceive_request = (
+            self._split_list(self._widget.txtPerceiveTargets.text()),
+            self._widget.comboPerceiveConfidence.currentText(),
+            self._widget.chkPerceiveVLM.isChecked(),
+            self._widget.chkPerceiveAlign.isChecked(),
+            self._widget.chkPerceiveDopeOnly.isChecked(),
+            self._widget.chkPerceiveGdOnly.isChecked(),
+        )
+        self.pick_thread = threading.Thread(target=self._perceive_targets_task)
+        self.pick_thread.start()
+
+    @disable_during_execution('Perceive_groupBox')
+    def _perceive_targets_task(self):
+        widget = self._widget.txtPerceiveResult
+        if self.api_perception is None:
+            self._set_text(widget, 'mobipick_api not available')
+            return
+        targets, confidence, use_vlm, align, dope_only, gd_only = self.perceive_request
+        if not targets:
+            self._set_text(widget, 'type the targets first, e.g. table_2, multimeter, tennis ball')
+            return
+        self._set_text(widget, f'perceiving {targets} with {confidence} confidence...')
+        try:
+            text = self.api_perception.perceive(targets, confidence=confidence, use_vlm=use_vlm, align=align,
+                                                dope_only=dope_only, gd_only=gd_only)
+        except Exception as exc:  # invalid request or a service failure: show it instead of dying
+            text = f'failed:\n{type(exc).__name__}: {exc}'
+        rospy.loginfo(f'perceive result:\n{text}')
+        self._set_text(widget, text or '-')
+
+    def inspect_object(self):
+        # read the widgets in the GUI thread; the task runs in the background
+        self.inspect_request = (
+            self._split_list(self._widget.txtInspectQueries.text()),
+            self._widget.txtInspectTable.text().strip(),
+            self._widget.chkInspectVLM.isChecked(),
+            self._widget.chkInspectAlign.isChecked(),
+        )
+        self.pick_thread = threading.Thread(target=self._inspect_object_task)
+        self.pick_thread.start()
+
+    @disable_during_execution('Inspect_groupBox')
+    def _inspect_object_task(self):
+        widget = self._widget.txtInspectResult
+        if self.api_perception is None:
+            self._set_text(widget, 'mobipick_api not available')
+            return
+        queries, table, use_vlm, align = self.inspect_request
+        if not queries:
+            self._set_text(widget, 'type the open-set objects first, e.g. sugar box, coke')
+            return
+        self._set_text(widget, f'inspecting {queries}...')
+        try:
+            result = self.api_perception.inspect_object(
+                queries, table=table, align=align, use_vlm=use_vlm,
+                feedback_cb=lambda fb: self._set_text(widget, f'inspecting {queries}: {fb.stage}'))
+        except Exception as exc:  # e.g. mobipick_active_perception messages missing in this workspace
+            self._set_text(widget, f'{type(exc).__name__}: {exc}')
+            return
+        if result is None:
+            self._set_text(widget, 'InspectObject unavailable or timed out (is mobipick_active_perception running?)')
+            return
+        lines = [result.message]
+        for object_id, pose in zip(result.accepted, result.poses):
+            p = pose.pose.position
+            lines.append(f'{object_id} at map ({p.x:.2f}, {p.y:.2f}, {p.z:.2f})')
+        lines += list(result.outcomes)
+        if result.alignment_cm:
+            lines.append(f'base aligned by {result.alignment_cm:.1f} cm')
+        rospy.loginfo('\n'.join(lines))
+        self._set_text(widget, '\n'.join(lines))
 
     def pick_object(self):
         self.pick_thread = threading.Thread(target=self._pick_object_task)
