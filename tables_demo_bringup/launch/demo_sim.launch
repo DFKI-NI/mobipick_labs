@@ -28,6 +28,7 @@
   <node pkg="pbr_gazebo" type="gazebo_unpauser" name="gazebo_unpauser" output="screen" />
 
   <include if="$(arg experiment_camera)" file="$(find experiment_camera_recorder)/launch/configured_camera.launch">
+    <arg name="world_config" value="$(arg world_config)" />
     <arg name="record" value="$(arg record_experiment_images)" />
     <arg name="record_frequency" value="$(arg experiment_image_frequency)" />
     <arg name="output_dir" value="$(arg experiment_image_output_dir)" />

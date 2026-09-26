@@ -22,17 +22,22 @@ roslaunch tables_demo_bringup demo_sim.launch \
   experiment_image_output_dir:=/data/my_experiment/frames
 ```
 
-After Gazebo and the camera are running, start the pose tuner with:
+The camera pose depends on the world: `configured_camera.launch` holds one pose
+per `world_config` (`moelk_tables`, `cic_tables`); other worlds get the
+`camera.launch` default pose. After Gazebo and the camera are running, start
+the pose tuner for the world the sim runs:
 
 ```bash
-roslaunch experiment_camera_recorder pose_tuner.launch
+roslaunch experiment_camera_recorder pose_tuner.launch world_config:=cic_tables
 ```
 
-Its six sliders update the camera model in Gazebo while the live image is
-shown. Clicking **OK** overwrites
-`experiment_camera_recorder/launch/configured_camera.launch` in the workspace.
-`demo_sim.launch` includes that file automatically, so the saved pose is used
-the next time the simulator starts.
+(`world_config` defaults to `$MOBIPICK_WORLD`, else `moelk_tables`.) Its six
+sliders, or the number boxes next to them for exact values, update the camera
+model in Gazebo while the live image is shown; **Saved pose** jumps to the pose
+currently saved for that world. Clicking **OK** rewrites only that world's pose
+in `experiment_camera_recorder/launch/configured_camera.launch` in the
+workspace. `demo_sim.launch` includes that file automatically, so the saved pose
+is used the next time the simulator starts.
 
 ## Video of the moving robot
 

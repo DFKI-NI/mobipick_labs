@@ -3,7 +3,9 @@
 """Tune the experiment camera pose in Gazebo and generate a launch file."""
 
 import os
+import re
 import sys
+import xml.etree.ElementTree as ElementTree
 
 import rospy
 from cv_bridge import CvBridge, CvBridgeError
@@ -15,22 +17,83 @@ from python_qt_binding.QtWidgets import (
     QApplication,
     QDialog,
     QDialogButtonBox,
+    QDoubleSpinBox,
     QFormLayout,
+    QHBoxLayout,
     QLabel,
     QMessageBox,
+    QPushButton,
     QSlider,
     QVBoxLayout,
 )
 from sensor_msgs.msg import Image
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
+AXES = ("x", "y", "z", "roll", "pitch", "yaw")
+WORLD_CONDITION = re.compile(r"world_config\s*==\s*'([^']+)'")
+
+
+def read_world_poses(launch_file):
+    """Return {world_config: {axis: value}} from a configured_camera.launch file."""
+    poses = {}
+    try:
+        root = ElementTree.parse(launch_file).getroot()
+    except (OSError, ElementTree.ParseError):
+        return poses
+    for include in root.iter("include"):
+        match = WORLD_CONDITION.search(include.get("if", ""))
+        if not match:
+            continue
+        values = {arg.get("name"): arg.get("value") for arg in include.findall("arg")}
+        try:
+            poses[match.group(1)] = {axis: float(values[axis]) for axis in AXES}
+        except (KeyError, TypeError, ValueError):
+            continue
+    return poses
+
+
+def launch_file_code(poses):
+    """Generate configured_camera.launch with one camera include per world."""
+    blocks = []
+    for world, pose in poses.items():
+        blocks.append("""  <include if=\"$(eval world_config == '{world}')\" file=\"$(find experiment_camera_recorder)/launch/camera.launch\">
+    <arg name=\"x\" value=\"{x:.3f}\" />
+    <arg name=\"y\" value=\"{y:.3f}\" />
+    <arg name=\"z\" value=\"{z:.3f}\" />
+    <arg name=\"roll\" value=\"{roll:.4f}\" />
+    <arg name=\"pitch\" value=\"{pitch:.4f}\" />
+    <arg name=\"yaw\" value=\"{yaw:.4f}\" />
+    <arg name=\"record\" value=\"$(arg record)\" />
+    <arg name=\"record_frequency\" value=\"$(arg record_frequency)\" />
+    <arg name=\"output_dir\" value=\"$(arg output_dir)\" />
+  </include>
+""".format(world=world, **pose))
+    worlds = ", ".join("'{}'".format(world) for world in poses)
+    return """<?xml version=\"1.0\"?>
+<!-- One camera pose per world. pose_tuner.py rewrites the pose of the world it tunes when its OK button is clicked. -->
+<launch>
+  <arg name=\"world_config\" default=\"moelk_tables\" />
+  <arg name=\"record\" default=\"false\" />
+  <arg name=\"record_frequency\" default=\"0.2\" />
+  <arg name=\"output_dir\" default=\"\" />
+
+{blocks}
+  <!-- worlds without a tuned pose get the camera.launch default pose -->
+  <include unless=\"$(eval world_config in [{worlds}])\" file=\"$(find experiment_camera_recorder)/launch/camera.launch\">
+    <arg name=\"record\" value=\"$(arg record)\" />
+    <arg name=\"record_frequency\" value=\"$(arg record_frequency)\" />
+    <arg name=\"output_dir\" value=\"$(arg output_dir)\" />
+  </include>
+</launch>
+""".format(blocks="\n".join(blocks), worlds=worlds)
+
 
 class PoseTuner(QDialog):
     image_received = Signal(object)
 
     RANGES = {
-        "x": (-20.0, 20.0, 0.01),
-        "y": (-20.0, 20.0, 0.01),
+        "x": (-50.0, 50.0, 0.01),
+        "y": (-50.0, 50.0, 0.01),
         "z": (0.0, 10.0, 0.01),
         "roll": (-3.1416, 3.1416, 0.001),
         "pitch": (-3.1416, 3.1416, 0.001),
@@ -39,7 +102,8 @@ class PoseTuner(QDialog):
 
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Experiment camera pose tuner")
+        self._world = rospy.get_param("~world_config", "moelk_tables")
+        self.setWindowTitle("Experiment camera pose tuner ({})".format(self._world))
         self.resize(900, 760)
         self._bridge = CvBridge()
         self._model_name = rospy.get_param("~model_name", "experiment_camera")
@@ -48,7 +112,7 @@ class PoseTuner(QDialog):
         ))
         self._set_model_state = rospy.ServiceProxy("/gazebo/set_model_state", SetModelState)
         self._sliders = {}
-        self._value_labels = {}
+        self._spin_boxes = {}
 
         layout = QVBoxLayout(self)
         self._image_label = QLabel("Waiting for /experiment_camera/image_raw ...")
@@ -60,18 +124,26 @@ class PoseTuner(QDialog):
         for name, (minimum, maximum, step) in self.RANGES.items():
             slider = QSlider(Qt.Horizontal)
             slider.setRange(round(minimum / step), round(maximum / step))
-            value_label = QLabel("0.000")
-            value_label.setMinimumWidth(70)
-            row = QVBoxLayout()
-            row.addWidget(slider)
-            row.addWidget(value_label)
+            spin_box = QDoubleSpinBox()
+            spin_box.setRange(minimum, maximum)
+            spin_box.setSingleStep(step)
+            spin_box.setDecimals(3 if step >= 0.01 else 4)
+            spin_box.setMinimumWidth(100)
+            row = QHBoxLayout()
+            row.addWidget(slider, 1)
+            row.addWidget(spin_box)
             form.addRow(name, row)
-            slider.valueChanged.connect(self._pose_changed)
+            slider.valueChanged.connect(lambda value, name=name: self._slider_changed(name, value))
+            spin_box.valueChanged.connect(lambda value, name=name: self._spin_box_changed(name, value))
             self._sliders[name] = slider
-            self._value_labels[name] = value_label
+            self._spin_boxes[name] = spin_box
         layout.addLayout(form)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        saved_pose_button = QPushButton("Saved pose")
+        saved_pose_button.setToolTip("Move the camera to the pose saved for {}".format(self._world))
+        saved_pose_button.clicked.connect(self._load_saved_pose)
+        buttons.addButton(saved_pose_button, QDialogButtonBox.ResetRole)
         buttons.accepted.connect(self._write_launch_file)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
@@ -89,30 +161,47 @@ class PoseTuner(QDialog):
             if not response.success:
                 raise RuntimeError(response.status_message)
             orientation = response.pose.orientation
-            values = dict(zip(
-                ("x", "y", "z", "roll", "pitch", "yaw"),
+            self._set_values(dict(zip(
+                AXES,
                 (response.pose.position.x, response.pose.position.y, response.pose.position.z)
                 + euler_from_quaternion((orientation.x, orientation.y, orientation.z, orientation.w)),
-            ))
-            for name, value in values.items():
-                step = self.RANGES[name][2]
-                self._sliders[name].blockSignals(True)
-                self._sliders[name].setValue(round(value / step))
-                self._sliders[name].blockSignals(False)
-            self._pose_changed()
+            )))
         except (rospy.ServiceException, RuntimeError) as error:
             QMessageBox.warning(self, "Gazebo model unavailable", str(error))
 
+    def _load_saved_pose(self):
+        pose = read_world_poses(self._output_file).get(self._world)
+        if pose is None:
+            QMessageBox.information(self, "No saved pose", "{} has no pose for {}".format(self._output_file, self._world))
+            return
+        self._set_values(pose)
+
+    def _set_values(self, values):
+        for name, value in values.items():
+            step = self.RANGES[name][2]
+            for widget, widget_value in ((self._sliders[name], round(value / step)), (self._spin_boxes[name], value)):
+                widget.blockSignals(True)
+                widget.setValue(widget_value)
+                widget.blockSignals(False)
+        self._pose_changed()
+
+    def _slider_changed(self, name, value):
+        self._spin_boxes[name].blockSignals(True)
+        self._spin_boxes[name].setValue(value * self.RANGES[name][2])
+        self._spin_boxes[name].blockSignals(False)
+        self._pose_changed()
+
+    def _spin_box_changed(self, name, value):
+        self._sliders[name].blockSignals(True)
+        self._sliders[name].setValue(round(value / self.RANGES[name][2]))
+        self._sliders[name].blockSignals(False)
+        self._pose_changed()
+
     def _values(self):
-        return {
-            name: slider.value() * self.RANGES[name][2]
-            for name, slider in self._sliders.items()
-        }
+        return {name: spin_box.value() for name, spin_box in self._spin_boxes.items()}
 
     def _pose_changed(self):
         values = self._values()
-        for name, label in self._value_labels.items():
-            label.setText("{:.3f}".format(values[name]))
         quaternion = quaternion_from_euler(values["roll"], values["pitch"], values["yaw"])
         state = ModelState()
         state.model_name = self._model_name
@@ -144,27 +233,9 @@ class PoseTuner(QDialog):
         ))
 
     def _write_launch_file(self):
-        values = self._values()
-        code = """<?xml version=\"1.0\"?>
-<!-- This file is updated by pose_tuner.py when its OK button is clicked. -->
-<launch>
-  <arg name=\"record\" default=\"false\" />
-  <arg name=\"record_frequency\" default=\"0.2\" />
-  <arg name=\"output_dir\" default=\"\" />
-
-  <include file=\"$(find experiment_camera_recorder)/launch/camera.launch\">
-    <arg name=\"x\" value=\"{x:.3f}\" />
-    <arg name=\"y\" value=\"{y:.3f}\" />
-    <arg name=\"z\" value=\"{z:.3f}\" />
-    <arg name=\"roll\" value=\"{roll:.4f}\" />
-    <arg name=\"pitch\" value=\"{pitch:.4f}\" />
-    <arg name=\"yaw\" value=\"{yaw:.4f}\" />
-    <arg name=\"record\" value=\"$(arg record)\" />
-    <arg name=\"record_frequency\" value=\"$(arg record_frequency)\" />
-    <arg name=\"output_dir\" value=\"$(arg output_dir)\" />
-  </include>
-</launch>
-""".format(**values)
+        poses = read_world_poses(self._output_file)
+        poses[self._world] = self._values()
+        code = launch_file_code(poses)
         try:
             output_dir = os.path.dirname(self._output_file)
             if output_dir:
@@ -174,7 +245,7 @@ class PoseTuner(QDialog):
         except OSError as error:
             QMessageBox.critical(self, "Could not write launch file", str(error))
             return
-        QMessageBox.information(self, "Camera pose saved", "Generated {}".format(self._output_file))
+        QMessageBox.information(self, "Camera pose saved", "Saved the {} pose in {}".format(self._world, self._output_file))
         self.accept()
 
 
