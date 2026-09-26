@@ -1,5 +1,7 @@
 <?xml version="1.0"?>
 <launch>
+  <arg name="place_same_orientation_as_picked" default="true" doc="false: small objects (e.g. balls, fruit) are inserted with the gripper pointing straight down and the wrist turned as little as possible, instead of in the orientation they were grasped in (avoids winding up the arm cable)" />
+
 
   <node pkg="grasplan" type="insert.py" name="insert_object_node" output="screen" ns="mobipick" required="true">
     <param name="place_pose_selector_activate_srv_name" type="string" value="/place_pose_selector_node/pose_selector_activate" />
@@ -8,6 +10,7 @@
     <param name="pick_pose_selector_class_query_srv_name" type="string" value="/pick_pose_selector_node/pose_selector_class_query" />
     <param name="pick_pose_selector_get_all_poses_srv_name" type="string" value="/pick_pose_selector_node/pose_selector_get_all" />
     <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/insert_params.yaml" command="load" />
+    <param name="place_same_orientation_as_picked" value="$(arg place_same_orientation_as_picked)" />
   </node>
 
 </launch>

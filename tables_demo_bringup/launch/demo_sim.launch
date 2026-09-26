@@ -2,6 +2,7 @@
 <launch>
   <arg name="world_config" default="moelk_tables" doc="objects arrangement, options: moelk_tables, cic_tables" />
   <arg name="anygrasp_handles_execution" default="false" />
+  <arg name="place_same_orientation_as_picked" default="true" doc="false: small objects (e.g. balls, fruit) are inserted with the gripper pointing straight down and the wrist turned as little as possible, instead of in the orientation they were grasped in (avoids winding up the arm cable)" />
 
   <!-- controls the simulation speed -->
   <arg name="physics_profile" default="fast" doc="options: slow, fast" />
@@ -66,5 +67,6 @@
     <arg name="simulation" value="true" />
     <arg name="world_config" value="$(arg world_config)" />
     <arg name="anygrasp_handles_execution" value="$(arg anygrasp_handles_execution)" />
+    <arg name="place_same_orientation_as_picked" value="$(arg place_same_orientation_as_picked)" />
   </include>
 </launch>

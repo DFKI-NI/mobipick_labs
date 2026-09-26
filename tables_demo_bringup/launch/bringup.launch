@@ -5,6 +5,7 @@
   <arg name="objects_of_interest" default="[relay, screwdriver, multimeter, power_drill_with_grip, hot_glue_gun, klt, bleach, mustard, soup, meat]"/>
   <arg name="dope_converter_config" default="$(find pbr_objects)/config/class_ids.yaml" />
   <arg name="anygrasp_handles_execution" default="false" />
+  <arg name="place_same_orientation_as_picked" default="true" doc="false: small objects (e.g. balls, fruit) are inserted with the gripper pointing straight down and the wrist turned as little as possible, instead of in the orientation they were grasped in (avoids winding up the arm cable)" />
 
   <arg name="allow_search_same_table" default="false" doc="allows to search tables again without restarting the planning domain, only works when using hierarchical planning"/>
   <arg name="tables_to_search_at" default="[table_1, table_2, table_3]" doc="list of table names to search at during item and klt search"/>
@@ -65,7 +66,9 @@
   </include>
 
   <!-- ::::: Insert object ::::: -->
-  <include file="$(find tables_demo_bringup)/launch/includes/insert.launch"/>
+  <include file="$(find tables_demo_bringup)/launch/includes/insert.launch">
+    <arg name="place_same_orientation_as_picked" value="$(arg place_same_orientation_as_picked)" />
+  </include>
 
   <!-- config for tables_demo_planning -->
   <rosparam command="load" file="$(find mobipick_pick_n_place)/config/$(arg world_config)_demo.yaml" ns="mobipick/tables_demo_planning" />
