@@ -5,6 +5,7 @@
   <!-- untangle the arm cable before placing even when the goal does not observe first
        (the planner never asks to observe; the sim does it too so it matches the real robot) -->
   <arg name="disentangle_without_observe" default="true"/>
+  <arg name="use_mtc" default="false" doc="true: plan and execute grasplan pick, place and insert with MoveIt Task Constructor instead of the MoveIt pick n place pipeline (move_group pickup/place actions)" />
 
   <!--place object wrapper node-->
   <node pkg="grasplan" type="place.py" name="place_object_node" output="screen" ns="mobipick" required="true">
@@ -14,6 +15,7 @@
     <param name="pick_pose_selector_get_all_poses_srv_name" type="string" value="/pick_pose_selector_node/pose_selector_get_all" />
     <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/place_params.yaml" command="load" />
     <param name="disentangle_without_observe" value="$(arg disentangle_without_observe)" />
+    <param name="use_mtc" type="bool" value="$(arg use_mtc)" />
   </node>
 
   <!-- a second pose selector for storing place poses -->
