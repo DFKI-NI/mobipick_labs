@@ -16,6 +16,7 @@
 
   <!-- Transparent overview camera and sparse experiment image recorder. -->
   <arg name="experiment_camera" default="true" />
+  <arg name="start_ground_truth_viz" default="true" doc="publish the Gazebo tables and objects (boxes + URDF meshes) on /sim_ground_truth/* for RViz; only reads Gazebo while someone subscribes" />
   <arg name="record_experiment_images" default="false" />
   <arg name="experiment_image_frequency" default="0.2" />
   <arg name="experiment_image_output_dir" default="" />
@@ -30,6 +31,9 @@
 
   <!-- automatically unpause gazebo simulation after some time -->
   <node pkg="pbr_gazebo" type="gazebo_unpauser" name="gazebo_unpauser" output="screen" />
+
+  <!-- ground truth for RViz (group "Ground truth (sim)") -->
+  <include if="$(arg start_ground_truth_viz)" file="$(find sim_ground_truth_viz)/launch/sim_ground_truth_viz.launch" />
 
   <include if="$(arg experiment_camera)" file="$(find experiment_camera_recorder)/launch/configured_camera.launch">
     <arg name="world_config" value="$(arg world_config)" />

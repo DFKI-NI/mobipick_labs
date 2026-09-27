@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>sim_ground_truth_viz</name>
+  <version>0.1.0</version>
+  <description>Gazebo ground truth of tables and objects for RViz: oriented boxes from the URDF collision geometry and the models' own URDF visuals (meshes), published lazily.</description>
+
+  <maintainer email="oscar.lima@dfki.de">Oscar Lima</maintainer>
+  <license>BSD</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <exec_depend>gazebo_msgs</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>python3-yaml</exec_depend>
+  <exec_depend>rospy</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>tf</exec_depend>
+  <exec_depend>urdfdom_py</exec_depend>
+  <exec_depend>visualization_msgs</exec_depend>
+</package>

@@ -247,6 +247,12 @@ roslaunch tables_demo_bringup demo_sim.launch world_config:=cic_tables
       `tables_demo_planning` (defines move_base target poses in front of
       tables, home pose, handover pose, etc.).
 
+**start_ground_truth_viz** (default `true`): starts
+[`sim_ground_truth_viz`](sim_ground_truth_viz/README.md), which publishes the
+Gazebo tables and objects (oriented boxes and URDF meshes) for the RViz group
+*Ground truth (sim)*, so perception results can be checked against the truth.
+It only reads Gazebo while RViz (or anyone) subscribes.
+
 #### World Config Definitions
 
 Each `world_config` is characterized by four scenario-specific launch and YAML files:

@@ -1,0 +1,28 @@
+# Which URDF parameter each Gazebo model was spawned from, when it is not
+# /<model>_description or /<label>_description (label = model name without a
+# trailing _<n>). Keyed by world; the world is detected from its pbr_<world>
+# model (pbr_cic -> cic_tables, pbr_moelk -> moelk_tables).
+worlds:
+  cic_tables:   # mobipick_gazebo/launch/worlds/cic_tables_spawn_sim_objects.launch
+    table_1: long_table_description
+    table_2: small_table_description
+    table_3: small_table_description
+    table_4: small_table_description
+    storage_table: small_table_description
+  moelk_tables: # mobipick_gazebo/launch/worlds/moelk_tables_spawn_sim_objects.launch
+    table_1: table_description
+    table_2: table_description
+    table_3: table_description
+
+# Box of models whose collision is a mesh (the box is otherwise the bounding
+# box of the URDF collision primitives), keyed by label; size [x, y, z] and
+# center_offset in the model frame (pbr objects: pbr_objects/config/dimensions.yaml,
+# centred on the model origin).
+box_overrides:
+  coke_can:    {size: [0.067, 0.067, 0.1239], center_offset: [0.0, 0.0, 0.06195]}
+  power_drill: {size: [0.18436, 0.18684, 0.05719]}
+  power_drill_with_grip: {size: [0.17997, 0.22054, 0.08122]}
+  hot_glue_gun: {size: [0.16436, 0.17788, 0.05239]}
+
+# Gazebo models never drawn.
+exclude: [ground_plane, mobipick, experiment_camera, pbr_cic, pbr_moelk]

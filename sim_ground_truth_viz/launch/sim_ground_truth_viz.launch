@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- Gazebo ground truth for RViz (group "Ground truth (sim)" of
+       tables_demo_bringup/config/pick_n_place.rviz): /sim_ground_truth/boxes
+       and /sim_ground_truth/meshes. Lazy: reads /gazebo/model_states only while
+       someone subscribes. -->
+  <arg name="frame_id" default="map" doc="frame of the Gazebo world coordinates in RViz"/>
+  <arg name="models_file" default="$(find sim_ground_truth_viz)/config/models.yaml"/>
+
+  <node pkg="sim_ground_truth_viz" type="sim_ground_truth_viz.py" name="sim_ground_truth_viz" output="screen">
+    <param name="frame_id" value="$(arg frame_id)"/>
+    <param name="models_file" value="$(arg models_file)"/>
+    <remap from="~boxes" to="/sim_ground_truth/boxes"/>
+    <remap from="~meshes" to="/sim_ground_truth/meshes"/>
+  </node>
+</launch>
