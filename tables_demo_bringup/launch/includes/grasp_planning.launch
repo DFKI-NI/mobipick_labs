@@ -3,6 +3,7 @@
   <arg name="planning_scene_config" default="$(find tables_demo_bringup)/config/moelk_tables_planning_scene.yaml" />
   <arg name="anygrasp_handles_execution" default="false" />
   <arg name="use_mtc" default="false" doc="true: plan and execute grasplan pick, place and insert with MoveIt Task Constructor instead of the MoveIt pick n place pipeline (move_group pickup/place actions)" />
+  <arg name="mtc_cable_constraints" default="false" doc="true (with use_mtc): MTC motions keep the arm cable model (mobipick_sim_cable_entanglement) happy: wrist_3 path constraint around the least-wound angle and a stretch check of every planned joint path (#124)" />
   <!-- GripperCommand.max_effort used for AnyGrasp grasps of unknown objects; the Robotiq action server
        accepts 30..100, the simulated gripper maps it to a real torque limit. -1 keeps gripper_joint_efforts. -->
   <arg name="anygrasp_gripper_max_effort" default="50.0" />
@@ -34,6 +35,7 @@
     <param name="detach_all_objects" value="true" />
     <param name="anygrasp_handles_execution" type="bool" value="$(arg anygrasp_handles_execution)" />
     <param name="use_mtc" type="bool" value="$(arg use_mtc)" />
+    <param name="mtc_cable_constraints" type="bool" value="$(arg mtc_cable_constraints)" />
     <param name="anygrasp_gripper_max_effort" type="double" value="$(arg anygrasp_gripper_max_effort)" />
     <param name="anygrasp_use_gripper_width" type="bool" value="$(arg anygrasp_use_gripper_width)" />
     <!-- no need to perceive the object in grasplan, planning handles it -->

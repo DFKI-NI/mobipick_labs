@@ -6,6 +6,7 @@
        (the planner never asks to observe; the sim does it too so it matches the real robot) -->
   <arg name="disentangle_without_observe" default="true"/>
   <arg name="use_mtc" default="false" doc="true: plan and execute grasplan pick, place and insert with MoveIt Task Constructor instead of the MoveIt pick n place pipeline (move_group pickup/place actions)" />
+  <arg name="mtc_cable_constraints" default="false" doc="true (with use_mtc): MTC motions keep the arm cable model (mobipick_sim_cable_entanglement) happy: wrist_3 path constraint around the least-wound angle and a stretch check of every planned joint path (#124)" />
 
   <!--place object wrapper node-->
   <node pkg="grasplan" type="place.py" name="place_object_node" output="screen" ns="mobipick" required="true">
@@ -16,6 +17,7 @@
     <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/place_params.yaml" command="load" />
     <param name="disentangle_without_observe" value="$(arg disentangle_without_observe)" />
     <param name="use_mtc" type="bool" value="$(arg use_mtc)" />
+    <param name="mtc_cable_constraints" type="bool" value="$(arg mtc_cable_constraints)" />
   </node>
 
   <!-- a second pose selector for storing place poses -->
