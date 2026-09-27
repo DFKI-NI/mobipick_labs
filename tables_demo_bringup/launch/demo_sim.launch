@@ -6,6 +6,7 @@
   <arg name="mtc_cable_constraints" default="false" doc="true (with use_mtc): MTC motions keep the arm cable model (mobipick_sim_cable_entanglement) happy: wrist_3 path constraint around the least-wound angle and a stretch check of every planned joint path (#124)" />
   <arg name="place_same_orientation_as_picked" default="true" doc="false: small objects (e.g. balls, fruit) are inserted with the gripper pointing straight down and the wrist turned as little as possible, instead of in the orientation they were grasped in (avoids winding up the arm cable)" />
   <arg name="insert_orientation" default="" doc="as_picked, free_yaw (keep the picked roll and pitch, choose the yaw for the least wrist rotation) or gripper_down; empty: place_same_orientation_as_picked decides (true: as_picked, false: gripper_down)" />
+  <arg name="cable_monitor" default="false" doc="true: start the observe-only arm cable monitor (mobipick_sim_cable_entanglement, #118 #121): in the sim it presses the simulated UR protective stop when its model predicts an entangled cable; on the real robot it never commands anything and logs every tick and every protective stop for calibration" />
 
   <!-- controls the simulation speed -->
   <arg name="physics_profile" default="fast" doc="options: slow, fast" />
@@ -81,5 +82,6 @@
     <arg name="mtc_cable_constraints" value="$(arg mtc_cable_constraints)" />
     <arg name="place_same_orientation_as_picked" value="$(arg place_same_orientation_as_picked)" />
     <arg name="insert_orientation" value="$(arg insert_orientation)" />
+    <arg name="cable_monitor" value="$(arg cable_monitor)" />
   </include>
 </launch>
