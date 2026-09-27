@@ -5,6 +5,7 @@
   <arg name="use_mtc" default="false" doc="true: plan and execute grasplan pick, place and insert with MoveIt Task Constructor instead of the MoveIt pick n place pipeline (move_group pickup/place actions)" />
   <arg name="mtc_cable_constraints" default="false" doc="true (with use_mtc): MTC motions keep the arm cable model (mobipick_sim_cable_entanglement) happy: wrist_3 path constraint around the least-wound angle and a stretch check of every planned joint path (#124)" />
   <arg name="place_same_orientation_as_picked" default="true" doc="false: small objects (e.g. balls, fruit) are inserted with the gripper pointing straight down and the wrist turned as little as possible, instead of in the orientation they were grasped in (avoids winding up the arm cable)" />
+  <arg name="insert_orientation" default="" doc="as_picked, free_yaw (keep the picked roll and pitch, choose the yaw for the least wrist rotation) or gripper_down; empty: place_same_orientation_as_picked decides (true: as_picked, false: gripper_down)" />
 
   <!-- controls the simulation speed -->
   <arg name="physics_profile" default="fast" doc="options: slow, fast" />
@@ -79,5 +80,6 @@
     <arg name="use_mtc" value="$(arg use_mtc)" />
     <arg name="mtc_cable_constraints" value="$(arg mtc_cable_constraints)" />
     <arg name="place_same_orientation_as_picked" value="$(arg place_same_orientation_as_picked)" />
+    <arg name="insert_orientation" value="$(arg insert_orientation)" />
   </include>
 </launch>
