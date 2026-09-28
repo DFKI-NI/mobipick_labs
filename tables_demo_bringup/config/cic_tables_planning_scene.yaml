@@ -1,10 +1,5 @@
 # a list of boxes to add to the planning scene
 #
-#   +-------+
-#   |       |
-#   |table_4|
-#   |       |
-#   +-------+
 #               +-------+
 #               |       |
 #               |table_3|
@@ -58,18 +53,6 @@ planning_scene_boxes:
     box_position_x: 21.165
     box_position_y: 13.84
     box_position_z: 0.3575
-    box_orientation_x: 0.0
-    box_orientation_y: 0.0
-    box_orientation_z: 0.0
-    box_orientation_w: 1.0
-  - scene_name: 'table_4'
-    frame_id: 'map'
-    box_x_dimension: 0.8
-    box_y_dimension: 0.8
-    box_z_dimension: 0.72
-    box_position_x: 22.7
-    box_position_y: 15.04
-    box_position_z: 0.36
     box_orientation_x: 0.0
     box_orientation_y: 0.0
     box_orientation_z: 0.0
