@@ -71,3 +71,21 @@ rosservice call /experiment_video_recorder/stop       # closes the videos, write
 The output folder (`<output_dir>/<timestamp>_<name>/`) also holds
 `snapshots/NNN_<label>_<topic>.jpg`, `events.jsonl` (pause/resume/snapshot with
 ROS and wall time) and `summary.json`.
+
+Every topic also gets `<topic>_frames.jsonl`, one JSON line per frame written to
+its two videos, so the videos of different topics (environment and robot camera)
+and the snapshot markers of `events.jsonl` can be aligned on one timeline:
+
+```json
+{"frame": 0, "source_stamp": 1790621217.34, "wall_time": 1790621219.02, "ros_time": 1790621217.43, "label": "REC"}
+```
+
+`frame` is the 0-based index of the frame in `<topic>.mp4` and `<topic>_4x.mp4`
+(both hold the same frames), `source_stamp` the ROS header stamp of the image,
+`wall_time` and `ros_time` the recorder's clocks when it wrote the frame and
+`label` the overlay label. A topic without a fresh image in a recorder tick
+writes no frame and no line, so two topics' videos have different frame counts:
+align them by `source_stamp` (or `ros_time`), not proportionally. A pause takes
+no indices either; it shows as a jump in the times between two consecutive
+frames. `summary.json` and the `status` service list the sidecar per topic as
+`frames_index`.

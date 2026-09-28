@@ -11,7 +11,9 @@ thinking are cut automatically; the ``~pause`` / ``~resume`` services override t
 by hand. ``~snapshot`` (std_msgs/String label) saves the latest frame of every
 topic as JPEG, ``~stop`` closes the videos. ``~status`` (std_srvs/Trigger) reports
 the state as JSON; ``events.jsonl`` in the output directory records pauses,
-resumes and snapshots with ROS and wall time.
+resumes and snapshots with ROS and wall time, and ``<name>_frames.jsonl`` maps every
+frame of a topic's videos to its source image stamp and the recorder's wall and ROS
+time, so videos of different topics can be aligned exactly.
 """
 
 import json
@@ -56,6 +58,11 @@ class TopicRecorder:
         self.last_written_stamp = None
         self.video_path = os.path.join(output_dir, self.name + ".mp4")
         self.video_fast_path = os.path.join(output_dir, "%s_%gx.mp4" % (self.name, speedup))
+        # one JSON line per written frame: {"frame", "source_stamp", "wall_time", "ros_time", "label"}; the frame
+        # index counts the frames of both videos (0-based), skipped and duplicate images take no index and a pause
+        # shows as a jump in the times, never as missing indices
+        self.frames_index_path = os.path.join(output_dir, self.name + "_frames.jsonl")
+        self._frames_index = None
         self.subscriber = rospy.Subscriber(topic, Image, self._callback, queue_size=1, buff_size=2 ** 24)
 
     def _callback(self, message):
@@ -101,8 +108,18 @@ class TopicRecorder:
             image = cv2.resize(image, self.size)
         self.writer.write(image)
         self.writer_fast.write(image)
+        self._record_frame_time(self.frames, message.header.stamp, label)
         self.frames += 1
         return True
+
+    def _record_frame_time(self, index, stamp, label):
+        """Append the acquisition and recording times of output frame ``index`` to the frames sidecar."""
+        if self._frames_index is None:
+            self._frames_index = open(self.frames_index_path, "a")
+        entry = {"frame": index, "source_stamp": stamp.to_sec(), "wall_time": time.time(),
+                 "ros_time": rospy.Time.now().to_sec(), "label": label}
+        self._frames_index.write(json.dumps(entry) + "\n")
+        self._frames_index.flush()
 
     def snapshot(self, label, index, quality):
         with self.lock:
@@ -124,10 +141,14 @@ class TopicRecorder:
             if writer is not None:
                 writer.release()
         self.writer = self.writer_fast = None
+        if self._frames_index is not None:
+            self._frames_index.close()
+            self._frames_index = None
         self.subscriber.unregister()
         return {"topic": self.topic, "frames": self.frames, "seconds": round(self.frames / self.fps, 1),
                 "video": self.video_path if self.frames else None,
-                "video_fast": self.video_fast_path if self.frames else None}
+                "video_fast": self.video_fast_path if self.frames else None,
+                "frames_index": self.frames_index_path if self.frames else None}
 
 
 class VideoRecorder:
@@ -226,7 +247,8 @@ class VideoRecorder:
             "snapshots": self.snapshots,
             "elapsed_s": round(time.time() - self.started_wall, 1),
             "topics": [{"topic": r.topic, "frames": r.frames, "recorded_s": round(r.frames / self.fps, 1),
-                        "video": r.video_path, "video_fast": r.video_fast_path} for r in self.recorders],
+                        "video": r.video_path, "video_fast": r.video_fast_path,
+                        "frames_index": r.frames_index_path} for r in self.recorders],
         }
 
     def _publish_status(self):
