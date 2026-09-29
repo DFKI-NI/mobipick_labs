@@ -6,6 +6,11 @@
     <arg name="map_file" value="$(find pbr_maps)/maps/cic/cic.yaml" />
     <arg name="virtual_walls_map_file" value="$(find pbr_maps)/maps/cic/cic_virtual_walls.yaml" />
     <arg name="prefix" value="mobipick/" />
+    <!-- #213: SBPL finds its first plan within 0.1 s and then only polishes it until allocated_time (10 s): the base
+         stood up to 9 s before a turn-around (cic handover -> table 2 8.9 s, table 2 -> table 1 7.7 s); with 3 s the
+         plans cost the same (offline, big_outputs/0213_sbpl_time). Sim only: these includes are started by
+         demo_sim.launch, not by the real robot's bringup.launch. -->
+    <arg name="sbpl_allocated_time" value="3.0" />
   </include>
 
 </launch>
