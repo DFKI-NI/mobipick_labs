@@ -8,30 +8,40 @@
        accepts 30..100, the simulated gripper maps it to a real torque limit. -1 keeps gripper_joint_efforts. -->
   <arg name="anygrasp_gripper_max_effort" default="50.0" />
   <arg name="anygrasp_use_gripper_width" default="false" />
+  <!-- #226 several Mobipicks in one sim: the robot's namespace (= its tf prefix), and the namespace of its pose
+       selectors ('' = the global /pick_pose_selector_node etc. of a single robot, as before; e.g. mobipick2) -->
+  <arg name="namespace" default="mobipick" />
+  <arg name="pose_selector_ns" default="" />
+  <!-- #226: the robot's map frame (a second Mobipick in its own scene copy: mobipick2/map) -->
+  <arg name="map_frame" default="map" />
+  <arg name="ps" value="$(eval '/' + arg('pose_selector_ns').strip('/') if arg('pose_selector_ns').strip('/') else '')" />
 
   <!-- visualise the poses inside the pose selector as textured meshes -->
   <arg name="object_color_rgba_pick" value="[0,0,0,0]"/>
-  <node pkg="pose_selector" type="pose_selector_visualizer.py" name="pick_pose_selector_visualiser" output="screen">
+  <node pkg="pose_selector" type="pose_selector_visualizer.py" name="pick_pose_selector_visualiser" output="screen"
+        ns="/$(arg pose_selector_ns)">
     <rosparam command="load" file="$(find pbr_objects)/config/textured_meshes.yaml" /> <!-- Path to mesh objects config file -->
     <rosparam param="object_color_rgba" subst_value="True">$(arg object_color_rgba_pick)</rosparam>
-    <remap from="/pose_selector_get_all_service" to="/pick_pose_selector_node/pose_selector_get_all" />
+    <remap from="/pose_selector_get_all_service" to="$(arg ps)/pick_pose_selector_node/pose_selector_get_all" />
   </node>
 
   <!-- visualise grasps ( draws multiple brown grippers :1 per grasp ; as mesh in rviz using visualisation marker array ) -->
-  <node pkg="grasplan" type="rviz_gripper_visualizer.py" name="rviz_gripper_visualizer" output="screen">
-    <param name="global_reference_frame" type="string" value="map" />
+  <node pkg="grasplan" type="rviz_gripper_visualizer.py" name="rviz_gripper_visualizer" output="screen"
+        ns="/$(arg pose_selector_ns)">
+    <param name="global_reference_frame" type="string" value="$(arg map_frame)" />
     <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/gripper_open_transformations.yaml" command="load" ns="gripper_transformations"/>
-    <remap from="pose_array" to="/mobipick/pick_object_node/grasp_poses"/>
+    <remap from="pose_array" to="/$(arg namespace)/pick_object_node/grasp_poses"/>
   </node>
   <!-- pick object script using handcoded grasp planner
        (grasps  defined manually using grasp editor or recorded via gazebo zero gravity environment) -->
-  <node pkg="grasplan" type="pick.py" name="pick_object_node" output="screen" ns="mobipick" required="true">
+  <node pkg="grasplan" type="pick.py" name="pick_object_node" output="screen" ns="$(arg namespace)" required="true">
     <param name="import_file" type="string" value="grasplan.grasp_planner.handcoded_grasp_planner" />
     <param name="import_class" type="string" value="HandcodedGraspPlanner" />
-    <param name="pose_selector_activate_srv_name" type="string" value="/pick_pose_selector_node/pose_selector_activate" />
-    <param name="pose_selector_class_query_srv_name" type="string" value="/pick_pose_selector_node/pose_selector_class_query" />
-    <param name="pose_selector_get_all_poses_srv_name" type="string" value="/pick_pose_selector_node/pose_selector_get_all" />
-    <param name="pose_selector_delete_srv_name" type="string" value="/pick_pose_selector_node/pose_selector_delete" />
+    <param name="global_reference_frame" type="string" value="$(arg map_frame)" />
+    <param name="pose_selector_activate_srv_name" type="string" value="$(arg ps)/pick_pose_selector_node/pose_selector_activate" />
+    <param name="pose_selector_class_query_srv_name" type="string" value="$(arg ps)/pick_pose_selector_node/pose_selector_class_query" />
+    <param name="pose_selector_get_all_poses_srv_name" type="string" value="$(arg ps)/pick_pose_selector_node/pose_selector_get_all" />
+    <param name="pose_selector_delete_srv_name" type="string" value="$(arg ps)/pick_pose_selector_node/pose_selector_delete" />
     <param name="detach_all_objects" value="true" />
     <param name="anygrasp_handles_execution" type="bool" value="$(arg anygrasp_handles_execution)" />
     <param name="use_mtc" type="bool" value="$(arg use_mtc)" />

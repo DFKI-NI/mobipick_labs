@@ -1,11 +1,16 @@
 <?xml version="1.0"?>
 <launch>
+  <arg name="namespace" default="mobipick" doc="robot namespace and tf prefix (#226: mobipick2 for a second robot)" />
+  <arg name="map_ns" default="" doc="namespace of the map servers, empty: /map (#226)" />
+  <arg name="map_frame" default="map" doc="global map frame (#226: mobipick2/map for the robot in the second scene copy)" />
 
   <!-- navigation stack (move base) -->
   <include file="$(find mir_navigation)/launch/start_planner.launch">
     <arg name="map_file" value="$(find pbr_maps)/maps/tables_demo/tables_demo.yaml" />
     <arg name="virtual_walls_map_file" value="$(find pbr_maps)/maps/tables_demo/tables_demo_virtual_walls.yaml" />
-    <arg name="prefix" value="mobipick/" />
+    <arg name="prefix" value="$(arg namespace)/" />
+    <arg name="map_ns" value="$(arg map_ns)" />
+    <arg name="map_frame" value="$(arg map_frame)" />
     <!-- #213: SBPL finds its first plan within 0.1 s and then only polishes it until allocated_time (10 s): the base
          stood up to 9 s before a turn-around (cic handover -> table 2 8.9 s, table 2 -> table 1 7.7 s); with 3 s the
          plans cost the same (offline, big_outputs/0213_sbpl_time). Sim only: these includes are started by

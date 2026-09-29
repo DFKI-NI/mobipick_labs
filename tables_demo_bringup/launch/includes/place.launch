@@ -7,14 +7,22 @@
   <arg name="disentangle_without_observe" default="true"/>
   <arg name="use_mtc" default="false" doc="true: plan and execute grasplan pick, place and insert with MoveIt Task Constructor instead of the MoveIt pick n place pipeline (move_group pickup/place actions)" />
   <arg name="mtc_cable_constraints" default="false" doc="true (with use_mtc): MTC motions keep the arm cable model (mobipick_sim_cable_entanglement) happy: wrist_3 path constraint around the least-wound angle and a stretch check of every planned joint path (#124)" />
+  <!-- #226 several Mobipicks in one sim: the robot's namespace (= its tf prefix), and the namespace of its pose
+       selectors ('' = the global /pick_pose_selector_node etc. of a single robot, as before; e.g. mobipick2) -->
+  <arg name="namespace" default="mobipick" />
+  <arg name="pose_selector_ns" default="" />
+  <!-- #226: the robot's map frame (a second Mobipick in its own scene copy: mobipick2/map) -->
+  <arg name="map_frame" default="map" />
+  <arg name="ps" value="$(eval '/' + arg('pose_selector_ns').strip('/') if arg('pose_selector_ns').strip('/') else '')" />
   <arg name="open_set_place_clearance_by_height" default="false" doc="true: release tall open-set objects at 1 cm and other open-set objects at 4 cm above their support (#202); careful feature flag, off in code" />
 
   <!--place object wrapper node-->
-  <node pkg="grasplan" type="place.py" name="place_object_node" output="screen" ns="mobipick" required="true">
-    <param name="place_pose_selector_activate_srv_name" type="string" value="/place_pose_selector_node/pose_selector_activate" />
-    <param name="place_pose_selector_clear_srv_name" type="string" value="/place_pose_selector_node/pose_selector_clear" />
-    <param name="pick_pose_selector_activate_srv_name" type="string" value="/pick_pose_selector_node/pose_selector_activate" />
-    <param name="pick_pose_selector_get_all_poses_srv_name" type="string" value="/pick_pose_selector_node/pose_selector_get_all" />
+  <node pkg="grasplan" type="place.py" name="place_object_node" output="screen" ns="$(arg namespace)" required="true">
+    <param name="global_reference_frame" type="string" value="$(arg map_frame)" />
+    <param name="place_pose_selector_activate_srv_name" type="string" value="$(arg ps)/place_pose_selector_node/pose_selector_activate" />
+    <param name="place_pose_selector_clear_srv_name" type="string" value="$(arg ps)/place_pose_selector_node/pose_selector_clear" />
+    <param name="pick_pose_selector_activate_srv_name" type="string" value="$(arg ps)/pick_pose_selector_node/pose_selector_activate" />
+    <param name="pick_pose_selector_get_all_poses_srv_name" type="string" value="$(arg ps)/pick_pose_selector_node/pose_selector_get_all" />
     <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/place_params.yaml" command="load" />
     <param name="disentangle_without_observe" value="$(arg disentangle_without_observe)" />
     <param name="use_mtc" type="bool" value="$(arg use_mtc)" />
@@ -23,19 +31,21 @@
   </node>
 
   <!-- a second pose selector for storing place poses -->
-  <node pkg="pose_selector" type="pose_selector_node" name="place_pose_selector_node" output="screen" >
+  <node pkg="pose_selector" type="pose_selector_node" name="place_pose_selector_node" output="screen"
+        ns="/$(arg pose_selector_ns)">
     <param name="debug" value="false" />
-    <param name="global_reference_frame" value="map" />
+    <param name="global_reference_frame" value="$(arg map_frame)" />
     <rosparam param="objects_of_interest" subst_value="True">$(arg objects_of_interest)</rosparam>
-    <remap from="/logical_image" to="/mobipick/place_object_node/place_poses"/>
+    <remap from="/logical_image" to="/$(arg namespace)/place_object_node/place_poses"/>
   </node>
 
   <!-- visualisation of placing poses (they show in magenta color) -->
   <arg name="object_color_rgba_place" value="[1,0,1,1]"/>
-  <node pkg="pose_selector" type="pose_selector_visualizer.py" name="place_pose_selector_visualiser" output="screen">
+  <node pkg="pose_selector" type="pose_selector_visualizer.py" name="place_pose_selector_visualiser" output="screen"
+        ns="/$(arg pose_selector_ns)">
     <rosparam command="load" file="$(find pbr_objects)/config/textured_meshes.yaml" /> <!-- Path to mesh objects config file -->
     <rosparam param="object_color_rgba" subst_value="True">$(arg object_color_rgba_place)</rosparam>
-    <remap from="/pose_selector_get_all_service" to="/place_pose_selector_node/pose_selector_get_all" />
+    <remap from="/pose_selector_get_all_service" to="$(arg ps)/place_pose_selector_node/pose_selector_get_all" />
   </node>
 
 </launch>

@@ -3,15 +3,23 @@
   <arg name="place_same_orientation_as_picked" default="true" doc="false: small objects (e.g. balls, fruit) are inserted with the gripper pointing straight down and the wrist turned as little as possible, instead of in the orientation they were grasped in (avoids winding up the arm cable)" />
   <arg name="insert_orientation" default="free_yaw" doc="free_yaw (default, #106: keep the picked roll and pitch, choose the yaw for the least wrist rotation), as_picked or gripper_down; empty: place_same_orientation_as_picked decides (true: as_picked, false: gripper_down)" />
 
+  <!-- #226 several Mobipicks in one sim: the robot's namespace (= its tf prefix), and the namespace of its pose
+       selectors ('' = the global /pick_pose_selector_node etc. of a single robot, as before; e.g. mobipick2) -->
+  <arg name="namespace" default="mobipick" />
+  <arg name="pose_selector_ns" default="" />
+  <!-- #226: the robot's map frame (a second Mobipick in its own scene copy: mobipick2/map) -->
+  <arg name="map_frame" default="map" />
+  <arg name="ps" value="$(eval '/' + arg('pose_selector_ns').strip('/') if arg('pose_selector_ns').strip('/') else '')" />
   <arg name="use_mtc" default="false" doc="true: plan and execute grasplan pick, place and insert with MoveIt Task Constructor instead of the MoveIt pick n place pipeline (move_group pickup/place actions)" />
   <arg name="mtc_cable_constraints" default="false" doc="true (with use_mtc): MTC motions keep the arm cable model (mobipick_sim_cable_entanglement) happy: wrist_3 path constraint around the least-wound angle and a stretch check of every planned joint path (#124)" />
 
-  <node pkg="grasplan" type="insert.py" name="insert_object_node" output="screen" ns="mobipick" required="true">
-    <param name="place_pose_selector_activate_srv_name" type="string" value="/place_pose_selector_node/pose_selector_activate" />
-    <param name="place_pose_selector_clear_srv_name" type="string" value="/place_pose_selector_node/pose_selector_clear" />
-    <param name="pick_pose_selector_activate_srv_name" type="string" value="/pick_pose_selector_node/pose_selector_activate" />
-    <param name="pick_pose_selector_class_query_srv_name" type="string" value="/pick_pose_selector_node/pose_selector_class_query" />
-    <param name="pick_pose_selector_get_all_poses_srv_name" type="string" value="/pick_pose_selector_node/pose_selector_get_all" />
+  <node pkg="grasplan" type="insert.py" name="insert_object_node" output="screen" ns="$(arg namespace)" required="true">
+    <param name="global_reference_frame" type="string" value="$(arg map_frame)" />
+    <param name="place_pose_selector_activate_srv_name" type="string" value="$(arg ps)/place_pose_selector_node/pose_selector_activate" />
+    <param name="place_pose_selector_clear_srv_name" type="string" value="$(arg ps)/place_pose_selector_node/pose_selector_clear" />
+    <param name="pick_pose_selector_activate_srv_name" type="string" value="$(arg ps)/pick_pose_selector_node/pose_selector_activate" />
+    <param name="pick_pose_selector_class_query_srv_name" type="string" value="$(arg ps)/pick_pose_selector_node/pose_selector_class_query" />
+    <param name="pick_pose_selector_get_all_poses_srv_name" type="string" value="$(arg ps)/pick_pose_selector_node/pose_selector_get_all" />
     <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/insert_params.yaml" command="load" />
     <param name="place_same_orientation_as_picked" value="$(arg place_same_orientation_as_picked)" />
     <param name="insert_orientation" type="str" value="$(arg insert_orientation)" />

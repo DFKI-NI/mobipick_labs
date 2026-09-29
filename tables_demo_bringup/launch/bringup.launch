@@ -12,6 +12,14 @@
   <arg name="insert_orientation" default="free_yaw" doc="free_yaw (default, #106: keep the picked roll and pitch, choose the yaw for the least wrist rotation), as_picked or gripper_down; empty: place_same_orientation_as_picked decides (true: as_picked, false: gripper_down)" />
   <arg name="cable_monitor" default="false" doc="true: start the observe-only arm cable monitor (mobipick_sim_cable_entanglement, #118 #121): in the sim it presses the simulated UR protective stop when its model predicts an entangled cable; on the real robot it never commands anything and logs every tick and every protective stop for calibration" />
 
+  <!-- #226 several Mobipicks in one sim: the robot's namespace (= its tf prefix), and the namespace of its pose
+       selectors ('' = the global /pick_pose_selector_node etc. of a single robot, as before; e.g. mobipick2) -->
+  <arg name="namespace" default="mobipick" />
+  <arg name="pose_selector_ns" default="" />
+  <!-- #226: the robot's map frame (a second Mobipick in its own scene copy: mobipick2/map) -->
+  <arg name="map_frame" default="map" />
+  <arg name="ps" value="$(eval '/' + arg('pose_selector_ns').strip('/') if arg('pose_selector_ns').strip('/') else '')" />
+
   <arg name="allow_search_same_table" default="false" doc="allows to search tables again without restarting the planning domain, only works when using hierarchical planning"/>
   <arg name="tables_to_search_at" default="[table_1, table_2, table_3]" doc="list of table names to search at during item and klt search"/>
 
@@ -23,40 +31,46 @@
 
   <!-- MoveIt macros -->
   <include file="$(find robot_api)/launch/moveit_macros.launch">
-    <arg name="namespace" value="mobipick" />
+    <arg name="namespace" value="$(arg namespace)" />
   </include>
 
   <group if="$(arg simulation)">
     <!-- pose selector: DB to store object poses -->
-    <node pkg="pose_selector" type="pose_selector_node" name="pick_pose_selector_node" output="screen">
+    <node pkg="pose_selector" type="pose_selector_node" name="pick_pose_selector_node" output="screen"
+          ns="/$(arg pose_selector_ns)">
       <param name="debug" value="false" />
-      <param name="global_reference_frame" value="map" />
+      <param name="global_reference_frame" value="$(arg map_frame)" />
       <rosparam param="objects_of_interest" subst_value="True">$(arg objects_of_interest)</rosparam>
-      <remap from="/logical_image" to="/mobipick/eef_main_cam/rgb/logical_image"/>
+      <remap from="/logical_image" to="/$(arg namespace)/eef_main_cam/rgb/logical_image"/>
     </node>
 
     <!-- Approximate DOPE's lazy visualisation output with the simulated EEF camera image. -->
-    <include file="$(find mobipick_gazebo)/launch/mobipick/simulated_dope_image_relay.launch" />
+    <include file="$(find mobipick_gazebo)/launch/mobipick/simulated_dope_image_relay.launch">
+      <arg name="namespace" value="$(arg namespace)" />
+      <arg name="pose_selector_ns" value="$(arg pose_selector_ns)" />
+    </include>
 
     <!-- force torque observer -->
-    <node name="ft_observer" pkg="mobipick_pick_n_place" type="ft_observer_sim.py" ns="mobipick" output="screen" />
+    <node name="ft_observer" pkg="mobipick_pick_n_place" type="ft_observer_sim.py" ns="$(arg namespace)" output="screen" />
   </group>
 
   <group unless="$(arg simulation)">
     <!-- pose selector: DB to store object poses -->
-    <node pkg="pose_selector" type="dope_converter_node" name="dope_converter_node" output="screen">
-      <remap from="/dope_output" to="/mobipick/dope/detected_objects" />
+    <node pkg="pose_selector" type="dope_converter_node" name="dope_converter_node" output="screen"
+          ns="/$(arg pose_selector_ns)">
+      <remap from="/dope_output" to="/$(arg namespace)/dope/detected_objects" />
       <rosparam command="load" file="$(arg dope_converter_config)" />
     </node>
-    <node pkg="pose_selector" type="pose_selector_node" name="pick_pose_selector_node" output="screen">
+    <node pkg="pose_selector" type="pose_selector_node" name="pick_pose_selector_node" output="screen"
+          ns="/$(arg pose_selector_ns)">
       <param name="debug" value="false" />
-      <param name="global_reference_frame" value="map" />
+      <param name="global_reference_frame" value="$(arg map_frame)" />
       <rosparam param="objects_of_interest" subst_value="True">$(arg objects_of_interest)</rosparam>
-      <remap from="/logical_image" to="/dope_converter_poses" />
+      <remap from="/logical_image" to="$(arg ps)/dope_converter_poses" />
     </node>
 
     <!-- force torque observer -->
-    <node name="ft_observer" pkg="mobipick_pick_n_place" type="ft_observer.py" ns="mobipick" output="screen"/>
+    <node name="ft_observer" pkg="mobipick_pick_n_place" type="ft_observer.py" ns="$(arg namespace)" output="screen"/>
   </group>
 
   <!-- ::::: Grasp planning ::::: -->
@@ -65,6 +79,9 @@
     <arg name="anygrasp_handles_execution" value="$(arg anygrasp_handles_execution)" />
     <arg name="use_mtc" value="$(arg use_mtc)" />
     <arg name="mtc_cable_constraints" value="$(arg mtc_cable_constraints)" />
+    <arg name="namespace" value="$(arg namespace)" />
+    <arg name="pose_selector_ns" value="$(arg pose_selector_ns)" />
+    <arg name="map_frame" value="$(arg map_frame)" />
   </include>
 
   <!-- ::::: Place object ::::: -->
@@ -73,6 +90,9 @@
     <arg name="use_mtc" value="$(arg use_mtc)" />
     <arg name="mtc_cable_constraints" value="$(arg mtc_cable_constraints)" />
     <arg name="open_set_place_clearance_by_height" value="$(arg open_set_place_clearance_by_height)" />
+    <arg name="namespace" value="$(arg namespace)" />
+    <arg name="pose_selector_ns" value="$(arg pose_selector_ns)" />
+    <arg name="map_frame" value="$(arg map_frame)" />
   </include>
 
   <!-- ::::: Insert object ::::: -->
@@ -81,15 +101,20 @@
     <arg name="insert_orientation" value="$(arg insert_orientation)" />
     <arg name="use_mtc" value="$(arg use_mtc)" />
     <arg name="mtc_cable_constraints" value="$(arg mtc_cable_constraints)" />
+    <arg name="namespace" value="$(arg namespace)" />
+    <arg name="pose_selector_ns" value="$(arg pose_selector_ns)" />
+    <arg name="map_frame" value="$(arg map_frame)" />
   </include>
 
   <!-- ::::: Arm cable monitor (observe-only; sim: presses the sim protective stop, real: logs) ::::: -->
-  <include if="$(arg cable_monitor)" file="$(find mobipick_sim_cable_entanglement)/launch/cable_entanglement_monitor.launch" />
+  <include if="$(arg cable_monitor)" file="$(find mobipick_sim_cable_entanglement)/launch/cable_entanglement_monitor.launch">
+    <arg name="namespace" value="$(arg namespace)" />
+  </include>
 
   <!-- config for tables_demo_planning -->
-  <rosparam command="load" file="$(find mobipick_pick_n_place)/config/$(arg world_config)_demo.yaml" ns="mobipick/tables_demo_planning" />
+  <rosparam command="load" file="$(find mobipick_pick_n_place)/config/$(arg world_config)_demo.yaml" ns="$(arg namespace)/tables_demo_planning" />
   <!-- config for items used in the demos-->
-  <rosparam command="load" file="$(find tables_demo_bringup)/config/initial_items.yaml" ns="mobipick/tables_demo_planning" />
-  <rosparam param="allow_search_same_table" ns="mobipick/tables_demo_planning" subst_value="True">$(arg allow_search_same_table)</rosparam>
-  <rosparam param="tables_to_search_at" ns="mobipick/tables_demo_planning" subst_value="True">$(arg tables_to_search_at)</rosparam>
+  <rosparam command="load" file="$(find tables_demo_bringup)/config/initial_items.yaml" ns="$(arg namespace)/tables_demo_planning" />
+  <rosparam param="allow_search_same_table" ns="$(arg namespace)/tables_demo_planning" subst_value="True">$(arg allow_search_same_table)</rosparam>
+  <rosparam param="tables_to_search_at" ns="$(arg namespace)/tables_demo_planning" subst_value="True">$(arg tables_to_search_at)</rosparam>
 </launch>

@@ -1,0 +1,55 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- #226: the simulation-side stack of one more Mobipick in its own copy of the scene (spawned by
+       mobipick_gazebo/launch/worlds/<world_config>_x<N>_spawn_sim_objects.launch): fake localization in its own map
+       frame, which lines up with robot 1's map (same coordinates in its copy), navigation with its own map copy, and
+       MoveIt, and with bringup:=true the tables demo bringup under the robot namespace. The GPT stack per robot is step 4
+       of #226. -->
+  <arg name="namespace" default="mobipick2" doc="robot namespace, tf prefix and Gazebo model name" />
+  <arg name="world_config" default="moelk_tables" />
+  <arg name="offset_x" default="50.0" doc="x offset of this robot's scene copy in Gazebo [m]" />
+  <arg name="moveit" default="true" doc="start move_group for this robot" />
+  <arg name="bringup" default="false" doc="also start the tables demo bringup (grasplan, pose selectors, DOPE relay, ft observer) for this robot" />
+  <arg name="cable_monitor" default="false" doc="with bringup: the cable entanglement monitor of this robot" />
+  <arg name="use_mtc" default="false" />
+  <arg name="mtc_cable_constraints" default="false" />
+
+  <!-- one RViz for all robots: this robot's map frame sits at its copy's offset in the global map frame -->
+  <node pkg="tf2_ros" type="static_transform_publisher" name="$(arg namespace)_map_broadcaster"
+        args="$(arg offset_x) 0 0 0 0 0 map $(arg namespace)/map" />
+
+  <!-- fake localisation (for simulation only), in this robot's map frame: pose = Gazebo pose - offset -->
+  <include file="$(find mir_gazebo)/launch/fake_localization.launch" ns="$(arg namespace)">
+    <arg name="odom_frame_id" value="$(arg namespace)/odom" />
+    <arg name="base_frame_id" value="$(arg namespace)/base_footprint" />
+    <arg name="global_frame_id" value="$(arg namespace)/map" />
+    <arg name="delta_x" value="$(arg offset_x)" />
+  </include>
+
+  <!-- navigation stack (move base) with its own copy of the map in its map frame -->
+  <include file="$(find tables_demo_bringup)/launch/includes/navigation/$(arg world_config).launch">
+    <arg name="namespace" value="$(arg namespace)" />
+    <arg name="map_ns" value="/$(arg namespace)" />
+    <arg name="map_frame" value="$(arg namespace)/map" />
+  </include>
+
+  <!-- ::::: Manipulation , MoveIt: arm movement ::::: -->
+  <include if="$(arg moveit)" file="$(find mobipick_moveit_config)/launch/moveit_planning_execution.launch">
+    <arg name="namespace" value="$(arg namespace)" />
+    <arg name="use_pointcloud" value="true"/>
+    <arg name="pointcloud_sensor_config"
+         value="$(find mobipick_moveit_config)/config/sensors_gripper_cam_pointcloud_sim.yaml"/>
+  </include>
+
+  <!-- grasplan, pose selectors (under /$(arg namespace)), DOPE relay, ft observer, cable monitor of this robot -->
+  <include if="$(arg bringup)" file="$(find tables_demo_bringup)/launch/bringup.launch">
+    <arg name="simulation" value="true" />
+    <arg name="world_config" value="$(arg world_config)" />
+    <arg name="namespace" value="$(arg namespace)" />
+    <arg name="pose_selector_ns" value="$(arg namespace)" />
+    <arg name="map_frame" value="$(arg namespace)/map" />
+    <arg name="use_mtc" value="$(arg use_mtc)" />
+    <arg name="mtc_cable_constraints" value="$(arg mtc_cable_constraints)" />
+    <arg name="cable_monitor" value="$(arg cable_monitor)" />
+  </include>
+</launch>
