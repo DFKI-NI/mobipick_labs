@@ -1,5 +1,6 @@
 <?xml version="1.0"?>
 <launch>
+  <arg name="use_ur_polished_kinematics" default="false" />
   <!-- #226: the simulation-side stack of one more Mobipick in its own copy of the scene (spawned by
        mobipick_gazebo/launch/worlds/<world_config>_x<N>_spawn_sim_objects.launch): fake localization in its own map
        frame, which lines up with robot 1's map (same coordinates in its copy), navigation with its own map copy, and
@@ -35,6 +36,7 @@
 
   <!-- ::::: Manipulation , MoveIt: arm movement ::::: -->
   <include if="$(arg moveit)" file="$(find mobipick_moveit_config)/launch/moveit_planning_execution.launch">
+    <arg name="use_ur_polished_kinematics" value="$(arg use_ur_polished_kinematics)" />
     <arg name="namespace" value="$(arg namespace)" />
     <arg name="use_pointcloud" value="true"/>
     <arg name="pointcloud_sensor_config"

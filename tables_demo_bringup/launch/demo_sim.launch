@@ -2,8 +2,10 @@
 <launch>
   <arg name="world_config" default="moelk_tables" doc="objects arrangement, options: moelk_tables, cic_tables" />
   <arg name="anygrasp_handles_execution" default="false" />
+  <arg name="use_ur_polished_kinematics" default="false" doc="select the calibrated analytic UR5 IK plugin instead of TRAC-IK for MoveIt (#227)" />
   <arg name="use_mtc" default="false" doc="true: plan and execute grasplan pick, place and insert with MoveIt Task Constructor instead of the MoveIt pick n place pipeline (move_group pickup/place actions)" />
   <arg name="mtc_cable_constraints" default="false" doc="true (with use_mtc): MTC motions keep the arm cable model (mobipick_sim_cable_entanglement) happy: wrist_3 path constraint around the least-wound angle and a stretch check of every planned joint path (#124)" />
+  <arg name="insert_cable_gate" default="false" doc="true: rank insert poses by predicted cable stretch and offer likely safe ones first (#219); safe feature flag, off in code" />
   <arg name="open_set_place_clearance_by_height" default="false" doc="true: release tall open-set objects at 1 cm and other open-set objects at 4 cm above their support (#202); careful feature flag, off in code" />
   <arg name="place_same_orientation_as_picked" default="true" doc="false: small objects (e.g. balls, fruit) are inserted with the gripper pointing straight down and the wrist turned as little as possible, instead of in the orientation they were grasped in (avoids winding up the arm cable)" />
   <arg name="insert_orientation" default="free_yaw" doc="free_yaw (default, #106: keep the picked roll and pitch, choose the yaw for the least wrist rotation), as_picked or gripper_down; empty: place_same_orientation_as_picked decides (true: as_picked, false: gripper_down)" />
@@ -23,6 +25,7 @@
   <!-- Transparent overview camera and sparse experiment image recorder. -->
   <arg name="experiment_camera" default="true" />
   <arg name="start_ground_truth_viz" default="true" doc="publish the Gazebo tables and objects (boxes + URDF meshes) on /sim_ground_truth/* for RViz; only reads Gazebo while someone subscribes" />
+  <arg name="legacy_dope_object_publisher" default="false" doc="true: start the legacy gazebo_object_publisher (fake DOPE detections of table_1 and the power drill from Gazebo, #224); only robot_api's PickUpObject macro reads them" />
   <arg name="record_experiment_images" default="false" />
   <arg name="experiment_image_frequency" default="0.2" />
   <arg name="experiment_image_output_dir" default="" />
@@ -49,6 +52,7 @@
     <arg name="cable_monitor" value="$(arg cable_monitor)" />
     <arg name="use_mtc" value="$(arg use_mtc)" />
     <arg name="mtc_cable_constraints" value="$(arg mtc_cable_constraints)" />
+    <arg name="use_ur_polished_kinematics" value="$(arg use_ur_polished_kinematics)" />
   </include>
   <include file="$(find tables_demo_bringup)/launch/includes/extra_mobipick_sim.launch" if="$(eval int(num_robots) >= 3)">
     <arg name="namespace" value="mobipick3" />
@@ -58,6 +62,7 @@
     <arg name="cable_monitor" value="$(arg cable_monitor)" />
     <arg name="use_mtc" value="$(arg use_mtc)" />
     <arg name="mtc_cable_constraints" value="$(arg mtc_cable_constraints)" />
+    <arg name="use_ur_polished_kinematics" value="$(arg use_ur_polished_kinematics)" />
   </include>
 
   <!-- automatically unpause gazebo simulation after some time -->
@@ -73,8 +78,12 @@
     <arg name="output_dir" value="$(arg experiment_image_output_dir)" />
   </include>
 
-  <!-- object publisher for pick_n_place demo -->
-  <node name="gazebo_object_publisher" pkg="mobipick_pick_n_place" type="gazebo_object_publisher" ns="mobipick" output="screen">
+  <!-- #224: the legacy pick_n_place object publisher turned Gazebo link poses into permanent fake DOPE detections
+       (/mobipick/dope/detected_objects, /mobipick/dope/markers: a "table (1.0)" box at table_1 and "power_drill (1.0)")
+       before any perception. The tables demo perceives with the logical camera and the pose selector and nothing in it
+       reads these topics (only robot_api's unused PickUpObject macro), so it is off; true brings it back for that macro. -->
+  <node if="$(arg legacy_dope_object_publisher)" name="gazebo_object_publisher" pkg="mobipick_pick_n_place"
+        type="gazebo_object_publisher" ns="mobipick" output="screen">
     <param name="tf_prefix"  value="mobipick" />
     <param name="robot_name" value="mobipick" />
   </node>
@@ -96,6 +105,7 @@
 
   <!-- ::::: Manipulation , MoveIt: arm movement ::::: -->
   <include file="$(find mobipick_moveit_config)/launch/moveit_planning_execution.launch">
+    <arg name="use_ur_polished_kinematics" value="$(arg use_ur_polished_kinematics)" />
     <arg name="use_pointcloud" value="true"/>
     <!-- Gazebo delivers about one gripper-camera frame per second here, so the octomap
          is fed from a cheaper variant of the robot config: see the file for why. -->
@@ -109,6 +119,7 @@
     <arg name="anygrasp_handles_execution" value="$(arg anygrasp_handles_execution)" />
     <arg name="use_mtc" value="$(arg use_mtc)" />
     <arg name="mtc_cable_constraints" value="$(arg mtc_cable_constraints)" />
+    <arg name="insert_cable_gate" value="$(arg insert_cable_gate)" />
     <arg name="open_set_place_clearance_by_height" value="$(arg open_set_place_clearance_by_height)" />
     <arg name="place_same_orientation_as_picked" value="$(arg place_same_orientation_as_picked)" />
     <arg name="insert_orientation" value="$(arg insert_orientation)" />
