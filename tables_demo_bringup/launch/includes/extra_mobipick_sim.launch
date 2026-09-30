@@ -14,6 +14,7 @@
   <arg name="cable_monitor" default="false" doc="with bringup: the cable entanglement monitor of this robot" />
   <arg name="use_mtc" default="false" />
   <arg name="mtc_cable_constraints" default="false" />
+  <arg name="mtc_lift_tolerate_touching_neighbours" default="false" />
 
   <!-- one RViz for all robots: this robot's map frame sits at its copy's offset in the global map frame -->
   <node pkg="tf2_ros" type="static_transform_publisher" name="$(arg namespace)_map_broadcaster"
@@ -52,6 +53,7 @@
     <arg name="map_frame" value="$(arg namespace)/map" />
     <arg name="use_mtc" value="$(arg use_mtc)" />
     <arg name="mtc_cable_constraints" value="$(arg mtc_cable_constraints)" />
+    <arg name="mtc_lift_tolerate_touching_neighbours" value="$(arg mtc_lift_tolerate_touching_neighbours)" />
     <arg name="cable_monitor" value="$(arg cable_monitor)" />
   </include>
 </launch>
