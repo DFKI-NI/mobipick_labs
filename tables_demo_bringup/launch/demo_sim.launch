@@ -12,6 +12,11 @@
   <arg name="place_same_orientation_as_picked" default="true" doc="false: small objects (e.g. balls, fruit) are inserted with the gripper pointing straight down and the wrist turned as little as possible, instead of in the orientation they were grasped in (avoids winding up the arm cable)" />
   <arg name="insert_orientation" default="free_yaw" doc="free_yaw (default, #106: keep the picked roll and pitch, choose the yaw for the least wrist rotation), as_picked or gripper_down; empty: place_same_orientation_as_picked decides (true: as_picked, false: gripper_down)" />
   <arg name="cable_monitor" default="false" doc="true: start the observe-only arm cable monitor (mobipick_cable_entanglement, #118 #121): in the sim it presses the simulated UR protective stop when its model predicts an entangled cable; on the real robot it never commands anything and logs every tick and every protective stop for calibration" />
+  <arg name="geometric_check" default="true" doc="the carrier link chain alone decides when false; monitor and MTC guard replay (cable_entanglement_monitor.launch)" />
+  <arg name="release_after_rest_s" default="0.0" doc="careful flag, off in code: > 0 = the carrier link chain starts afresh when the arm moves again after resting that many seconds" />
+  <arg name="release_during_rest" default="false" doc="careful flag, off in code: with release_after_rest_s > 0 the chain starts afresh once the arm has rested that long" />
+  <arg name="reset_at_trajectory_start" default="false" doc="careful flag, off in code: the chain starts afresh when an executed trajectory starts" />
+  <arg name="reset_cache_mrad" default="0.0" doc="careful flag, off in code: > 0 = start-pose cache of the settled chain, rounding step in mrad" />
 
   <arg name="num_robots" default="1" doc="#226: 2 or 3 = that many identical copies of the world_config scene 50 m apart in one Gazebo, robot 1 (mobipick) in the first as with 1, robot k (mobipickK, map frame mobipickK/map) in copy k, for parallel experiments. Sim only; needs mobipick_gazebo/launch/worlds/WORLD_CONFIG_xN_spawn_sim_objects.launch (moelk_tables so far)" />
 
@@ -50,6 +55,11 @@
     <arg name="world_config" value="$(arg world_config)" />
     <arg name="offset_x" value="50.0" />
     <arg name="cable_monitor" value="$(arg cable_monitor)" />
+    <arg name="geometric_check" value="$(arg geometric_check)" />
+    <arg name="release_after_rest_s" value="$(arg release_after_rest_s)" />
+    <arg name="release_during_rest" value="$(arg release_during_rest)" />
+    <arg name="reset_at_trajectory_start" value="$(arg reset_at_trajectory_start)" />
+    <arg name="reset_cache_mrad" value="$(arg reset_cache_mrad)" />
     <arg name="use_mtc" value="$(arg use_mtc)" />
     <arg name="mtc_cable_plan_check" value="$(arg mtc_cable_plan_check)" />
     <arg name="mtc_lift_tolerate_touching_neighbours" value="$(arg mtc_lift_tolerate_touching_neighbours)" />
@@ -60,6 +70,11 @@
     <arg name="world_config" value="$(arg world_config)" />
     <arg name="offset_x" value="100.0" />
     <arg name="cable_monitor" value="$(arg cable_monitor)" />
+    <arg name="geometric_check" value="$(arg geometric_check)" />
+    <arg name="release_after_rest_s" value="$(arg release_after_rest_s)" />
+    <arg name="release_during_rest" value="$(arg release_during_rest)" />
+    <arg name="reset_at_trajectory_start" value="$(arg reset_at_trajectory_start)" />
+    <arg name="reset_cache_mrad" value="$(arg reset_cache_mrad)" />
     <arg name="use_mtc" value="$(arg use_mtc)" />
     <arg name="mtc_cable_plan_check" value="$(arg mtc_cable_plan_check)" />
     <arg name="mtc_lift_tolerate_touching_neighbours" value="$(arg mtc_lift_tolerate_touching_neighbours)" />
@@ -127,5 +142,10 @@
     <arg name="place_same_orientation_as_picked" value="$(arg place_same_orientation_as_picked)" />
     <arg name="insert_orientation" value="$(arg insert_orientation)" />
     <arg name="cable_monitor" value="$(arg cable_monitor)" />
+    <arg name="geometric_check" value="$(arg geometric_check)" />
+    <arg name="release_after_rest_s" value="$(arg release_after_rest_s)" />
+    <arg name="release_during_rest" value="$(arg release_during_rest)" />
+    <arg name="reset_at_trajectory_start" value="$(arg reset_at_trajectory_start)" />
+    <arg name="reset_cache_mrad" value="$(arg reset_cache_mrad)" />
   </include>
 </launch>

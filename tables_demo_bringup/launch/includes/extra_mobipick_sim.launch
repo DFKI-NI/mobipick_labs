@@ -11,6 +11,11 @@
   <arg name="offset_x" default="50.0" doc="x offset of this robot's scene copy in Gazebo [m]" />
   <arg name="moveit" default="true" doc="start move_group for this robot" />
   <arg name="cable_monitor" default="false" doc="the cable entanglement monitor of this robot" />
+  <arg name="geometric_check" default="true" />
+  <arg name="release_after_rest_s" default="0.0" />
+  <arg name="release_during_rest" default="false" />
+  <arg name="reset_at_trajectory_start" default="false" />
+  <arg name="reset_cache_mrad" default="0.0" />
   <arg name="use_mtc" default="false" />
   <arg name="mtc_cable_plan_check" default="false" />
   <arg name="mtc_lift_tolerate_touching_neighbours" default="false" />
@@ -55,5 +60,10 @@
     <arg name="mtc_cable_plan_check" value="$(arg mtc_cable_plan_check)" />
     <arg name="mtc_lift_tolerate_touching_neighbours" value="$(arg mtc_lift_tolerate_touching_neighbours)" />
     <arg name="cable_monitor" value="$(arg cable_monitor)" />
+    <arg name="geometric_check" value="$(arg geometric_check)" />
+    <arg name="release_after_rest_s" value="$(arg release_after_rest_s)" />
+    <arg name="release_during_rest" value="$(arg release_during_rest)" />
+    <arg name="reset_at_trajectory_start" value="$(arg reset_at_trajectory_start)" />
+    <arg name="reset_cache_mrad" value="$(arg reset_cache_mrad)" />
   </include>
 </launch>
