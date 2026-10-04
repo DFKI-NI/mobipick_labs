@@ -45,16 +45,22 @@ is used the next time the simulator starts.
 the moments the robot moves and cannot be blocked by windows on the screen:
 
 ```bash
-roslaunch experiment_camera_recorder video_recorder.launch \
-  image_topics:=/experiment_camera/image_raw,/mobipick/eef_main_cam/rgb/image_raw \
-  name:=insert_sugar
+roslaunch experiment_camera_recorder video_recorder.launch name:=insert_sugar \
+  command:="rosrun mobipick_gpt agent_experiment.py --goal 'insert the sugar'"
 ```
+
+Video rules (2026-10-04): the experiment camera only, gripper / robot camera videos are forbidden (topics matching
+`forbidden_topic_pattern`, default `gripper|eef|wrist|hand_cam|arm_cam`, are refused with a warning); no sped-up copy
+(viewers such as the Agent Workbench play a video at 4x); every frame shows the video id and `command` (the command
+that runs the experiment, wrapped to at most four lines; empty: "command not given").
 
 Videos go to `output_dir` (default `/data/experiment_recordings`, a host folder the
 GUI mounts into its containers at the same path).
 
-Per topic it writes `<topic>.mp4` (real time, `fps`, default 10) and
-`<topic>_4x.mp4` (same frames at four times the rate, `speedup`). With
+Per topic it writes `<id>_<topic>.mp4` (real time, `fps`, default 10). `<id>` is the video's unique id
+`v<YYYYMMDD>-<HHMMSS>-<4 hex>` (start time on the recorder's clock, UTC in the GUI containers like the folder name, plus
+4 random hex digits), shown top left in every frame above the command, and appended as `<id>\t<absolute path>`
+to `<output_dir>/video_ids.tsv` (append-only, one line per video, so an id finds its file). With
 `auto_pause:=true` (default) frames are written only while `/mobipick/cmd_vel`
 is non-zero or an arm joint (`joint_pattern`, default `ur5`; the simulated gripper finger is noisy at rest) moves faster than
 `joint_velocity_threshold`, kept for `motion_hold_s` after the last motion, so
@@ -72,20 +78,19 @@ The output folder (`<output_dir>/<timestamp>_<name>/`) also holds
 `snapshots/NNN_<label>_<topic>.jpg`, `events.jsonl` (pause/resume/snapshot with
 ROS and wall time) and `summary.json`.
 
-Every topic also gets `<topic>_frames.jsonl`, one JSON line per frame written to
-its two videos, so the videos of different topics (environment and robot camera)
+Every topic also gets `<id>_<topic>_frames.jsonl`, one JSON line per frame written to
+its video, so the videos of different topics (environment and robot camera)
 and the snapshot markers of `events.jsonl` can be aligned on one timeline:
 
 ```json
 {"frame": 0, "source_stamp": 1790621217.34, "wall_time": 1790621219.02, "ros_time": 1790621217.43, "label": "REC"}
 ```
 
-`frame` is the 0-based index of the frame in `<topic>.mp4` and `<topic>_4x.mp4`
-(both hold the same frames), `source_stamp` the ROS header stamp of the image,
+`frame` is the 0-based index of the frame in `<id>_<topic>.mp4`, `source_stamp` the ROS header stamp of the image,
 `wall_time` and `ros_time` the recorder's clocks when it wrote the frame and
 `label` the overlay label. A topic without a fresh image in a recorder tick
 writes no frame and no line, so two topics' videos have different frame counts:
 align them by `source_stamp` (or `ros_time`), not proportionally. A pause takes
 no indices either; it shows as a jump in the times between two consecutive
 frames. `summary.json` and the `status` service list the sidecar per topic as
-`frames_index`.
+`frames_index`, with the topic's `id`, and the `command`.

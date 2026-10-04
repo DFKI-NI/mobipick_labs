@@ -2,23 +2,27 @@
 
 """Record ROS image topics into videos that only contain the moments the robot moves.
 
-Every image topic in ``~image_topics`` is written to ``<output_dir>/<name>.mp4`` at
-its own rate plus ``<name>_<speedup>x.mp4`` (same frames, higher frame rate), so a
-4x video of the interesting parts is available without post-processing. With
+Every image topic in ``~image_topics`` is written to ``<output_dir>/<id>_<name>.mp4``; ``<id>`` is a unique video
+id ``v<YYYYMMDD>-<HHMMSS>-<4 hex>`` for easy reference, and every frame shows that id and ``~command`` (the command
+of the experiment) as text; ``video_ids.tsv`` beside the recording folders gets one ``<id>\t<absolute path>`` line per
+new video (append-only). There is no sped-up copy (the viewer plays at 4x), and topics that match
+``~forbidden_topic_pattern`` (gripper / robot cameras, forbidden since 2026-10-04) are not recorded. With
 ``~auto_pause`` frames are only written while the robot moves (base command
 velocity, arm or gripper joint velocities), so idle phases such as an agent
 thinking are cut automatically; the ``~pause`` / ``~resume`` services override that
 by hand. ``~snapshot`` (std_msgs/String label) saves the latest frame of every
 topic as JPEG, ``~stop`` closes the videos. ``~status`` (std_srvs/Trigger) reports
 the state as JSON; ``events.jsonl`` in the output directory records pauses,
-resumes and snapshots with ROS and wall time, and ``<name>_frames.jsonl`` maps every
-frame of a topic's videos to its source image stamp and the recorder's wall and ROS
+resumes and snapshots with ROS and wall time, and ``<id>_<name>_frames.jsonl`` maps every
+frame of a topic's video to its source image stamp and the recorder's wall and ROS
 time, so videos of different topics can be aligned exactly.
 """
 
 import json
 import os
 import re
+import secrets
+import textwrap
 import threading
 import time
 from datetime import datetime
@@ -36,32 +40,64 @@ def _safe_name(text):
     return re.sub(r"[^A-Za-z0-9_.-]+", "_", text.strip("/")) or "topic"
 
 
+def video_id(started, token=None):
+    """The unique video id ``v<YYYYMMDD>-<HHMMSS>-<4 hex>`` of a video started at datetime ``started``."""
+    return "v%s-%s" % (started.strftime("%Y%m%d-%H%M%S"), token or secrets.token_hex(2))
+
+
+def split_forbidden(topics, pattern):
+    """(allowed, refused) image topics: a topic matching regex ``pattern`` (case-insensitive) is a gripper / robot
+    camera, whose videos are forbidden; an empty pattern refuses nothing."""
+    refused = [t for t in topics if pattern and re.search(pattern, t, re.I)]
+    return [t for t in topics if t not in refused], refused
+
+
+COMMAND_MAX_LINES = 4
+
+
+def command_lines(command, width_chars):
+    """``command`` wrapped to ``width_chars`` per line, at most COMMAND_MAX_LINES lines (the last one cut with "...")."""
+    text = " ".join(command.split()) or "command not given"
+    lines = textwrap.wrap("$ " + text, max(width_chars, 10), break_long_words=True, break_on_hyphens=False)
+    if len(lines) > COMMAND_MAX_LINES:
+        lines = lines[:COMMAND_MAX_LINES]
+        lines[-1] = lines[-1][:max(width_chars - 3, 1)] + "..."
+    return lines
+
+
+def _put_text(image, text, origin, scale):
+    """White text with a black outline, readable on any background."""
+    cv2.putText(image, text, origin, cv2.FONT_HERSHEY_SIMPLEX, scale, (0, 0, 0), 3, cv2.LINE_AA)
+    cv2.putText(image, text, origin, cv2.FONT_HERSHEY_SIMPLEX, scale, (255, 255, 255), 1, cv2.LINE_AA)
+
+
 class TopicRecorder:
     """Videos and snapshots of one image topic."""
 
-    def __init__(self, topic, output_dir, fps, speedup, codec, overlay):
+    def __init__(self, topic, output_dir, fps, codec, overlay, video_id, command="", ids_path=None):
         self.topic = topic
         self.name = _safe_name(topic)
+        self.id = video_id
+        self.command = command
         self.output_dir = output_dir
         self.fps = fps
-        self.speedup = speedup
         self.codec = codec
         self.overlay = overlay
+        self.ids_path = ids_path
+        self._header = None
         self.bridge = CvBridge()
         self.lock = threading.Lock()
         self.latest = None
         self.latest_image = None
         self.writer = None
-        self.writer_fast = None
         self.size = None
         self.frames = 0
         self.last_written_stamp = None
-        self.video_path = os.path.join(output_dir, self.name + ".mp4")
-        self.video_fast_path = os.path.join(output_dir, "%s_%gx.mp4" % (self.name, speedup))
+        self.video_path = os.path.join(output_dir, "%s_%s.mp4" % (video_id, self.name))
         # one JSON line per written frame: {"frame", "source_stamp", "wall_time", "ros_time", "label"}; the frame
-        # index counts the frames of both videos (0-based), skipped and duplicate images take no index and a pause
+        # index counts the frames of the video (0-based), skipped and duplicate images take no index and a pause
         # shows as a jump in the times, never as missing indices
-        self.frames_index_path = os.path.join(output_dir, self.name + "_frames.jsonl")
+        self.frames_index_path = os.path.join(output_dir, "%s_%s_frames.jsonl" % (video_id, self.name))
         self._frames_index = None
         self.subscriber = rospy.Subscriber(topic, Image, self._callback, queue_size=1, buff_size=2 ** 24)
 
@@ -81,11 +117,27 @@ class TopicRecorder:
         self.size = (width, height)
         fourcc = cv2.VideoWriter_fourcc(*self.codec)
         self.writer = cv2.VideoWriter(self.video_path, fourcc, self.fps, self.size)
-        self.writer_fast = cv2.VideoWriter(self.video_fast_path, fourcc, self.fps * self.speedup, self.size)
-        if not self.writer.isOpened() or not self.writer_fast.isOpened():
-            raise RuntimeError("could not open video writers for %s in %s" % (self.topic, self.output_dir))
-        rospy.loginfo("%s -> %s (%.3g fps) and %s (%gx)", self.topic, self.video_path, self.fps,
-                      self.video_fast_path, self.speedup)
+        if not self.writer.isOpened():
+            raise RuntimeError("could not open the video writer for %s in %s" % (self.topic, self.output_dir))
+        rospy.loginfo("%s -> %s (%.3g fps)", self.topic, self.video_path, self.fps)
+        if self.ids_path:                              # append-only "<id>\t<absolute path>" index of all videos
+            try:
+                with open(self.ids_path, "a") as handle:
+                    handle.write("%s\t%s\n" % (self.id, os.path.abspath(self.video_path)))
+            except OSError as error:
+                rospy.logerr("could not add %s to %s: %s", self.id, self.ids_path, error)
+
+    def _draw_header(self, image):
+        """The video id and the command, top left, in every frame (wrapped to the frame width once per size)."""
+        width = image.shape[1]
+        if self._header is None or self._header[0] != width:
+            scale = max(0.4, min(1.0, width / 1280.0))
+            (char_w, char_h), _ = cv2.getTextSize("M" * 10, cv2.FONT_HERSHEY_SIMPLEX, scale, 1)
+            lines = [self.id] + command_lines(self.command, int((width - 16) * 10 / max(char_w, 1)))
+            self._header = (width, scale, int(char_h * 1.6) + 2, lines)
+        _, scale, step, lines = self._header
+        for row, line in enumerate(lines):
+            _put_text(image, line, (8, 8 + step * (row + 1) - 4), scale)
 
     def write_latest(self, label):
         """Write the newest frame unless it was written already; returns True when a frame was written."""
@@ -97,17 +149,15 @@ class TopicRecorder:
         if image is None:
             return False
         self.last_written_stamp = message.header.stamp
-        if self.overlay:
-            stamp = message.header.stamp if not message.header.stamp.is_zero() else rospy.Time.now()
-            text = "%s  t=%.1fs  %s" % (self.name, stamp.to_sec(), label)
-            cv2.putText(image, text, (8, image.shape[0] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 3, cv2.LINE_AA)
-            cv2.putText(image, text, (8, image.shape[0] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
         if self.writer is None:
             self._open(image)
         if image.shape[1::-1] != self.size:
             image = cv2.resize(image, self.size)
+        self._draw_header(image)
+        if self.overlay:
+            stamp = message.header.stamp if not message.header.stamp.is_zero() else rospy.Time.now()
+            _put_text(image, "%s  t=%.1fs  %s" % (self.name, stamp.to_sec(), label), (8, image.shape[0] - 10), 0.5)
         self.writer.write(image)
-        self.writer_fast.write(image)
         self._record_frame_time(self.frames, message.header.stamp, label)
         self.frames += 1
         return True
@@ -137,17 +187,15 @@ class TopicRecorder:
         return path
 
     def close(self):
-        for writer in (self.writer, self.writer_fast):
-            if writer is not None:
-                writer.release()
-        self.writer = self.writer_fast = None
+        if self.writer is not None:
+            self.writer.release()
+        self.writer = None
         if self._frames_index is not None:
             self._frames_index.close()
             self._frames_index = None
         self.subscriber.unregister()
-        return {"topic": self.topic, "frames": self.frames, "seconds": round(self.frames / self.fps, 1),
+        return {"topic": self.topic, "id": self.id, "frames": self.frames, "seconds": round(self.frames / self.fps, 1),
                 "video": self.video_path if self.frames else None,
-                "video_fast": self.video_fast_path if self.frames else None,
                 "frames_index": self.frames_index_path if self.frames else None}
 
 
@@ -156,8 +204,17 @@ class VideoRecorder:
         topics = rospy.get_param("~image_topics", ["/experiment_camera/image_raw"])
         if isinstance(topics, str):
             topics = [t for t in re.split(r"[,\s]+", topics) if t]
+        forbidden = str(rospy.get_param("~forbidden_topic_pattern", r"gripper|eef|wrist|hand_cam|arm_cam"))
+        topics, refused = split_forbidden(topics, forbidden)
+        if refused:
+            rospy.logwarn("not recording %s: gripper / robot camera videos are forbidden (~forbidden_topic_pattern %r)",
+                          refused, forbidden)
+        if not topics:
+            raise ValueError("no image topic left to record (refused: %s)" % refused)
+        self.command = str(rospy.get_param("~command", ""))
+        if not self.command.strip():
+            rospy.logwarn("~command is empty: the videos show 'command not given'; pass command:=\"<the command>\"")
         self.fps = float(rospy.get_param("~fps", 10.0))
-        self.speedup = float(rospy.get_param("~speedup", 4.0))
         codec = str(rospy.get_param("~codec", "mp4v"))
         overlay = bool(rospy.get_param("~overlay", True))
         self.jpeg_quality = int(rospy.get_param("~jpeg_quality", 90))
@@ -167,10 +224,12 @@ class VideoRecorder:
         self.joint_pattern = re.compile(str(rospy.get_param("~joint_pattern", "ur5")))
         cmd_vel_topic = rospy.get_param("~cmd_vel_topic", "/mobipick/cmd_vel")
         joint_states_topic = rospy.get_param("~joint_states_topic", "/mobipick/joint_states")
-        if self.fps <= 0 or self.speedup < 1:
-            raise ValueError("~fps must be positive and ~speedup at least 1")
+        if self.fps <= 0:
+            raise ValueError("~fps must be positive")
 
-        self.output_dir = self._resolve_output_dir(rospy.get_param("~output_dir", ""), rospy.get_param("~name", ""))
+        started = datetime.now()
+        self.output_dir = self._resolve_output_dir(rospy.get_param("~output_dir", ""), rospy.get_param("~name", ""),
+                                                   started)
         os.makedirs(self.output_dir, exist_ok=True)
         self.events_path = os.path.join(self.output_dir, "events.jsonl")
         self.lock = threading.Lock()
@@ -181,7 +240,12 @@ class VideoRecorder:
         self.stopped = False
         self.snapshots = 0
         self.started_wall = time.time()
-        self.recorders = [TopicRecorder(t, self.output_dir, self.fps, self.speedup, codec, overlay) for t in topics]
+        ids = set()
+        while len(ids) < len(topics):                 # one id per video, unique also within this recording
+            ids.add(video_id(started))
+        ids_path = os.path.join(os.path.dirname(self.output_dir), "video_ids.tsv")
+        self.recorders = [TopicRecorder(t, self.output_dir, self.fps, codec, overlay, i, self.command, ids_path)
+                          for t, i in zip(topics, sorted(ids))]
 
         rospy.Subscriber(cmd_vel_topic, Twist, self._cmd_vel_callback, queue_size=1)
         rospy.Subscriber(joint_states_topic, JointState, self._joint_states_callback, queue_size=1)
@@ -192,13 +256,14 @@ class VideoRecorder:
         rospy.Service("~status", Trigger, self._status_service)
         self.status_pub = rospy.Publisher("~status", String, queue_size=1, latch=True)
         self.timer = rospy.Timer(rospy.Duration(1.0 / self.fps), self._tick)
-        self._log_event("start", topics=topics, auto_pause=self.auto_pause, fps=self.fps, speedup=self.speedup)
-        rospy.loginfo("recording %s into %s (auto_pause=%s, %gx copy)", topics, self.output_dir, self.auto_pause,
-                      self.speedup)
+        self._log_event("start", topics=topics, ids=[r.id for r in self.recorders], command=self.command,
+                        refused=refused, auto_pause=self.auto_pause, fps=self.fps)
+        rospy.loginfo("recording %s into %s as %s (auto_pause=%s)", topics, self.output_dir,
+                      [r.id for r in self.recorders], self.auto_pause)
 
     @staticmethod
-    def _resolve_output_dir(configured, name):
-        stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    def _resolve_output_dir(configured, name, started=None):
+        stamp = (started or datetime.now()).strftime("%Y%m%d_%H%M%S")
         folder = "%s_%s" % (stamp, _safe_name(name)) if name else stamp
         if configured:
             return os.path.join(os.path.abspath(os.path.expanduser(configured)), folder)
@@ -246,9 +311,9 @@ class VideoRecorder:
             "stopped": self.stopped,
             "snapshots": self.snapshots,
             "elapsed_s": round(time.time() - self.started_wall, 1),
-            "topics": [{"topic": r.topic, "frames": r.frames, "recorded_s": round(r.frames / self.fps, 1),
-                        "video": r.video_path, "video_fast": r.video_fast_path,
-                        "frames_index": r.frames_index_path} for r in self.recorders],
+            "command": self.command,
+            "topics": [{"topic": r.topic, "id": r.id, "frames": r.frames, "recorded_s": round(r.frames / self.fps, 1),
+                        "video": r.video_path, "frames_index": r.frames_index_path} for r in self.recorders],
         }
 
     def _publish_status(self):
@@ -296,7 +361,7 @@ class VideoRecorder:
                 return self._status()
             self.stopped = True
             self.timer.shutdown()
-            summary = {"output_dir": self.output_dir, "snapshots": self.snapshots,
+            summary = {"output_dir": self.output_dir, "command": self.command, "snapshots": self.snapshots,
                        "topics": [r.close() for r in self.recorders]}
             self._log_event("stop", **summary)
             with open(os.path.join(self.output_dir, "summary.json"), "w") as handle:

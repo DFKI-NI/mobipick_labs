@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""TopicRecorder's per-frame time sidecar (#165). No ROS: python3 -m pytest test (cv2/rospy/cv_bridge stubbed)."""
+"""TopicRecorder's per-frame time sidecar (#165), video id, command text and refused gripper topics (#349). No ROS: python3 -m pytest test (cv2/rospy/cv_bridge stubbed)."""
 import importlib.util
 import json
 import os
@@ -38,6 +38,7 @@ def recorder_module(monkeypatch):
     rospy = _stub("rospy", Subscriber=Mock(), loginfo=Mock(), logerr_throttle=Mock(), logerr=Mock())
     rospy.Time = _stub("Time", now=lambda: Stamp(clock["ros"]))
     cv2 = _stub("cv2", VideoWriter_fourcc=lambda *a: 0, putText=Mock(), FONT_HERSHEY_SIMPLEX=0, LINE_AA=0,
+                getTextSize=lambda text, font, scale, thickness: ((int(len(text) * 20 * scale), int(22 * scale)), 5),
                 resize=lambda image, size: image, imwrite=Mock(return_value=True))
     writer = Mock()
     writer.isOpened.return_value = True
@@ -79,8 +80,12 @@ def _lines(path):
         return [json.loads(line) for line in handle]
 
 
-def _make(module, tmp_path, topic="/experiment_camera/image_raw"):
-    return module.TopicRecorder(topic, str(tmp_path), fps=5.0, speedup=4, codec="mp4v", overlay=False)
+VID = "v20261004-115230-3fa9"
+
+
+def _make(module, tmp_path, topic="/experiment_camera/image_raw", command="python3 run.py --n 1", ids_path=None):
+    return module.TopicRecorder(topic, str(tmp_path), fps=5.0, codec="mp4v", overlay=False, video_id=VID,
+                                command=command, ids_path=ids_path)
 
 
 def test_every_written_frame_gets_one_line_with_its_times(recorder_module, tmp_path):
@@ -139,6 +144,64 @@ def test_summary_links_the_sidecar_only_when_frames_were_written(recorder_module
     recorder.write_latest("REC")
     summary = recorder.close()
     assert summary["frames"] == 1
-    assert summary["frames_index"] == str(tmp_path / "experiment_camera_image_raw_frames.jsonl")
-    assert summary["video"] == str(tmp_path / "experiment_camera_image_raw.mp4")
+    assert summary["frames_index"] == str(tmp_path / (VID + "_experiment_camera_image_raw_frames.jsonl"))
+    assert summary["video"] == str(tmp_path / (VID + "_experiment_camera_image_raw.mp4"))
+    assert summary["id"] == VID and "video_fast" not in summary
     assert recorder._frames_index is None                         # file closed with the videos
+
+
+def test_one_video_writer_and_no_sped_up_copy(recorder_module, tmp_path):
+    recorder = _make(recorder_module, tmp_path)
+    recorder.latest = Message(10.0)
+    recorder.write_latest("REC")
+    paths = [call.args[0] for call in recorder_module.cv2.VideoWriter.call_args_list]
+    assert paths == [str(tmp_path / (VID + "_experiment_camera_image_raw.mp4"))]
+
+
+def test_every_frame_shows_the_id_and_the_command(recorder_module, tmp_path):
+    recorder = _make(recorder_module, tmp_path, command="python3 0289_b_series.sh relay_1 3")
+    for seconds in (10.0, 10.5):
+        recorder_module.cv2.putText.reset_mock()
+        recorder.latest = Message(seconds)
+        recorder.write_latest("REC")
+        texts = [call.args[1] for call in recorder_module.cv2.putText.call_args_list]
+        assert VID in texts and "$ python3 0289_b_series.sh relay_1 3" in texts
+
+
+def test_video_ids_are_unique_and_well_formed(recorder_module):
+    from datetime import datetime
+    started = datetime(2026, 10, 4, 11, 52, 30)
+    ids = {recorder_module.video_id(started) for _ in range(50)}
+    assert all(__import__("re").fullmatch(r"v20261004-115230-[0-9a-f]{4}", i) for i in ids)
+    assert len(ids) > 40                                         # random 4 hex: collisions are rare
+    assert recorder_module.video_id(started, "beef") == "v20261004-115230-beef"
+
+
+def test_command_lines_wrap_cut_and_say_when_missing(recorder_module):
+    assert recorder_module.command_lines("", 40) == ["$ command not given"]
+    assert recorder_module.command_lines("a  b\n c", 40) == ["$ a b c"]
+    long = " ".join("--option%d value" % i for i in range(40))
+    lines = recorder_module.command_lines(long, 40)
+    assert len(lines) == recorder_module.COMMAND_MAX_LINES and all(len(line) <= 40 for line in lines)
+    assert lines[-1].endswith("...")
+
+
+def test_gripper_and_robot_camera_topics_are_refused(recorder_module):
+    pattern = "gripper|eef|wrist|hand_cam|arm_cam"
+    allowed, refused = recorder_module.split_forbidden(
+        ["/experiment_camera/image_raw", "/mobipick/eef_main_cam/rgb/image_raw", "/mobipick/gripper_cam/image"], pattern)
+    assert allowed == ["/experiment_camera/image_raw"]
+    assert refused == ["/mobipick/eef_main_cam/rgb/image_raw", "/mobipick/gripper_cam/image"]
+    assert recorder_module.split_forbidden(["/mobipick/eef_main_cam/rgb/image_raw"], "")[1] == []
+
+
+def test_a_new_video_is_appended_to_the_id_index(recorder_module, tmp_path):
+    index = tmp_path / "video_ids.tsv"
+    index.write_text("v20261001-000000-0000\t/old.mp4\n")
+    recorder = _make(recorder_module, tmp_path, ids_path=str(index))
+    recorder.latest = Message(10.0)
+    recorder.write_latest("REC")
+    recorder.latest = Message(10.5)
+    recorder.write_latest("REC")                                 # one line per video, not per frame
+    assert index.read_text().splitlines() == ["v20261001-000000-0000\t/old.mp4",
+                                              VID + "\t" + str(tmp_path / (VID + "_experiment_camera_image_raw.mp4"))]
