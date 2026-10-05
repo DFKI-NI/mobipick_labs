@@ -56,7 +56,11 @@ that runs the experiment, as `$ <command>`) and the last goal that arrived on `c
 `/recognized_speech`, where the GUI's speech input and `agent_experiment.py` send the GPT demo's goal to the LLM) as
 `goal (model <profile>): <text>`; the model profile is the first parameter named `*/<model_label_param>` (default
 `experiment_model_label`, set by `gpt_robot_demo.launch` from its `model_profile`). Each is wrapped to at most four
-lines. Until either is known the frames say `NO COMMAND YET: waiting for the goal on <topic>`, `summary.json` gets
+lines. The text is never drawn over the camera picture: every frame grows in height by a black strip on top of the
+picture and the text stands there in lime, first line the video id with the topic, time and `REC` state
+(`overlay:=false` leaves the id only), then the command and the goal. The strip height fits the text of the moment the video
+opens (the first written frame; the frame height stays even for the encoder) and is fixed for that video; while a goal
+can still arrive two rows stay free for it, and later text that needs more rows is cut with `...`. Until either is known the frames say `NO COMMAND YET: waiting for the goal on <topic>`, `summary.json` gets
 `"command_missing": true` and the recorder logs an error at stop; with `command` and `command_topic` both empty it
 refuses to start. A GPT demo run therefore needs no `command`: the goal is taken from the run itself.
 
@@ -65,7 +69,7 @@ GUI mounts into its containers at the same path).
 
 Per topic it writes `<id>_<topic>.mp4` (real time, `fps`, default 10). `<id>` is the video's unique id
 `v<YYYYMMDD>-<HHMMSS>-<4 hex>` (start time on the recorder's clock, UTC in the GUI containers like the folder name, plus
-4 random hex digits), shown top left in every frame above the command, and appended as `<id>\t<absolute path>`
+4 random hex digits), shown first in the text strip of every frame, above the command, and appended as `<id>\t<absolute path>`
 to `<output_dir>/video_ids.tsv` (append-only, one line per video, so an id finds its file). With
 `auto_pause:=true` (default) frames are written only while `/mobipick/cmd_vel`
 is non-zero or an arm joint (`joint_pattern`, default `ur5`; the simulated gripper finger is noisy at rest) moves faster than

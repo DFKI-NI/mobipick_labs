@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""TopicRecorder's per-frame time sidecar (#165), video id, command text and refused gripper topics (#349). No ROS: python3 -m pytest test (cv2/rospy/cv_bridge stubbed)."""
+"""TopicRecorder's per-frame time sidecar (#165), video id, command text in the strip on top and refused gripper topics (#349). No ROS: python3 -m pytest test (cv2/rospy/cv_bridge stubbed)."""
 import importlib.util
 import json
 import os
@@ -37,7 +37,14 @@ def recorder_module(monkeypatch):
     clock = {"ros": 100.0}
     rospy = _stub("rospy", Subscriber=Mock(), loginfo=Mock(), logerr_throttle=Mock(), logerr=Mock())
     rospy.Time = _stub("Time", now=lambda: Stamp(clock["ros"]))
+    def with_border(image, top, bottom, left, right, border_type, value=None):
+        grown = FakeImage()
+        grown.shape = (image.shape[0] + top + bottom, image.shape[1] + left + right, 3)
+        grown.source, grown.border = image, (top, bottom, left, right, value)
+        return grown
+
     cv2 = _stub("cv2", VideoWriter_fourcc=lambda *a: 0, putText=Mock(), FONT_HERSHEY_SIMPLEX=0, LINE_AA=0,
+                BORDER_CONSTANT=0, copyMakeBorder=with_border,
                 getTextSize=lambda text, font, scale, thickness: ((int(len(text) * 20 * scale), int(22 * scale)), 5),
                 resize=lambda image, size: image, imwrite=Mock(return_value=True))
     writer = Mock()
@@ -84,6 +91,7 @@ VID = "v20261004-115230-3fa9"
 
 
 def _make(module, tmp_path, topic="/experiment_camera/image_raw", command="python3 run.py --n 1", ids_path=None):
+    os.makedirs(str(tmp_path), exist_ok=True)
     return module.TopicRecorder(topic, str(tmp_path), fps=5.0, codec="mp4v", overlay=False, video_id=VID,
                                 command=command, ids_path=ids_path)
 
@@ -242,3 +250,66 @@ def test_a_goal_arriving_later_replaces_the_waiting_line_in_the_next_frames(reco
     later = texts(10.5)
     assert "goal (model deepseek-v4.1-flash): Pick the apple" in later and VID in later
     assert not any("NO COMMAND" in t for t in later)
+
+
+def _written(module):
+    return module.cv2.VideoWriter.return_value.write.call_args.args[0]
+
+
+def test_the_text_goes_into_a_black_strip_on_top_and_never_over_the_picture(recorder_module, tmp_path):
+    recorder = _make(recorder_module, tmp_path)
+    message = Message(10.0)
+    recorder.latest = message
+    recorder.write_latest("REC")
+    frame = _written(recorder_module)
+    strip = recorder.layout[3]
+    assert frame.source is message.image                         # the camera picture goes in unchanged
+    assert frame.border == (strip, 0, 0, 0, (0, 0, 0))           # black, on top only
+    assert frame.shape[:2] == (480 + strip, 640) and frame.shape[0] % 2 == 0
+    assert recorder_module.cv2.VideoWriter.call_args.args[3] == (640, 480 + strip)
+    calls = recorder_module.cv2.putText.call_args_list
+    assert len(calls) == 2                                       # the id line and the command, no outline pass
+    for call in calls:
+        assert call.args[0] is frame and call.args[5] == (0, 255, 0)      # lime, drawn on the grown frame
+        assert call.args[2][1] <= strip                          # every baseline lies inside the strip
+
+
+def test_the_strip_fits_the_text_lines_and_keeps_the_frame_height_even(recorder_module):
+    layout = recorder_module.strip_layout
+    heights = [layout(640, 480, rows)[3] for rows in (1, 2, 5)]
+    assert heights[0] < heights[1] < heights[2]
+    for picture_height in (480, 481, 720, 1079):
+        for rows in range(1, 8):
+            assert (layout(640, picture_height, rows)[3] + picture_height) % 2 == 0
+    recorder_fit = recorder_module.fit_rows
+    assert recorder_fit(["a", "b"], 3, 40) == ["a", "b"]
+    assert recorder_fit(["a", "b", "c"], 2, 40) == ["a", "b..."]
+
+
+def test_a_long_command_is_wrapped_and_makes_the_strip_taller(recorder_module, tmp_path):
+    short = _make(recorder_module, tmp_path / "short")
+    short.latest = Message(10.0)
+    short.write_latest("REC")
+    long = _make(recorder_module, tmp_path / "long", command=" ".join("--option%d value" % i for i in range(12)))
+    long.latest = Message(10.0)
+    long.write_latest("REC")
+    assert long.rows > short.rows == 2 and long.layout[3] > short.layout[3]
+    texts = [call.args[1] for call in recorder_module.cv2.putText.call_args_list[-long.rows:]]
+    assert len(texts) == long.rows and all(len(t) <= long.layout[2] for t in texts[1:])
+
+
+def test_rows_stay_free_for_a_goal_that_arrives_after_the_video_opened(recorder_module, tmp_path):
+    recorder = _make(recorder_module, tmp_path, command="")
+    recorder.set_overlay(recorder_module.overlay_parts("", "", "", "/recognized_speech"),
+                         recorder_module.GOAL_SPARE_ROWS)
+    recorder.latest = Message(10.0)
+    recorder.write_latest("REC")
+    size, rows = recorder.size, recorder.rows
+    assert rows == 2 + recorder_module.GOAL_SPARE_ROWS
+    recorder.set_overlay(recorder_module.overlay_parts("", " ".join(["word"] * 200), "m", "/recognized_speech"))
+    recorder_module.cv2.putText.reset_mock()
+    recorder.latest = Message(10.5)
+    recorder.write_latest("REC")
+    texts = [call.args[1] for call in recorder_module.cv2.putText.call_args_list]
+    assert recorder.size == size and _written(recorder_module).shape[:2] == (size[1], size[0])   # same frame size
+    assert len(texts) == rows and texts[-1].endswith("...")      # too long for the strip: cut, not drawn lower

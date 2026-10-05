@@ -1,12 +1,13 @@
 <?xml version="1.0"?>
 <launch>
   <!-- Videos of the experiment camera that only contain the moments the robot moves; every frame shows the video id
-       (also the file name prefix) and what was run: the command and/or the goal sent to the LLM with its model. Gripper / robot camera topics are refused. -->
+       (also the file name prefix) and what was run: the command and/or the goal sent to the LLM with its model, as
+       lime text in a black strip on top of the camera picture (the frames grow in height by that strip). Gripper / robot camera topics are refused. -->
   <arg name="image_topics" default="/experiment_camera/image_raw" />
   <arg name="output_dir" default="/data/experiment_recordings" />
   <arg name="name" default="" />
   <arg name="fps" default="10.0" />
-  <arg name="command" default="" />  <!-- the command that runs the experiment, shown as text in every frame -->
+  <arg name="command" default="" />  <!-- the command that runs the experiment, shown in the text strip of every frame -->
   <!-- the goal topic of the GPT demo (GUI speech input, agent_experiment.py): the last goal sent to the LLM is shown
        with the model profile (the agent's model_label_param parameter); "" with an empty command refuses to start -->
   <arg name="command_topic" default="/recognized_speech" />

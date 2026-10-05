@@ -3,7 +3,8 @@
 """Record ROS image topics into videos that only contain the moments the robot moves.
 
 Every image topic in ``~image_topics`` is written to ``<output_dir>/<id>_<name>.mp4``; ``<id>`` is a unique video
-id ``v<YYYYMMDD>-<HHMMSS>-<4 hex>`` for easy reference, and every frame shows that id and what was run as text:
+id ``v<YYYYMMDD>-<HHMMSS>-<4 hex>`` for easy reference, and every frame shows that id and what was run as lime
+text in a black strip added on top of the camera picture (the frames grow in height, the picture stays untouched):
 ``~command`` (the shell command of the experiment) and the last goal that arrived on ``~command_topic`` (default
 ``/recognized_speech``, where the GUI's speech input and ``agent_experiment.py`` send the GPT demo's goal to the LLM)
 with the model profile (the ``~model_label_param`` parameter of the running agent); without either the frames say
@@ -101,10 +102,32 @@ def command_lines(text, width_chars):
     return lines
 
 
-def _put_text(image, text, origin, scale):
-    """White text with a black outline, readable on any background."""
-    cv2.putText(image, text, origin, cv2.FONT_HERSHEY_SIMPLEX, scale, (0, 0, 0), 3, cv2.LINE_AA)
-    cv2.putText(image, text, origin, cv2.FONT_HERSHEY_SIMPLEX, scale, (255, 255, 255), 1, cv2.LINE_AA)
+TEXT_COLOR = (0, 255, 0)      # BGR: pure lime green, on the black strip above the picture
+STRIP_COLOR = (0, 0, 0)
+STRIP_MARGIN = 8              # pixels around the text in the strip
+GOAL_SPARE_ROWS = 2           # rows kept free in the strip for a goal that arrives after the video started
+
+
+def strip_layout(width, picture_height, rows):
+    """(scale, row step, characters per line, strip height) of the text strip above a ``width`` pixel wide picture:
+    the strip holds ``rows`` text lines and the whole frame (strip + picture) gets an even height for the encoder."""
+    scale = max(0.4, min(1.0, width / 1280.0))
+    (char_w, char_h), baseline = cv2.getTextSize("M" * 10, cv2.FONT_HERSHEY_SIMPLEX, scale, 1)
+    step = int(char_h * 1.6) + 2
+    width_chars = int((width - 2 * STRIP_MARGIN) * 10 / max(char_w, 1))
+    height = 2 * STRIP_MARGIN + step * max(rows, 1) + int(baseline)
+    if (height + picture_height) % 2:
+        height += 1
+    return scale, step, width_chars, height
+
+
+def fit_rows(lines, rows, width_chars):
+    """``lines`` cut to ``rows`` lines; a cut shows as "..." at the end of the last line."""
+    if len(lines) <= rows:
+        return list(lines)
+    kept = list(lines[:max(rows, 1)])
+    kept[-1] = kept[-1][:max(width_chars - 3, 1)] + "..."
+    return kept
 
 
 class TopicRecorder:
@@ -116,6 +139,7 @@ class TopicRecorder:
         self.id = video_id
         self.command = command
         self.parts = overlay_parts(command)
+        self.spare_rows = 0
         self.output_dir = output_dir
         self.fps = fps
         self.codec = codec
@@ -127,7 +151,10 @@ class TopicRecorder:
         self.latest = None
         self.latest_image = None
         self.writer = None
-        self.size = None
+        self.size = None          # (width, height) of the video: the camera picture plus the text strip on top
+        self.picture_size = None  # (width, height) of the camera picture
+        self.layout = None        # strip_layout() of the video, fixed when the video opens
+        self.rows = 0             # text rows of the strip
         self.frames = 0
         self.last_written_stamp = None
         self.video_path = os.path.join(output_dir, "%s_%s.mp4" % (video_id, self.name))
@@ -151,7 +178,14 @@ class TopicRecorder:
 
     def _open(self, image):
         height, width = image.shape[:2]
-        self.size = (width, height)
+        self.picture_size = (width, height)
+        with self.lock:
+            parts, spare_rows = list(self.parts), self.spare_rows
+        # the strip height cannot change within a video: room for the id line, the text known now and the spare rows
+        width_chars = strip_layout(width, height, 1)[2]
+        self.rows = 1 + sum(len(command_lines(part, width_chars)) for part in parts) + spare_rows
+        self.layout = strip_layout(width, height, self.rows)
+        self.size = (width, height + self.layout[3])
         fourcc = cv2.VideoWriter_fourcc(*self.codec)
         self.writer = cv2.VideoWriter(self.video_path, fourcc, self.fps, self.size)
         if not self.writer.isOpened():
@@ -164,25 +198,28 @@ class TopicRecorder:
             except OSError as error:
                 rospy.logerr("could not add %s to %s: %s", self.id, self.ids_path, error)
 
-    def set_overlay(self, parts):
-        """Show ``parts`` (see overlay_parts) from the next frame on."""
+    def set_overlay(self, parts, spare_rows=0):
+        """Show ``parts`` (see overlay_parts) from the next frame on; ``spare_rows`` text rows stay free in the
+        strip of a video that opens now, for text that arrives later (a goal)."""
         with self.lock:
             self.parts = list(parts)
+            self.spare_rows = max(int(spare_rows), 0)
             self._header = None
 
-    def _draw_header(self, image):
-        """The video id and what was run, top left, in every frame (wrapped to the frame width once per change)."""
-        width = image.shape[1]
+    def _with_strip(self, image, status=""):
+        """``image`` with the black text strip on top: the video id (and ``status``) in the first line, then what was
+        run, in lime; the camera picture itself is not drawn on."""
+        scale, step, width_chars, strip = self.layout
         with self.lock:                                 # set_overlay may swap the parts from the goal callback
-            if self._header is None or self._header[0] != width:
-                scale = max(0.4, min(1.0, width / 1280.0))
-                (char_w, char_h), _ = cv2.getTextSize("M" * 10, cv2.FONT_HERSHEY_SIMPLEX, scale, 1)
-                width_chars = int((width - 16) * 10 / max(char_w, 1))
-                lines = [self.id] + [line for part in self.parts for line in command_lines(part, width_chars)]
-                self._header = (width, scale, int(char_h * 1.6) + 2, lines)
-            _, scale, step, lines = self._header
+            if self._header is None:
+                lines = [line for part in self.parts for line in command_lines(part, width_chars)]
+                self._header = fit_rows(lines, self.rows - 1, width_chars)
+            lines = [("%s   %s" % (self.id, status)).rstrip()] + self._header
+        frame = cv2.copyMakeBorder(image, strip, 0, 0, 0, cv2.BORDER_CONSTANT, value=STRIP_COLOR)
         for row, line in enumerate(lines):
-            _put_text(image, line, (8, 8 + step * (row + 1) - 4), scale)
+            cv2.putText(frame, line, (STRIP_MARGIN, STRIP_MARGIN + step * (row + 1) - 4), cv2.FONT_HERSHEY_SIMPLEX,
+                        scale, TEXT_COLOR, 1, cv2.LINE_AA)
+        return frame
 
     def write_latest(self, label):
         """Write the newest frame unless it was written already; returns True when a frame was written."""
@@ -196,13 +233,13 @@ class TopicRecorder:
         self.last_written_stamp = message.header.stamp
         if self.writer is None:
             self._open(image)
-        if image.shape[1::-1] != self.size:
-            image = cv2.resize(image, self.size)
-        self._draw_header(image)
+        if image.shape[1::-1] != self.picture_size:
+            image = cv2.resize(image, self.picture_size)
+        status = ""
         if self.overlay:
             stamp = message.header.stamp if not message.header.stamp.is_zero() else rospy.Time.now()
-            _put_text(image, "%s  t=%.1fs  %s" % (self.name, stamp.to_sec(), label), (8, image.shape[0] - 10), 0.5)
-        self.writer.write(image)
+            status = "%s  t=%.1fs  %s" % (self.name, stamp.to_sec(), label)
+        self.writer.write(self._with_strip(image, status))
         self._record_frame_time(self.frames, message.header.stamp, label)
         self.frames += 1
         return True
@@ -298,8 +335,7 @@ class VideoRecorder:
         ids_path = os.path.join(os.path.dirname(self.output_dir), "video_ids.tsv")
         self.recorders = [TopicRecorder(t, self.output_dir, self.fps, codec, overlay, i, self.command, ids_path)
                           for t, i in zip(topics, sorted(ids))]
-        for recorder in self.recorders:
-            recorder.set_overlay(self._overlay_parts())
+        self._set_overlays()
 
         rospy.Subscriber(cmd_vel_topic, Twist, self._cmd_vel_callback, queue_size=1)
         rospy.Subscriber(joint_states_topic, JointState, self._joint_states_callback, queue_size=1)
@@ -321,6 +357,12 @@ class VideoRecorder:
         goal = self.goals[-1] if self.goals else {}
         return overlay_parts(self.command, goal.get("goal", ""), goal.get("model", ""), self.command_topic)
 
+    def _set_overlays(self):
+        """Give every video its text; while a goal can still arrive, rows for it stay free in the strip."""
+        spare_rows = GOAL_SPARE_ROWS if self.command_topic and not self.goals else 0
+        for recorder in self.recorders:
+            recorder.set_overlay(self._overlay_parts(), spare_rows)
+
     def _goal_callback(self, message):
         """A goal for the agent (the GPT demo's LLM): shown in every following frame with the model profile."""
         text = " ".join(str(message.data or "").split())
@@ -334,9 +376,7 @@ class VideoRecorder:
         with self.lock:
             self.goals.append({"goal": text, "model": model, "topic": self.command_topic})
             self._log_event("goal", goal=text, model=model, topic=self.command_topic)
-            parts = self._overlay_parts()
-            for recorder in self.recorders:
-                recorder.set_overlay(parts)
+            self._set_overlays()
         rospy.loginfo("goal on %s (model %s): %s", self.command_topic, model or "unknown", text)
 
     @staticmethod
