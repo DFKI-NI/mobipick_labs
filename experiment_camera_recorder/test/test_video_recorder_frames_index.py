@@ -185,13 +185,25 @@ def test_video_ids_are_unique_and_well_formed(recorder_module):
     assert recorder_module.video_id(started, "beef") == "v20261004-115230-beef"
 
 
-def test_command_lines_wrap_and_cut(recorder_module):
-    assert recorder_module.command_lines("", 40) == []
-    assert recorder_module.command_lines("$ a  b\n c", 40) == ["$ a b c"]
+def test_command_lines_wrap_by_the_drawn_width_and_cut(recorder_module):
+    lines, width = recorder_module.command_lines, recorder_module.text_width
+    assert lines("", 400, 0.5) == []
+    assert lines("$ a  b\n c", 400, 0.5) == ["$ a b c"]
     long = " ".join("--option%d value" % i for i in range(40))
-    lines = recorder_module.command_lines(long, 40)
-    assert len(lines) == recorder_module.COMMAND_MAX_LINES and all(len(line) <= 40 for line in lines)
-    assert lines[-1].endswith("...")
+    wrapped = lines(long, 400, 0.5)                               # the stub draws 10 px per character at 0.5
+    assert len(wrapped) == recorder_module.COMMAND_MAX_LINES and all(width(line, 0.5) <= 400 for line in wrapped)
+    assert wrapped[-1].endswith("...")
+    assert all(width(line, 0.5) > 400 - 170 for line in wrapped[:-1])     # filled up to the last word that fits
+    assert lines("x" * 90, 400, 0.5) == ["x" * 40, "x" * 40, "x" * 10]     # a word wider than a line is split
+    assert lines("aaaa bbbb", 1000, 0.5) == ["aaaa bbbb"]
+    assert lines("aaaa bbbb", 1000, 2.5) == ["aaaa bbbb"] and lines("aaaa bbbb", 300, 2.5) == ["aaaa", "bbbb"]
+
+
+def test_the_strip_text_is_small_and_scales_down_with_the_frame_width(recorder_module):
+    layout = recorder_module.strip_layout
+    assert layout(1280, 720, 1)[0] == recorder_module.TEXT_SCALE == 0.62
+    assert layout(1920, 1080, 1)[0] == 0.62 and layout(640, 480, 1)[0] == recorder_module.TEXT_SCALE_MIN
+    assert layout(1280, 720, 1)[2] == 1280 - 2 * recorder_module.STRIP_MARGIN
 
 
 def test_gripper_and_robot_camera_topics_are_refused(recorder_module):
@@ -282,20 +294,20 @@ def test_the_strip_fits_the_text_lines_and_keeps_the_frame_height_even(recorder_
         for rows in range(1, 8):
             assert (layout(640, picture_height, rows)[3] + picture_height) % 2 == 0
     recorder_fit = recorder_module.fit_rows
-    assert recorder_fit(["a", "b"], 3, 40) == ["a", "b"]
-    assert recorder_fit(["a", "b", "c"], 2, 40) == ["a", "b..."]
+    assert recorder_fit(["a", "b"], 3, 400, 0.5) == ["a", "b"]
+    assert recorder_fit(["a", "b", "c"], 2, 400, 0.5) == ["a", "b..."]
 
 
 def test_a_long_command_is_wrapped_and_makes_the_strip_taller(recorder_module, tmp_path):
     short = _make(recorder_module, tmp_path / "short")
     short.latest = Message(10.0)
     short.write_latest("REC")
-    long = _make(recorder_module, tmp_path / "long", command=" ".join("--option%d value" % i for i in range(12)))
+    long = _make(recorder_module, tmp_path / "long", command=" ".join("--option%d value" % i for i in range(20)))
     long.latest = Message(10.0)
     long.write_latest("REC")
     assert long.rows > short.rows == 2 and long.layout[3] > short.layout[3]
     texts = [call.args[1] for call in recorder_module.cv2.putText.call_args_list[-long.rows:]]
-    assert len(texts) == long.rows and all(len(t) <= long.layout[2] for t in texts[1:])
+    assert len(texts) == long.rows and all(recorder_module.text_width(t, long.layout[0]) <= long.layout[2] for t in texts[1:])
 
 
 def test_rows_stay_free_for_a_goal_that_arrives_after_the_video_opened(recorder_module, tmp_path):

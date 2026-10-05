@@ -56,7 +56,7 @@ that runs the experiment, as `$ <command>`) and the last goal that arrived on `c
 `/recognized_speech`, where the GUI's speech input and `agent_experiment.py` send the GPT demo's goal to the LLM) as
 `goal (model <profile>): <text>`; the model profile is the first parameter named `*/<model_label_param>` (default
 `experiment_model_label`, set by `gpt_robot_demo.launch` from its `model_profile`). Each is wrapped to at most four
-lines. The text is never drawn over the camera picture: every frame grows in height by a black strip on top of the
+lines that use the frame width (measured as drawn), in small text (font scale 0.62 in a 1280 pixel wide frame). The text is never drawn over the camera picture: every frame grows in height by a black strip on top of the
 picture and the text stands there in lime, first line the video id with the topic, time and `REC` state
 (`overlay:=false` leaves the id only), then the command and the goal. The strip height fits the text of the moment the video
 opens (the first written frame; the frame height stays even for the encoder) and is fixed for that video; while a goal

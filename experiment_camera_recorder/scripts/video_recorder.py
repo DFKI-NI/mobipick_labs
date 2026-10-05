@@ -26,7 +26,6 @@ import json
 import os
 import re
 import secrets
-import textwrap
 import threading
 import time
 from datetime import datetime
@@ -90,15 +89,40 @@ def find_model_label(param_names, get_param, suffix):
     return ""
 
 
-def command_lines(text, width_chars):
-    """``text`` wrapped to ``width_chars`` per line, at most COMMAND_MAX_LINES lines (the last one cut with "...")."""
-    text = " ".join(text.split())
-    if not text:
-        return []
-    lines = textwrap.wrap(text, max(width_chars, 10), break_long_words=True, break_on_hyphens=False)
+def text_width(text, scale):
+    """Width of ``text`` in pixels as the strip draws it."""
+    return cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, scale, 1)[0][0]
+
+
+def cut_to_width(line, max_width, scale):
+    """``line`` shortened until it fits ``max_width`` pixels with "..." at its end."""
+    while line and text_width(line + "...", scale) > max_width:
+        line = line[:-1]
+    return line.rstrip() + "..."
+
+
+def command_lines(text, max_width, scale):
+    """``text`` wrapped at spaces to lines of at most ``max_width`` pixels (measured as drawn, so the lines use the
+    frame width; a word wider than a line is split), at most COMMAND_MAX_LINES lines (the last one cut with "...")."""
+    lines, line = [], ""
+    for word in text.split():
+        candidate = (line + " " + word) if line else word
+        if text_width(candidate, scale) <= max_width:
+            line = candidate
+            continue
+        if line:
+            lines.append(line)
+        while len(word) > 1 and text_width(word, scale) > max_width:
+            cut = len(word) - 1
+            while cut > 1 and text_width(word[:cut], scale) > max_width:
+                cut -= 1
+            lines.append(word[:cut])
+            word = word[cut:]
+        line = word
+    if line:
+        lines.append(line)
     if len(lines) > COMMAND_MAX_LINES:
-        lines = lines[:COMMAND_MAX_LINES]
-        lines[-1] = lines[-1][:max(width_chars - 3, 1)] + "..."
+        lines = lines[:COMMAND_MAX_LINES - 1] + [cut_to_width(lines[COMMAND_MAX_LINES - 1], max_width, scale)]
     return lines
 
 
@@ -108,25 +132,28 @@ STRIP_MARGIN = 8              # pixels around the text in the strip
 GOAL_SPARE_ROWS = 2           # rows kept free in the strip for a goal that arrives after the video started
 
 
+TEXT_SCALE = 0.62             # font scale of the strip text in a 1280 pixel wide frame (smaller frames: smaller text)
+TEXT_SCALE_MIN = 0.4          # below this the text is not readable any more
+
+
 def strip_layout(width, picture_height, rows):
-    """(scale, row step, characters per line, strip height) of the text strip above a ``width`` pixel wide picture:
+    """(scale, row step, text width in pixels, strip height) of the text strip above a ``width`` pixel wide picture:
     the strip holds ``rows`` text lines and the whole frame (strip + picture) gets an even height for the encoder."""
-    scale = max(0.4, min(1.0, width / 1280.0))
-    (char_w, char_h), baseline = cv2.getTextSize("M" * 10, cv2.FONT_HERSHEY_SIMPLEX, scale, 1)
+    scale = max(TEXT_SCALE_MIN, min(TEXT_SCALE, TEXT_SCALE * width / 1280.0))
+    (_, char_h), baseline = cv2.getTextSize("Mg", cv2.FONT_HERSHEY_SIMPLEX, scale, 1)
     step = int(char_h * 1.6) + 2
-    width_chars = int((width - 2 * STRIP_MARGIN) * 10 / max(char_w, 1))
     height = 2 * STRIP_MARGIN + step * max(rows, 1) + int(baseline)
     if (height + picture_height) % 2:
         height += 1
-    return scale, step, width_chars, height
+    return scale, step, width - 2 * STRIP_MARGIN, height
 
 
-def fit_rows(lines, rows, width_chars):
+def fit_rows(lines, rows, max_width, scale):
     """``lines`` cut to ``rows`` lines; a cut shows as "..." at the end of the last line."""
     if len(lines) <= rows:
         return list(lines)
     kept = list(lines[:max(rows, 1)])
-    kept[-1] = kept[-1][:max(width_chars - 3, 1)] + "..."
+    kept[-1] = cut_to_width(kept[-1], max_width, scale)
     return kept
 
 
@@ -182,8 +209,8 @@ class TopicRecorder:
         with self.lock:
             parts, spare_rows = list(self.parts), self.spare_rows
         # the strip height cannot change within a video: room for the id line, the text known now and the spare rows
-        width_chars = strip_layout(width, height, 1)[2]
-        self.rows = 1 + sum(len(command_lines(part, width_chars)) for part in parts) + spare_rows
+        scale, _, max_width, _ = strip_layout(width, height, 1)
+        self.rows = 1 + sum(len(command_lines(part, max_width, scale)) for part in parts) + spare_rows
         self.layout = strip_layout(width, height, self.rows)
         self.size = (width, height + self.layout[3])
         fourcc = cv2.VideoWriter_fourcc(*self.codec)
@@ -209,11 +236,11 @@ class TopicRecorder:
     def _with_strip(self, image, status=""):
         """``image`` with the black text strip on top: the video id (and ``status``) in the first line, then what was
         run, in lime; the camera picture itself is not drawn on."""
-        scale, step, width_chars, strip = self.layout
+        scale, step, max_width, strip = self.layout
         with self.lock:                                 # set_overlay may swap the parts from the goal callback
             if self._header is None:
-                lines = [line for part in self.parts for line in command_lines(part, width_chars)]
-                self._header = fit_rows(lines, self.rows - 1, width_chars)
+                lines = [line for part in self.parts for line in command_lines(part, max_width, scale)]
+                self._header = fit_rows(lines, self.rows - 1, max_width, scale)
             lines = [("%s   %s" % (self.id, status)).rstrip()] + self._header
         frame = cv2.copyMakeBorder(image, strip, 0, 0, 0, cv2.BORDER_CONSTANT, value=STRIP_COLOR)
         for row, line in enumerate(lines):
