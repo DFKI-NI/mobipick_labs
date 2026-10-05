@@ -1,12 +1,16 @@
 <?xml version="1.0"?>
 <launch>
   <!-- Videos of the experiment camera that only contain the moments the robot moves; every frame shows the video id
-       (also the file name prefix) and the command of the experiment. Gripper / robot camera topics are refused. -->
+       (also the file name prefix) and what was run: the command and/or the goal sent to the LLM with its model. Gripper / robot camera topics are refused. -->
   <arg name="image_topics" default="/experiment_camera/image_raw" />
   <arg name="output_dir" default="/data/experiment_recordings" />
   <arg name="name" default="" />
   <arg name="fps" default="10.0" />
   <arg name="command" default="" />  <!-- the command that runs the experiment, shown as text in every frame -->
+  <!-- the goal topic of the GPT demo (GUI speech input, agent_experiment.py): the last goal sent to the LLM is shown
+       with the model profile (the agent's model_label_param parameter); "" with an empty command refuses to start -->
+  <arg name="command_topic" default="/recognized_speech" />
+  <arg name="model_label_param" default="experiment_model_label" />
   <arg name="forbidden_topic_pattern" default="gripper|eef|wrist|hand_cam|arm_cam" />
   <arg name="auto_pause" default="true" />
   <arg name="motion_hold_s" default="1.5" />
@@ -20,6 +24,8 @@
     <param name="name" value="$(arg name)" />
     <param name="fps" value="$(arg fps)" />
     <param name="command" type="str" value="$(arg command)" />
+    <param name="command_topic" value="$(arg command_topic)" />
+    <param name="model_label_param" value="$(arg model_label_param)" />
     <param name="forbidden_topic_pattern" value="$(arg forbidden_topic_pattern)" />
     <param name="auto_pause" value="$(arg auto_pause)" />
     <param name="motion_hold_s" value="$(arg motion_hold_s)" />

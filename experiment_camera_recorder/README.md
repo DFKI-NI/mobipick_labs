@@ -51,8 +51,14 @@ roslaunch experiment_camera_recorder video_recorder.launch name:=insert_sugar \
 
 Video rules (2026-10-04): the experiment camera only, gripper / robot camera videos are forbidden (topics matching
 `forbidden_topic_pattern`, default `gripper|eef|wrist|hand_cam|arm_cam`, are refused with a warning); no sped-up copy
-(viewers such as the Agent Workbench play a video at 4x); every frame shows the video id and `command` (the command
-that runs the experiment, wrapped to at most four lines; empty: "command not given").
+(viewers such as the Agent Workbench play a video at 4x); every frame shows the video id and what was run: `command` (the shell command
+that runs the experiment, as `$ <command>`) and the last goal that arrived on `command_topic` (default
+`/recognized_speech`, where the GUI's speech input and `agent_experiment.py` send the GPT demo's goal to the LLM) as
+`goal (model <profile>): <text>`; the model profile is the first parameter named `*/<model_label_param>` (default
+`experiment_model_label`, set by `gpt_robot_demo.launch` from its `model_profile`). Each is wrapped to at most four
+lines. Until either is known the frames say `NO COMMAND YET: waiting for the goal on <topic>`, `summary.json` gets
+`"command_missing": true` and the recorder logs an error at stop; with `command` and `command_topic` both empty it
+refuses to start. A GPT demo run therefore needs no `command`: the goal is taken from the run itself.
 
 Videos go to `output_dir` (default `/data/experiment_recordings`, a host folder the
 GUI mounts into its containers at the same path).
@@ -93,4 +99,5 @@ writes no frame and no line, so two topics' videos have different frame counts:
 align them by `source_stamp` (or `ros_time`), not proportionally. A pause takes
 no indices either; it shows as a jump in the times between two consecutive
 frames. `summary.json` and the `status` service list the sidecar per topic as
-`frames_index`, with the topic's `id`, and the `command`.
+`frames_index`, with the topic's `id`, the `command` and the `goals` (text, model, topic; also `goal` lines in
+`events.jsonl`).

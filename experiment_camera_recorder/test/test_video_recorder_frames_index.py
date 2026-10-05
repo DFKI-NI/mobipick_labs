@@ -177,9 +177,9 @@ def test_video_ids_are_unique_and_well_formed(recorder_module):
     assert recorder_module.video_id(started, "beef") == "v20261004-115230-beef"
 
 
-def test_command_lines_wrap_cut_and_say_when_missing(recorder_module):
-    assert recorder_module.command_lines("", 40) == ["$ command not given"]
-    assert recorder_module.command_lines("a  b\n c", 40) == ["$ a b c"]
+def test_command_lines_wrap_and_cut(recorder_module):
+    assert recorder_module.command_lines("", 40) == []
+    assert recorder_module.command_lines("$ a  b\n c", 40) == ["$ a b c"]
     long = " ".join("--option%d value" % i for i in range(40))
     lines = recorder_module.command_lines(long, 40)
     assert len(lines) == recorder_module.COMMAND_MAX_LINES and all(len(line) <= 40 for line in lines)
@@ -205,3 +205,40 @@ def test_a_new_video_is_appended_to_the_id_index(recorder_module, tmp_path):
     recorder.write_latest("REC")                                 # one line per video, not per frame
     assert index.read_text().splitlines() == ["v20261001-000000-0000\t/old.mp4",
                                               VID + "\t" + str(tmp_path / (VID + "_experiment_camera_image_raw.mp4"))]
+
+
+def test_overlay_shows_the_command_the_goal_and_the_model_and_never_a_silent_placeholder(recorder_module):
+    parts = recorder_module.overlay_parts
+    assert parts("python3 run.py") == ["$ python3 run.py"]
+    assert parts("", "Pick the apple from table 1", "gemini-robotics-er-2-preview", "/recognized_speech") == [
+        "goal (model gemini-robotics-er-2-preview): Pick the apple from table 1"]
+    assert parts("rosrun x y.py", "Pick it", "", "/recognized_speech") == ["$ rosrun x y.py", "goal: Pick it"]
+    assert parts("", "", "", "/recognized_speech") == ["NO COMMAND YET: waiting for the goal on /recognized_speech"]
+    assert parts("  ", "") == ["NO COMMAND GIVEN (pass command:=...)"]
+    assert not any("command not given" in p for p in parts("", "", "", "/recognized_speech"))
+
+
+def test_the_model_profile_is_read_from_the_running_agent(recorder_module):
+    params = {"/mobipick/mobipick_pi_robot_runner/experiment_model_label": "gemini-robotics-er-2-preview",
+              "/other/experiment_model_label": "", "/rosdistro": "noetic"}
+    find = recorder_module.find_model_label
+    assert find(params, params.get, "experiment_model_label") == "gemini-robotics-er-2-preview"
+    assert find(params, params.get, "") == ""
+    assert find({"/rosdistro": "noetic"}, {"/rosdistro": "noetic"}.get, "experiment_model_label") == ""
+
+
+def test_a_goal_arriving_later_replaces_the_waiting_line_in_the_next_frames(recorder_module, tmp_path):
+    recorder = _make(recorder_module, tmp_path, command="")
+    recorder.set_overlay(recorder_module.overlay_parts("", "", "", "/recognized_speech"))
+
+    def texts(seconds):
+        recorder_module.cv2.putText.reset_mock()
+        recorder.latest = Message(seconds)
+        recorder.write_latest("REC")
+        return [call.args[1] for call in recorder_module.cv2.putText.call_args_list]
+
+    assert "NO COMMAND YET: waiting for the goal on /recognized_speech" in texts(10.0)
+    recorder.set_overlay(recorder_module.overlay_parts("", "Pick the apple", "deepseek-v4.1-flash", "/recognized_speech"))
+    later = texts(10.5)
+    assert "goal (model deepseek-v4.1-flash): Pick the apple" in later and VID in later
+    assert not any("NO COMMAND" in t for t in later)

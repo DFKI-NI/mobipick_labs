@@ -3,8 +3,11 @@
 """Record ROS image topics into videos that only contain the moments the robot moves.
 
 Every image topic in ``~image_topics`` is written to ``<output_dir>/<id>_<name>.mp4``; ``<id>`` is a unique video
-id ``v<YYYYMMDD>-<HHMMSS>-<4 hex>`` for easy reference, and every frame shows that id and ``~command`` (the command
-of the experiment) as text; ``video_ids.tsv`` beside the recording folders gets one ``<id>\t<absolute path>`` line per
+id ``v<YYYYMMDD>-<HHMMSS>-<4 hex>`` for easy reference, and every frame shows that id and what was run as text:
+``~command`` (the shell command of the experiment) and the last goal that arrived on ``~command_topic`` (default
+``/recognized_speech``, where the GUI's speech input and ``agent_experiment.py`` send the GPT demo's goal to the LLM)
+with the model profile (the ``~model_label_param`` parameter of the running agent); without either the frames say
+so in capitals, and with neither ``~command`` nor ``~command_topic`` the recorder refuses to start; ``video_ids.tsv`` beside the recording folders gets one ``<id>\t<absolute path>`` line per
 new video (append-only). There is no sped-up copy (the viewer plays at 4x), and topics that match
 ``~forbidden_topic_pattern`` (gripper / robot cameras, forbidden since 2026-10-04) are not recorded. With
 ``~auto_pause`` frames are only written while the robot moves (base command
@@ -55,10 +58,43 @@ def split_forbidden(topics, pattern):
 COMMAND_MAX_LINES = 4
 
 
-def command_lines(command, width_chars):
-    """``command`` wrapped to ``width_chars`` per line, at most COMMAND_MAX_LINES lines (the last one cut with "...")."""
-    text = " ".join(command.split()) or "command not given"
-    lines = textwrap.wrap("$ " + text, max(width_chars, 10), break_long_words=True, break_on_hyphens=False)
+def overlay_parts(command, goal="", model="", goal_topic=""):
+    """What the frames show about what was run: ``$ <shell command>`` and ``goal (model <m>): <goal text>``; when
+    neither is known a capital NO COMMAND line that says what is missing (never a silent placeholder)."""
+    command, goal, model = (" ".join(str(t or "").split()) for t in (command, goal, model))
+    parts = []
+    if command:
+        parts.append("$ " + command)
+    if goal:
+        parts.append("goal%s: %s" % (" (model %s)" % model if model else "", goal))
+    if not parts:
+        parts.append("NO COMMAND YET: waiting for the goal on %s" % goal_topic if goal_topic
+                     else "NO COMMAND GIVEN (pass command:=...)")
+    return parts
+
+
+def find_model_label(param_names, get_param, suffix):
+    """The value of the first parameter whose name ends with ``/<suffix>`` (e.g. the GPT demo runner's
+    ``experiment_model_label``, its model profile), or "" when there is none or ``suffix`` is empty."""
+    if not suffix:
+        return ""
+    for name in sorted(param_names):
+        if name.endswith("/" + suffix.strip("/")):
+            try:
+                value = str(get_param(name) or "").strip()
+            except Exception:  # the parameter vanished meanwhile
+                continue
+            if value:
+                return value
+    return ""
+
+
+def command_lines(text, width_chars):
+    """``text`` wrapped to ``width_chars`` per line, at most COMMAND_MAX_LINES lines (the last one cut with "...")."""
+    text = " ".join(text.split())
+    if not text:
+        return []
+    lines = textwrap.wrap(text, max(width_chars, 10), break_long_words=True, break_on_hyphens=False)
     if len(lines) > COMMAND_MAX_LINES:
         lines = lines[:COMMAND_MAX_LINES]
         lines[-1] = lines[-1][:max(width_chars - 3, 1)] + "..."
@@ -79,6 +115,7 @@ class TopicRecorder:
         self.name = _safe_name(topic)
         self.id = video_id
         self.command = command
+        self.parts = overlay_parts(command)
         self.output_dir = output_dir
         self.fps = fps
         self.codec = codec
@@ -127,15 +164,23 @@ class TopicRecorder:
             except OSError as error:
                 rospy.logerr("could not add %s to %s: %s", self.id, self.ids_path, error)
 
+    def set_overlay(self, parts):
+        """Show ``parts`` (see overlay_parts) from the next frame on."""
+        with self.lock:
+            self.parts = list(parts)
+            self._header = None
+
     def _draw_header(self, image):
-        """The video id and the command, top left, in every frame (wrapped to the frame width once per size)."""
+        """The video id and what was run, top left, in every frame (wrapped to the frame width once per change)."""
         width = image.shape[1]
-        if self._header is None or self._header[0] != width:
-            scale = max(0.4, min(1.0, width / 1280.0))
-            (char_w, char_h), _ = cv2.getTextSize("M" * 10, cv2.FONT_HERSHEY_SIMPLEX, scale, 1)
-            lines = [self.id] + command_lines(self.command, int((width - 16) * 10 / max(char_w, 1)))
-            self._header = (width, scale, int(char_h * 1.6) + 2, lines)
-        _, scale, step, lines = self._header
+        with self.lock:                                 # set_overlay may swap the parts from the goal callback
+            if self._header is None or self._header[0] != width:
+                scale = max(0.4, min(1.0, width / 1280.0))
+                (char_w, char_h), _ = cv2.getTextSize("M" * 10, cv2.FONT_HERSHEY_SIMPLEX, scale, 1)
+                width_chars = int((width - 16) * 10 / max(char_w, 1))
+                lines = [self.id] + [line for part in self.parts for line in command_lines(part, width_chars)]
+                self._header = (width, scale, int(char_h * 1.6) + 2, lines)
+            _, scale, step, lines = self._header
         for row, line in enumerate(lines):
             _put_text(image, line, (8, 8 + step * (row + 1) - 4), scale)
 
@@ -211,9 +256,16 @@ class VideoRecorder:
                           refused, forbidden)
         if not topics:
             raise ValueError("no image topic left to record (refused: %s)" % refused)
-        self.command = str(rospy.get_param("~command", ""))
-        if not self.command.strip():
-            rospy.logwarn("~command is empty: the videos show 'command not given'; pass command:=\"<the command>\"")
+        self.command = str(rospy.get_param("~command", "")).strip()
+        self.command_topic = str(rospy.get_param("~command_topic", "/recognized_speech")).strip()
+        self.model_label_param = str(rospy.get_param("~model_label_param", "experiment_model_label")).strip()
+        if not self.command and not self.command_topic:
+            raise ValueError("nothing tells what is run: pass command:=\"<the command>\" or command_topic:=<the goal "
+                             "topic> (a video must show what was run, #349)")
+        if not self.command:
+            rospy.logwarn("~command is empty: the videos show the goal that arrives on %s (with the model profile) "
+                          "and 'NO COMMAND YET' until then", self.command_topic)
+        self.goals = []
         self.fps = float(rospy.get_param("~fps", 10.0))
         codec = str(rospy.get_param("~codec", "mp4v"))
         overlay = bool(rospy.get_param("~overlay", True))
@@ -246,10 +298,14 @@ class VideoRecorder:
         ids_path = os.path.join(os.path.dirname(self.output_dir), "video_ids.tsv")
         self.recorders = [TopicRecorder(t, self.output_dir, self.fps, codec, overlay, i, self.command, ids_path)
                           for t, i in zip(topics, sorted(ids))]
+        for recorder in self.recorders:
+            recorder.set_overlay(self._overlay_parts())
 
         rospy.Subscriber(cmd_vel_topic, Twist, self._cmd_vel_callback, queue_size=1)
         rospy.Subscriber(joint_states_topic, JointState, self._joint_states_callback, queue_size=1)
         rospy.Subscriber("~snapshot", String, self._snapshot_callback, queue_size=10)
+        if self.command_topic:
+            rospy.Subscriber(self.command_topic, String, self._goal_callback, queue_size=10)
         rospy.Service("~pause", Trigger, self._pause_service)
         rospy.Service("~resume", Trigger, self._resume_service)
         rospy.Service("~stop", Trigger, self._stop_service)
@@ -257,9 +313,31 @@ class VideoRecorder:
         self.status_pub = rospy.Publisher("~status", String, queue_size=1, latch=True)
         self.timer = rospy.Timer(rospy.Duration(1.0 / self.fps), self._tick)
         self._log_event("start", topics=topics, ids=[r.id for r in self.recorders], command=self.command,
-                        refused=refused, auto_pause=self.auto_pause, fps=self.fps)
+                        command_topic=self.command_topic, refused=refused, auto_pause=self.auto_pause, fps=self.fps)
         rospy.loginfo("recording %s into %s as %s (auto_pause=%s)", topics, self.output_dir,
                       [r.id for r in self.recorders], self.auto_pause)
+
+    def _overlay_parts(self):
+        goal = self.goals[-1] if self.goals else {}
+        return overlay_parts(self.command, goal.get("goal", ""), goal.get("model", ""), self.command_topic)
+
+    def _goal_callback(self, message):
+        """A goal for the agent (the GPT demo's LLM): shown in every following frame with the model profile."""
+        text = " ".join(str(message.data or "").split())
+        if not text:
+            return
+        try:
+            model = find_model_label(rospy.get_param_names(), rospy.get_param, self.model_label_param)
+        except Exception as error:  # the parameter server is unreachable: show the goal without the model
+            rospy.logwarn("could not read the model profile: %s", error)
+            model = ""
+        with self.lock:
+            self.goals.append({"goal": text, "model": model, "topic": self.command_topic})
+            self._log_event("goal", goal=text, model=model, topic=self.command_topic)
+            parts = self._overlay_parts()
+            for recorder in self.recorders:
+                recorder.set_overlay(parts)
+        rospy.loginfo("goal on %s (model %s): %s", self.command_topic, model or "unknown", text)
 
     @staticmethod
     def _resolve_output_dir(configured, name, started=None):
@@ -312,6 +390,7 @@ class VideoRecorder:
             "snapshots": self.snapshots,
             "elapsed_s": round(time.time() - self.started_wall, 1),
             "command": self.command,
+            "goals": self.goals,
             "topics": [{"topic": r.topic, "id": r.id, "frames": r.frames, "recorded_s": round(r.frames / self.fps, 1),
                         "video": r.video_path, "frames_index": r.frames_index_path} for r in self.recorders],
         }
@@ -361,8 +440,12 @@ class VideoRecorder:
                 return self._status()
             self.stopped = True
             self.timer.shutdown()
-            summary = {"output_dir": self.output_dir, "command": self.command, "snapshots": self.snapshots,
+            summary = {"output_dir": self.output_dir, "command": self.command, "goals": self.goals,
+                       "command_missing": not self.command and not self.goals, "snapshots": self.snapshots,
                        "topics": [r.close() for r in self.recorders]}
+            if summary["command_missing"]:
+                rospy.logerr("no command and no goal on %s during the recording: the videos say 'NO COMMAND YET'",
+                             self.command_topic)
             self._log_event("stop", **summary)
             with open(os.path.join(self.output_dir, "summary.json"), "w") as handle:
                 json.dump(summary, handle, indent=2)
@@ -378,6 +461,7 @@ if __name__ == "__main__":
         recorder = VideoRecorder()
     except (OSError, ValueError, RuntimeError) as error:
         rospy.logfatal(str(error))
+        raise SystemExit(1)
     else:
         rospy.on_shutdown(recorder.stop)
         rospy.spin()
