@@ -4,7 +4,7 @@
   <arg name="anygrasp_handles_execution" default="false" />
   <arg name="use_mtc" default="false" doc="true: plan and execute grasplan pick, place and insert with MoveIt Task Constructor instead of the MoveIt pick n place pipeline (move_group pickup/place actions)" />
   <arg name="mtc_lift_tolerate_touching_neighbours" default="false" doc="allow a just-attached object to clear only box neighbours already touching it during a straight-up MTC lift (#229; careful flag, off in code)" />
-  <arg name="mtc_cable_constraints" default="false" doc="true (with use_mtc): MTC motions keep the arm cable model (mobipick_sim_cable_entanglement) happy: wrist_3 path constraint around the least-wound angle and a stretch check of every planned joint path (#124)" />
+  <arg name="mtc_cable_constraints" default="false" doc="true (with use_mtc): MTC motions keep the arm cable model (mobipick_cable_entanglement) happy: wrist_3 path constraint around the least-wound angle and a stretch check of every planned joint path (#124)" />
   <!-- GripperCommand.max_effort used for AnyGrasp grasps of unknown objects; the Robotiq action server
        accepts 30..100, the simulated gripper maps it to a real torque limit. -1 keeps gripper_joint_efforts. -->
   <arg name="anygrasp_gripper_max_effort" default="50.0" />

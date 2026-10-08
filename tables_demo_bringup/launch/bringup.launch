@@ -7,12 +7,12 @@
   <arg name="anygrasp_handles_execution" default="false" />
   <arg name="use_mtc" default="false" doc="true: plan and execute grasplan pick, place and insert with MoveIt Task Constructor instead of the MoveIt pick n place pipeline (move_group pickup/place actions)" />
   <arg name="mtc_lift_tolerate_touching_neighbours" default="false" doc="allow a just-attached object to clear only box neighbours already touching it during a straight-up MTC lift (#229; careful flag, off in code)" />
-  <arg name="mtc_cable_constraints" default="false" doc="true (with use_mtc): MTC motions keep the arm cable model (mobipick_sim_cable_entanglement) happy: wrist_3 path constraint around the least-wound angle and a stretch check of every planned joint path (#124)" />
+  <arg name="mtc_cable_constraints" default="false" doc="true (with use_mtc): MTC motions keep the arm cable model (mobipick_cable_entanglement) happy: wrist_3 path constraint around the least-wound angle and a stretch check of every planned joint path (#124)" />
   <arg name="insert_cable_gate" default="false" doc="true: rank insert poses by predicted cable stretch and offer likely safe ones first (#219); safe feature flag, off in code" />
   <arg name="open_set_place_clearance_by_height" default="false" doc="true: release tall open-set objects at 1 cm and other open-set objects at 4 cm above their support (#202); careful feature flag, off in code" />
   <arg name="place_same_orientation_as_picked" default="true" doc="false: small objects (e.g. balls, fruit) are inserted with the gripper pointing straight down and the wrist turned as little as possible, instead of in the orientation they were grasped in (avoids winding up the arm cable)" />
   <arg name="insert_orientation" default="free_yaw" doc="free_yaw (default, #106: keep the picked roll and pitch, choose the yaw for the least wrist rotation), as_picked or gripper_down; empty: place_same_orientation_as_picked decides (true: as_picked, false: gripper_down)" />
-  <arg name="cable_monitor" default="false" doc="true: start the observe-only arm cable monitor (mobipick_sim_cable_entanglement, #118 #121): in the sim it presses the simulated UR protective stop when its model predicts an entangled cable; on the real robot it never commands anything and logs every tick and every protective stop for calibration" />
+  <arg name="cable_monitor" default="false" doc="true: start the observe-only arm cable monitor (mobipick_cable_entanglement, #118 #121): in the sim it presses the simulated UR protective stop when its model predicts an entangled cable; on the real robot it never commands anything and logs every tick and every protective stop for calibration" />
 
   <!-- #226 several Mobipicks in one sim: the robot's namespace (= its tf prefix), and the namespace of its pose
        selectors ('' = the global /pick_pose_selector_node etc. of a single robot, as before; e.g. mobipick2) -->
@@ -111,8 +111,9 @@
     <arg name="map_frame" value="$(arg map_frame)" />
   </include>
 
-  <!-- ::::: Arm cable monitor (observe-only; sim: presses the sim protective stop, real: logs) ::::: -->
-  <include if="$(arg cable_monitor)" file="$(find mobipick_sim_cable_entanglement)/launch/cable_entanglement_monitor.launch">
+  <!-- ::::: Arm cable monitor (observe-only; sim: presses the sim protective stop, real: logs) :::::
+       mobipick_cable_entanglement (mobipick repository); off by default, so the include is skipped -->
+  <include if="$(arg cable_monitor)" file="$(find mobipick_cable_entanglement)/launch/cable_entanglement_monitor.launch">
     <arg name="namespace" value="$(arg namespace)" />
   </include>
 

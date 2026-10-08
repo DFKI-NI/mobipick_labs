@@ -7,6 +7,11 @@ repositories:
     type: git
     url: https://github.com/socrob/espeak_ros.git
     version: master
+  gazebo_jointed_chain:
+    # the generic Gazebo plugin behind the simulated cable carrier chain (mobipick_cable_entanglement)
+    type: git
+    url: https://github.com/oscar-lima/gazebo_jointed_chain.git
+    version: main
   grasplan:
     type: git
     url: https://github.com/DFKI-NI/grasplan.git

@@ -6,7 +6,7 @@
        (the planner never asks to observe; the sim does it too so it matches the real robot) -->
   <arg name="disentangle_without_observe" default="true"/>
   <arg name="use_mtc" default="false" doc="true: plan and execute grasplan pick, place and insert with MoveIt Task Constructor instead of the MoveIt pick n place pipeline (move_group pickup/place actions)" />
-  <arg name="mtc_cable_constraints" default="false" doc="true (with use_mtc): MTC motions keep the arm cable model (mobipick_sim_cable_entanglement) happy: wrist_3 path constraint around the least-wound angle and a stretch check of every planned joint path (#124)" />
+  <arg name="mtc_cable_constraints" default="false" doc="true (with use_mtc): MTC motions keep the arm cable model (mobipick_cable_entanglement) happy: wrist_3 path constraint around the least-wound angle and a stretch check of every planned joint path (#124)" />
   <!-- #226 several Mobipicks in one sim: the robot's namespace (= its tf prefix), and the namespace of its pose
        selectors ('' = the global /pick_pose_selector_node etc. of a single robot, as before; e.g. mobipick2) -->
   <arg name="namespace" default="mobipick" />

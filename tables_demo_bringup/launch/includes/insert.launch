@@ -11,7 +11,7 @@
   <arg name="map_frame" default="map" />
   <arg name="ps" value="$(eval '/' + arg('pose_selector_ns').strip('/') if arg('pose_selector_ns').strip('/') else '')" />
   <arg name="use_mtc" default="false" doc="true: plan and execute grasplan pick, place and insert with MoveIt Task Constructor instead of the MoveIt pick n place pipeline (move_group pickup/place actions)" />
-  <arg name="mtc_cable_constraints" default="false" doc="true (with use_mtc): MTC motions keep the arm cable model (mobipick_sim_cable_entanglement) happy: wrist_3 path constraint around the least-wound angle and a stretch check of every planned joint path (#124)" />
+  <arg name="mtc_cable_constraints" default="false" doc="true (with use_mtc): MTC motions keep the arm cable model (mobipick_cable_entanglement) happy: wrist_3 path constraint around the least-wound angle and a stretch check of every planned joint path (#124)" />
   <arg name="insert_cable_gate" default="false" doc="true: rank insert poses by predicted cable stretch and offer likely safe ones first (#219); safe feature flag, off in code" />
 
   <node pkg="grasplan" type="insert.py" name="insert_object_node" output="screen" ns="$(arg namespace)" required="true">
