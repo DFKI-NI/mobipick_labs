@@ -37,6 +37,16 @@ ROS and Python 3 are assumed to be available on your system.
 ./build.sh
 ```
 
+`install-deps.sh` imports the repositories listed in `my.repos` with vcs and then runs mobipick's
+`install-deps.sh`, which installs everything else (ROS packages, MiR packages, ...) with
+`rosdep install --from-paths <src>`. `my.repos` takes [mir_robot](https://github.com/oscar-lima/mir_robot) from
+the fork branch `path-follower-critic`: its DWB path follower critic and SBPL
+settings are what the tables demo navigation is tested with (the apt `ros-noetic-mir-navigation` 1.1.8 gets
+stuck often), and the multi-robot simulation (`num_robots:=2` or `3`) needs the `map_ns`/`map_frame` launch
+args it adds. If you clone the repositories by hand instead, run
+`rosdep install --from-paths <src> -i -y --rosdistro noetic` yourself so the source `mir_robot` gets its
+dependencies.
+
 Alternatively, you can use the [Docker environment](https://github.com/brean/mobipick_labs_docker)
 created by our colleague Andreas Bresser for a simple all-in-one quick start.
 
