@@ -108,7 +108,8 @@
 
   <!-- ::::: Manipulation , MoveIt: arm movement ::::: -->
   <include file="$(find mobipick_moveit_config)/launch/moveit_planning_execution.launch">
-    <arg name="use_ur_polished_kinematics" value="$(arg use_ur_polished_kinematics)" />
+    <!-- only passed when enabled: a mobipick_moveit_config without this arg (upstream noetic) must keep launching -->
+    <arg name="use_ur_polished_kinematics" value="true" if="$(arg use_ur_polished_kinematics)" />
     <arg name="use_pointcloud" value="true"/>
     <!-- Gazebo delivers about one gripper-camera frame per second here, so the octomap
          is fed from a cheaper variant of the robot config: see the file for why. -->

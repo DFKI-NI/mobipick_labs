@@ -20,7 +20,7 @@
   <node pkg="tf2_ros" type="static_transform_publisher" name="$(arg namespace)_map_broadcaster"
         args="$(arg offset_x) 0 0 0 0 0 map $(arg namespace)/map" />
 
-  <!-- fake localisation (for simulation only), in this robot's map frame: pose = Gazebo pose - offset -->
+  <!-- fake localisation (for simulation only), in this robot's map frame: pose = Gazebo pose - offset. -->
   <include file="$(find mir_gazebo)/launch/fake_localization.launch" ns="$(arg namespace)">
     <arg name="odom_frame_id" value="$(arg namespace)/odom" />
     <arg name="base_frame_id" value="$(arg namespace)/base_footprint" />
@@ -37,7 +37,8 @@
 
   <!-- ::::: Manipulation , MoveIt: arm movement ::::: -->
   <include if="$(arg moveit)" file="$(find mobipick_moveit_config)/launch/moveit_planning_execution.launch">
-    <arg name="use_ur_polished_kinematics" value="$(arg use_ur_polished_kinematics)" />
+    <!-- only passed when enabled: a mobipick_moveit_config without this arg (upstream noetic) must keep launching -->
+    <arg name="use_ur_polished_kinematics" value="true" if="$(arg use_ur_polished_kinematics)" />
     <arg name="namespace" value="$(arg namespace)" />
     <arg name="use_pointcloud" value="true"/>
     <arg name="pointcloud_sensor_config"

@@ -48,8 +48,9 @@
 
     <!-- Approximate DOPE's lazy visualisation output with the simulated EEF camera image. -->
     <include file="$(find mobipick_gazebo)/launch/mobipick/simulated_dope_image_relay.launch">
-      <arg name="namespace" value="$(arg namespace)" />
-      <arg name="pose_selector_ns" value="$(arg pose_selector_ns)" />
+      <!-- only passed when non-default: the upstream mobipick_gazebo relay launch has no such args -->
+      <arg name="namespace" value="$(arg namespace)" if="$(eval arg('namespace') != 'mobipick')" />
+      <arg name="pose_selector_ns" value="$(arg pose_selector_ns)" if="$(eval arg('pose_selector_ns') != '')" />
     </include>
 
     <!-- force torque observer -->
