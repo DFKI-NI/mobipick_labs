@@ -32,9 +32,12 @@ repositories:
     url: https://github.com/DFKI-NI/pose_selector.git
     version: noetic
   robot_api:
+    # main, not releases: the last release (v1.5.2, 2022) still names the FtObserver feedback actualForce while
+    # mobipick_pick_n_place has actual_force since 2025; the md5 mismatch keeps the tables demo from connecting to
+    # ft_observer. main builds on noetic (dual ROS 1/ROS 2 package) and carries the rename.
     type: git
     url: https://github.com/DFKI-NI/robot_api.git
-    version: releases
+    version: main
   symbolic_fact_generation:
     type: git
     url: https://github.com/DFKI-NI/symbolic_fact_generation.git
