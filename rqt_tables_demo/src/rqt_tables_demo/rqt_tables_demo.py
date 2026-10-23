@@ -1,3 +1,4 @@
+import importlib
 import os
 import rospy
 import rospkg
@@ -90,15 +91,19 @@ class RqtTablesDemo(Plugin):
 
         # ::: class variables
         self.tf_listener = tf.TransformListener()
-        # Get a Robot object using the robot's namespace.
-        self.mobipick = robot_api.Robot("mobipick")
+        # Get a Robot object using the robot's namespace. The robot API class (module.Class) must offer
+        # base.move(x, y, yaw), arm.move(pose_name) and arm.pose_names like robot_api.Robot does.
+        self.robot_namespace = rospy.get_param('~robot_namespace', 'mobipick').strip('/')
+        self.robot = self.make_robot(rospy.get_param('~robot_api_class', 'robot_api.Robot'), self.robot_namespace)
+        # Gazebo model of the robot, for teletransportation in simulation
+        self.gazebo_model_name = rospy.get_param('~gazebo_model_name', self.robot_namespace)
         # a flag to know if pose selector is available or not
         self.is_pose_selector_available = False
         # mobipick_api perception client: AnyGrasp's open-set DetectObjects action, perceive (served by
         # mobipick_active_perception, closed-set only without it) and InspectObject (testing only)
         self.api_perception = None
         if ApiPerception is not None:
-            self.api_perception = ApiPerception('/mobipick/', self.mobipick.arm, None)
+            self.api_perception = ApiPerception(f'/{self.robot_namespace}/', self.robot.arm, None)
         self.is_gripper_srv_available = False
         self.action_client = None
 
@@ -145,12 +150,17 @@ class RqtTablesDemo(Plugin):
         self._widget.comboPickSurfaces.addItems(manipulation_areas)
         self._widget.comboPlaceSurfaces.addItems(manipulation_areas)
 
-        # manipulation "predefined arm configurations" or "arm poses"
-        self._widget.comboArmPoses.addItems(self.mobipick.arm.pose_names)
+        # manipulation "predefined arm configurations" or "arm poses": all poses of the arm group, or the
+        # ones listed in ~arm_poses
+        selectable_arm_poses = rospy.get_param('~arm_poses', self.robot.arm.pose_names)
+        unknown_arm_poses = [pose for pose in selectable_arm_poses if pose not in self.robot.arm.pose_names]
+        if unknown_arm_poses:
+            rospy.logwarn(f'~arm_poses lists poses the arm does not know (not in the SRDF): {unknown_arm_poses}')
+        self._widget.comboArmPoses.addItems(selectable_arm_poses)
 
         # get moveit arm poses from robot api, filter in only the ones containing 'observe'
         default_arm_observation_poses = ['']  # add a first empty element
-        for arm_pose in self.mobipick.arm.pose_names:
+        for arm_pose in self.robot.arm.pose_names:
             if 'observe' in arm_pose:
                 default_arm_observation_poses.append(arm_pose)
 
@@ -223,8 +233,14 @@ class RqtTablesDemo(Plugin):
             rospy.logwarn('pose selector not available, this functionality will not be available')
 
         # services to actuate (open/close) gripper
-        open_gripper_srv_name = rospy.get_param('~open_gripper_srv_name', '/mobipick/pose_teacher/open_gripper')
-        close_gripper_srv_name = rospy.get_param('~close_gripper_srv_name', '/mobipick/pose_teacher/close_gripper')
+        # without them, ~gripper_via_api lets the buttons use the robot API's gripper.open() and gripper.close()
+        self.gripper_via_api = False
+        open_gripper_srv_name = rospy.get_param(
+            '~open_gripper_srv_name', f'/{self.robot_namespace}/pose_teacher/open_gripper'
+        )
+        close_gripper_srv_name = rospy.get_param(
+            '~close_gripper_srv_name', f'/{self.robot_namespace}/pose_teacher/close_gripper'
+        )
         try:
             rospy.wait_for_service(open_gripper_srv_name, self.wait_for_services)
             rospy.wait_for_service(close_gripper_srv_name, 0.5)
@@ -234,9 +250,15 @@ class RqtTablesDemo(Plugin):
             rospy.loginfo('found gripper open/close services')
         except Exception:
             self.is_gripper_srv_available = False
-            self._widget.cmdOpenGripper.setEnabled(False)
-            self._widget.cmdCloseGripper.setEnabled(False)
-            rospy.logwarn('Could not found service to open/close gripper, this functionality will not be available')
+            if rospy.get_param('~gripper_via_api', False) and hasattr(self.robot, 'gripper'):
+                self.gripper_via_api = True
+                rospy.loginfo('no gripper open/close services, the gripper buttons use the robot API instead')
+            else:
+                self._widget.cmdOpenGripper.setEnabled(False)
+                self._widget.cmdCloseGripper.setEnabled(False)
+                rospy.logwarn(
+                    'Could not found service to open/close gripper, this functionality will not be available'
+                )
 
         # make a connection between the qt objects and this class methods
         self._widget.cmdNavigationGo.clicked.connect(self.navigation_go)
@@ -269,6 +291,19 @@ class RqtTablesDemo(Plugin):
         # end of constructor
 
     # ::::::::::::::  class methods
+
+    @staticmethod
+    def make_robot(api_class_path, namespace):
+        '''instantiate the robot API class given as "module.Class" (e.g. robot_api.Robot) for the namespace'''
+        module_name, _, class_name = api_class_path.rpartition('.')
+        if not module_name:
+            raise ValueError(f'~robot_api_class must be "module.Class", got "{api_class_path}"')
+        try:
+            api_class = getattr(importlib.import_module(module_name), class_name)
+        except (ImportError, AttributeError) as error:
+            raise ImportError(f'cannot load the robot API class {api_class_path}: {error}') from error
+        rospy.loginfo(f'controlling the robot in namespace /{namespace} with {api_class_path}')
+        return api_class(namespace)
 
     def convert_pose_dict(self, input_dict):
         '''
@@ -370,7 +405,7 @@ class RqtTablesDemo(Plugin):
             # Move the robot's base using move_base.
             angular_q = self.wp_dic[waypoint_as_text][3:7]
             angular_rpy = list(tf.transformations.euler_from_quaternion(angular_q))
-            self.mobipick.base.move(self.wp_dic[waypoint_as_text][0], self.wp_dic[waypoint_as_text][1], angular_rpy[2])
+            self.robot.base.move(self.wp_dic[waypoint_as_text][0], self.wp_dic[waypoint_as_text][1], angular_rpy[2])
         elif self._widget.optNavigationTeletransport.isChecked():
             rospy.loginfo(f'Teletransporting robot to waypoint: {waypoint_as_text}')
             pose_stamped_msg = PoseStamped()
@@ -382,13 +417,13 @@ class RqtTablesDemo(Plugin):
             pose_stamped_msg.pose.orientation.y = self.wp_dic[waypoint_as_text][4]
             pose_stamped_msg.pose.orientation.z = self.wp_dic[waypoint_as_text][5]
             pose_stamped_msg.pose.orientation.w = self.wp_dic[waypoint_as_text][6]
-            self.set_model_pose('mobipick', pose_stamped_msg)
+            self.set_model_pose(self.gazebo_model_name, pose_stamped_msg)
 
     @disable_during_execution('Manipulation_groupBox')
     def manipulation_go(self):
         arm_pose = self._widget.comboArmPoses.currentText()
         rospy.loginfo(f'Moving arm to pose: {arm_pose}')
-        self.mobipick.arm.move(arm_pose)
+        self.robot.arm.move(arm_pose)
 
     def perceive_objs(self):
         self.pick_thread = threading.Thread(target=self._perceive_objs_task)
@@ -412,7 +447,7 @@ class RqtTablesDemo(Plugin):
         for observation_pose in observation_list:
             rospy.loginfo(f'moving arm to {observation_pose}')
             # move arm to observation pose
-            self.mobipick.arm.move(observation_pose)
+            self.robot.arm.move(observation_pose)
             # activate pose selector
             rospy.loginfo('activating pose selector')
             resp = self.activate_pose_selector_srv(True)
@@ -661,16 +696,20 @@ class RqtTablesDemo(Plugin):
         self.action_client = None
 
     def open_gripper(self):
-        # rosservice call /mobipick/pose_teacher/open_gripper
+        # rosservice call /<robot namespace>/pose_teacher/open_gripper
         if self.is_gripper_srv_available:
             self.open_gripper_srv()
+        elif self.gripper_via_api:
+            self.robot.gripper.open()
         else:
             rospy.logerr('gripper service was not available when node started and therefore is unavailable')
 
     def close_gripper(self):
-        # rosservice call /mobipick/pose_teacher/close_gripper
+        # rosservice call /<robot namespace>/pose_teacher/close_gripper
         if self.is_gripper_srv_available:
             self.close_gripper_srv()
+        elif self.gripper_via_api:
+            self.robot.gripper.close()
         else:
             rospy.logerr('gripper service was not available when node started and therefore is unavailable')
 
@@ -782,15 +821,15 @@ class RqtTablesDemo(Plugin):
         self.action_client = None
 
     def hand_over_object(self):
-        self.mobipick.arm.move('handover')
+        self.robot.arm.move('handover')
         rospy.loginfo('waiting for user to excert force on object')
         # observe force torque sensor using a treshold and a timeout
-        if not self.mobipick.arm.observe_force_torque(5.0, 25.0):
+        if not self.robot.arm.observe_force_torque(5.0, 25.0):
             rospy.logerr('Failed to handover object within 25 seconds')
-            self.mobipick.arm.move('transport')
+            self.robot.arm.move('transport')
             return False
 
-        self.mobipick.arm.execute('ReleaseGripper')
+        self.robot.arm.execute('ReleaseGripper')
         rospy.loginfo('Success at handing over object')
         return True
 

@@ -3,11 +3,23 @@
 
   <arg name="world_config" default="moelk_tables" doc="objects arrangement, options: moelk_tables, cic_tables" />
   <arg name="objects_of_interest" default="[relay, screwdriver, multimeter, power_drill_with_grip, klt, hot_glue_gun]"/>
-  <arg name="namespace" default="mobipick"/>
+  <arg name="namespace" default="mobipick" doc="namespace of the robot to control" />
+  <arg name="waypoints_file" default="$(find mobipick_pick_n_place)/config/$(arg world_config)_demo.yaml"
+       doc="named base poses (navigation waypoints and table surfaces) in the format of mobipick_pick_n_place's &lt;world&gt;_demo.yaml" />
+  <arg name="robot_api_class" default="robot_api.Robot"
+       doc="robot API class as module.Class; it must offer base.move(x, y, yaw), arm.move(pose_name) and arm.pose_names" />
+  <arg name="arm_poses" default="" doc="arm poses offered in the Manipulation box as a YAML list, e.g. [home, transport]; empty: all poses of the SRDF" />
+  <arg name="gripper_via_api" default="false" doc="without the pose_teacher open/close gripper services, use the robot API's gripper.open() and gripper.close()" />
+  <arg name="gazebo_model_name" default="$(arg namespace)" doc="Gazebo model of the robot, moved by Teletransport" />
 
   <node pkg="rqt_tables_demo" type="rqt_tables_demo" name="rqt_tables_demo" output="screen" ns="$(arg namespace)">
-    <rosparam command="load" file="$(find mobipick_pick_n_place)/config/$(arg world_config)_demo.yaml" ns="navigation_waypoints" />
+    <rosparam command="load" file="$(arg waypoints_file)" ns="navigation_waypoints" />
     <rosparam param="objects_of_interest" subst_value="True">$(arg objects_of_interest)</rosparam>
+    <param name="robot_namespace" value="$(arg namespace)" />
+    <param name="robot_api_class" value="$(arg robot_api_class)" />
+    <rosparam if="$(eval arg('arm_poses') != '')" param="arm_poses" subst_value="True">$(arg arm_poses)</rosparam>
+    <param name="gripper_via_api" value="$(arg gripper_via_api)" />
+    <param name="gazebo_model_name" value="$(arg gazebo_model_name)" />
   </node>
 
 </launch>
