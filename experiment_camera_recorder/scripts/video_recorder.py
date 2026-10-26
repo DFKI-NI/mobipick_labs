@@ -20,12 +20,18 @@ the state as JSON; ``events.jsonl`` in the output directory records pauses,
 resumes and snapshots with ROS and wall time, and ``<id>_<name>_frames.jsonl`` maps every
 frame of a topic's video to its source image stamp and the recorder's wall and ROS
 time, so videos of different topics can be aligned exactly.
+
+A recorder can be killed without warning (it dies with the shell or container that started it), so with
+``~crash_safe`` (default) the videos are fragmented MP4 files (VP8 through GStreamer, a fragment per second) that
+stay playable up to the last fragment, and ``summary.json`` is kept current while recording (``"stopped": false``
+until a clean stop).
 """
 
 import json
 import os
 import re
 import secrets
+import signal
 import threading
 import time
 from datetime import datetime
@@ -126,6 +132,24 @@ def command_lines(text, max_width, scale):
     return lines
 
 
+def crash_safe_pipeline(path, fps, bitrate_kbps):
+    """GStreamer pipeline for OpenCV's VideoWriter that writes ``path`` as a fragmented MP4 (VP8, one key frame and
+    one fragment per second): every finished fragment is playable, also when the recorder is killed (SIGKILL) and
+    never closes the file, while a plain MP4 writes its index only when it is closed."""
+    location = path.replace("\\", "\\\\").replace('"', '\\"')
+    return ('appsrc ! videoconvert ! vp8enc deadline=1 cpu-used=4 threads=2 target-bitrate=%d keyframe-max-dist=%d ! '
+            'qtmux fragment-duration=1000 streamable=true ! filesink location="%s"'
+            % (int(bitrate_kbps * 1000), max(int(round(fps)), 1), location))
+
+
+def write_json_atomically(path, data):
+    """``data`` as JSON into ``path`` through a temporary file, so a reader (or a kill) never sees half a file."""
+    temporary = path + ".tmp"
+    with open(temporary, "w") as handle:
+        json.dump(data, handle, indent=2)
+    os.replace(temporary, path)
+
+
 TEXT_COLOR = (0, 255, 0)      # BGR: pure lime green, on the black strip above the picture
 STRIP_COLOR = (0, 0, 0)
 STRIP_MARGIN = 8              # pixels around the text in the strip
@@ -160,7 +184,8 @@ def fit_rows(lines, rows, max_width, scale):
 class TopicRecorder:
     """Videos and snapshots of one image topic."""
 
-    def __init__(self, topic, output_dir, fps, codec, overlay, video_id, command="", ids_path=None):
+    def __init__(self, topic, output_dir, fps, codec, overlay, video_id, command="", ids_path=None, crash_safe=True,
+                 bitrate_kbps=2000):
         self.topic = topic
         self.name = _safe_name(topic)
         self.id = video_id
@@ -170,6 +195,8 @@ class TopicRecorder:
         self.output_dir = output_dir
         self.fps = fps
         self.codec = codec
+        self.crash_safe = crash_safe
+        self.bitrate_kbps = bitrate_kbps
         self.overlay = overlay
         self.ids_path = ids_path
         self._header = None
@@ -213,10 +240,7 @@ class TopicRecorder:
         self.rows = 1 + sum(len(command_lines(part, max_width, scale)) for part in parts) + spare_rows
         self.layout = strip_layout(width, height, self.rows)
         self.size = (width, height + self.layout[3])
-        fourcc = cv2.VideoWriter_fourcc(*self.codec)
-        self.writer = cv2.VideoWriter(self.video_path, fourcc, self.fps, self.size)
-        if not self.writer.isOpened():
-            raise RuntimeError("could not open the video writer for %s in %s" % (self.topic, self.output_dir))
+        self.writer = self._open_writer()
         rospy.loginfo("%s -> %s (%.3g fps)", self.topic, self.video_path, self.fps)
         if self.ids_path:                              # append-only "<id>\t<absolute path>" index of all videos
             try:
@@ -224,6 +248,21 @@ class TopicRecorder:
                     handle.write("%s\t%s\n" % (self.id, os.path.abspath(self.video_path)))
             except OSError as error:
                 rospy.logerr("could not add %s to %s: %s", self.id, self.ids_path, error)
+
+    def _open_writer(self):
+        """The crash-safe writer (crash_safe_pipeline), else OpenCV's FFMPEG writer with ``codec``, whose MP4 is
+        unplayable when the recorder is killed before the stop."""
+        if self.crash_safe:
+            writer = cv2.VideoWriter(crash_safe_pipeline(self.video_path, self.fps, self.bitrate_kbps),
+                                     cv2.CAP_GSTREAMER, 0, self.fps, self.size, True)
+            if writer.isOpened():
+                return writer
+            rospy.logwarn("%s: no GStreamer VP8 / qtmux writer, falling back to %s: the video is unplayable if the "
+                          "recorder is killed before it is stopped", self.topic, self.codec)
+        writer = cv2.VideoWriter(self.video_path, cv2.VideoWriter_fourcc(*self.codec), self.fps, self.size)
+        if not writer.isOpened():
+            raise RuntimeError("could not open the video writer for %s in %s" % (self.topic, self.output_dir))
+        return writer
 
     def set_overlay(self, parts, spare_rows=0):
         """Show ``parts`` (see overlay_parts) from the next frame on; ``spare_rows`` text rows stay free in the
@@ -303,6 +342,9 @@ class TopicRecorder:
             self._frames_index.close()
             self._frames_index = None
         self.subscriber.unregister()
+        return self.summary()
+
+    def summary(self):
         return {"topic": self.topic, "id": self.id, "frames": self.frames, "seconds": round(self.frames / self.fps, 1),
                 "video": self.video_path if self.frames else None,
                 "frames_index": self.frames_index_path if self.frames else None}
@@ -332,6 +374,9 @@ class VideoRecorder:
         self.goals = []
         self.fps = float(rospy.get_param("~fps", 10.0))
         codec = str(rospy.get_param("~codec", "mp4v"))
+        crash_safe = bool(rospy.get_param("~crash_safe", True))
+        bitrate_kbps = float(rospy.get_param("~bitrate_kbps", 2000.0))
+        self.summary_period_s = float(rospy.get_param("~summary_period_s", 5.0))
         overlay = bool(rospy.get_param("~overlay", True))
         self.jpeg_quality = int(rospy.get_param("~jpeg_quality", 90))
         self.auto_pause = bool(rospy.get_param("~auto_pause", True))
@@ -348,6 +393,8 @@ class VideoRecorder:
                                                    started)
         os.makedirs(self.output_dir, exist_ok=True)
         self.events_path = os.path.join(self.output_dir, "events.jsonl")
+        self.summary_path = os.path.join(self.output_dir, "summary.json")
+        self.summary_written = 0.0
         self.lock = threading.Lock()
         self.manual_paused = bool(rospy.get_param("~start_paused", False))
         self.last_motion = None
@@ -360,9 +407,11 @@ class VideoRecorder:
         while len(ids) < len(topics):                 # one id per video, unique also within this recording
             ids.add(video_id(started))
         ids_path = os.path.join(os.path.dirname(self.output_dir), "video_ids.tsv")
-        self.recorders = [TopicRecorder(t, self.output_dir, self.fps, codec, overlay, i, self.command, ids_path)
+        self.recorders = [TopicRecorder(t, self.output_dir, self.fps, codec, overlay, i, self.command, ids_path,
+                                        crash_safe, bitrate_kbps)
                           for t, i in zip(topics, sorted(ids))]
         self._set_overlays()
+        self._write_summary()
 
         rospy.Subscriber(cmd_vel_topic, Twist, self._cmd_vel_callback, queue_size=1)
         rospy.Subscriber(joint_states_topic, JointState, self._joint_states_callback, queue_size=1)
@@ -441,11 +490,14 @@ class VideoRecorder:
                 self.recording = should_record
                 self._log_event("resume" if should_record else "pause", reason="manual" if self.manual_paused else "motion")
                 self._publish_status()
+                self._write_summary()
             if not should_record:
                 return
             label = "REC" if moving else "REC idle"
             for recorder in self.recorders:
                 recorder.write_latest(label)
+            if now - self.summary_written >= self.summary_period_s:
+                self._write_summary()
 
     def _status(self):
         return {
@@ -464,6 +516,20 @@ class VideoRecorder:
 
     def _publish_status(self):
         self.status_pub.publish(String(data=json.dumps(self._status())))
+
+    def _summary(self, topics=None):
+        return {"output_dir": self.output_dir, "stopped": self.stopped, "command": self.command, "goals": self.goals,
+                "command_missing": not self.command and not self.goals, "snapshots": self.snapshots,
+                "topics": topics if topics is not None else [r.summary() for r in self.recorders]}
+
+    def _write_summary(self, summary=None):
+        """summary.json as of now: also a recorder that is killed leaves one (``"stopped": false``, the frame counts
+        of at most ``~summary_period_s`` ago)."""
+        try:
+            write_json_atomically(self.summary_path, summary or self._summary())
+        except OSError as error:
+            rospy.logerr_throttle(60.0, "could not write %s: %s", self.summary_path, error)
+        self.summary_written = time.time()
 
     def _log_event(self, kind, **data):
         entry = {"event": kind, "wall_time": time.time(), "ros_time": rospy.Time.now().to_sec()}
@@ -507,15 +573,12 @@ class VideoRecorder:
                 return self._status()
             self.stopped = True
             self.timer.shutdown()
-            summary = {"output_dir": self.output_dir, "command": self.command, "goals": self.goals,
-                       "command_missing": not self.command and not self.goals, "snapshots": self.snapshots,
-                       "topics": [r.close() for r in self.recorders]}
+            summary = self._summary([r.close() for r in self.recorders])
             if summary["command_missing"]:
                 rospy.logerr("no command and no goal on %s during the recording: the videos say 'NO COMMAND YET'",
                              self.command_topic)
             self._log_event("stop", **summary)
-            with open(os.path.join(self.output_dir, "summary.json"), "w") as handle:
-                json.dump(summary, handle, indent=2)
+            self._write_summary(summary)
             self._publish_status()
         rospy.loginfo("recording stopped: %s", json.dumps(summary))
         rospy.Timer(rospy.Duration(0.5), lambda _e: rospy.signal_shutdown("recording stopped"), oneshot=True)
@@ -531,4 +594,6 @@ if __name__ == "__main__":
         raise SystemExit(1)
     else:
         rospy.on_shutdown(recorder.stop)
+        # rospy stops cleanly on SIGINT and SIGTERM; a closed terminal (SIGHUP) closes the videos the same way
+        signal.signal(signal.SIGHUP, lambda _signum, _frame: rospy.signal_shutdown("SIGHUP"))
         rospy.spin()

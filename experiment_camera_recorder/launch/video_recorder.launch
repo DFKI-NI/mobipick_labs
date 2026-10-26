@@ -18,6 +18,9 @@
   <arg name="start_paused" default="false" />
   <arg name="overlay" default="true" />
   <arg name="joint_pattern" default="ur5" />  <!-- the simulated gripper finger reports ~0.18 rad/s at rest -->
+  <!-- fragmented VP8 MP4 that stays playable when the recorder is killed (false: OpenCV's mp4v, unplayable then) -->
+  <arg name="crash_safe" default="true" />
+  <arg name="bitrate_kbps" default="2000" />
 
   <node pkg="experiment_camera_recorder" type="video_recorder.py" name="experiment_video_recorder" output="screen">
     <param name="image_topics" value="$(arg image_topics)" />
@@ -33,5 +36,7 @@
     <param name="start_paused" value="$(arg start_paused)" />
     <param name="overlay" value="$(arg overlay)" />
     <param name="joint_pattern" value="$(arg joint_pattern)" />
+    <param name="crash_safe" value="$(arg crash_safe)" />
+    <param name="bitrate_kbps" value="$(arg bitrate_kbps)" />
   </node>
 </launch>

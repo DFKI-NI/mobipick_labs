@@ -88,6 +88,16 @@ The output folder (`<output_dir>/<timestamp>_<name>/`) also holds
 `snapshots/NNN_<label>_<topic>.jpg`, `events.jsonl` (pause/resume/snapshot with
 ROS and wall time) and `summary.json`.
 
+The recorder can be killed without warning, e.g. together with the shell or container that started it (a closed
+GUI shell is removed with `docker stop`, which ends in SIGKILL), and a plain MP4 written by OpenCV gets its index
+only when it is closed: a killed recording was unplayable ("moov atom not found"). So with `crash_safe:=true`
+(default) every video is a fragmented MP4 (VP8 through OpenCV's GStreamer backend, `bitrate_kbps`, default 2000,
+one key frame and one fragment per second) that plays up to its last finished fragment after a kill, and
+`summary.json` is rewritten while recording (on every pause/resume, at least every 5 s) with `"stopped": false`
+until the stop writes the final one, so a killed run still has a summary. Without the GStreamer elements
+(`vp8enc`, `qtmux`) it falls back to `codec` (default `mp4v`) and warns. SIGINT, SIGTERM and SIGHUP close the
+videos cleanly. Check a video with `ffprobe` before linking it anywhere.
+
 Every topic also gets `<id>_<topic>_frames.jsonl`, one JSON line per frame written to
 its video, so the videos of different topics (environment and robot camera)
 and the snapshot markers of `events.jsonl` can be aligned on one timeline:

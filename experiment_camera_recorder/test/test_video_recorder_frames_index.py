@@ -35,7 +35,7 @@ def _stub(name, **attributes):
 def recorder_module(monkeypatch):
     """scripts/video_recorder.py loaded with cv2, rospy and the ROS messages replaced by small stubs"""
     clock = {"ros": 100.0}
-    rospy = _stub("rospy", Subscriber=Mock(), loginfo=Mock(), logerr_throttle=Mock(), logerr=Mock())
+    rospy = _stub("rospy", Subscriber=Mock(), loginfo=Mock(), logerr_throttle=Mock(), logerr=Mock(), logwarn=Mock())
     rospy.Time = _stub("Time", now=lambda: Stamp(clock["ros"]))
     def with_border(image, top, bottom, left, right, border_type, value=None):
         grown = FakeImage()
@@ -43,7 +43,7 @@ def recorder_module(monkeypatch):
         grown.source, grown.border = image, (top, bottom, left, right, value)
         return grown
 
-    cv2 = _stub("cv2", VideoWriter_fourcc=lambda *a: 0, putText=Mock(), FONT_HERSHEY_SIMPLEX=0, LINE_AA=0,
+    cv2 = _stub("cv2", VideoWriter_fourcc=lambda *a: 0, CAP_GSTREAMER=1800, putText=Mock(), FONT_HERSHEY_SIMPLEX=0, LINE_AA=0,
                 BORDER_CONSTANT=0, copyMakeBorder=with_border,
                 getTextSize=lambda text, font, scale, thickness: ((int(len(text) * 20 * scale), int(22 * scale)), 5),
                 resize=lambda image, size: image, imwrite=Mock(return_value=True))
@@ -162,8 +162,63 @@ def test_one_video_writer_and_no_sped_up_copy(recorder_module, tmp_path):
     recorder = _make(recorder_module, tmp_path)
     recorder.latest = Message(10.0)
     recorder.write_latest("REC")
-    paths = [call.args[0] for call in recorder_module.cv2.VideoWriter.call_args_list]
-    assert paths == [str(tmp_path / (VID + "_experiment_camera_image_raw.mp4"))]
+    calls = recorder_module.cv2.VideoWriter.call_args_list
+    assert len(calls) == 1
+    assert 'location="%s"' % (tmp_path / (VID + "_experiment_camera_image_raw.mp4")) in calls[0].args[0]
+
+
+def test_the_video_is_a_fragmented_mp4_that_survives_a_kill(recorder_module, tmp_path):
+    recorder = _make(recorder_module, tmp_path)
+    recorder.latest = Message(10.0)
+    recorder.write_latest("REC")
+    call = recorder_module.cv2.VideoWriter.call_args
+    pipeline = call.args[0]
+    assert call.args[1] == recorder_module.cv2.CAP_GSTREAMER
+    assert "qtmux fragment-duration=1000" in pipeline and "vp8enc" in pipeline
+    assert "keyframe-max-dist=5" in pipeline                    # a key frame per second (fps 5) starts each fragment
+    assert "target-bitrate=2000000" in pipeline
+
+
+def test_without_gstreamer_it_falls_back_to_the_codec_and_warns(recorder_module, tmp_path):
+    broken, plain = Mock(), Mock()
+    broken.isOpened.return_value = False
+    plain.isOpened.return_value = True
+    recorder_module.cv2.VideoWriter = Mock(side_effect=[broken, plain])
+    recorder = _make(recorder_module, tmp_path)
+    recorder.latest = Message(10.0)
+    recorder.write_latest("REC")
+    assert recorder.writer is plain
+    assert recorder_module.cv2.VideoWriter.call_args.args[0] == str(tmp_path / (VID + "_experiment_camera_image_raw.mp4"))
+    assert "unplayable" in recorder_module.rospy.logwarn.call_args.args[0]
+
+
+def test_crash_safe_off_uses_the_codec_directly(recorder_module, tmp_path):
+    recorder = recorder_module.TopicRecorder("/experiment_camera/image_raw", str(tmp_path), fps=5.0, codec="mp4v",
+                                             overlay=False, video_id=VID, command="x", crash_safe=False)
+    recorder.latest = Message(10.0)
+    recorder.write_latest("REC")
+    assert recorder_module.cv2.VideoWriter.call_args.args[0].endswith(".mp4")
+
+
+def test_the_pipeline_quotes_the_path(recorder_module):
+    pipeline = recorder_module.crash_safe_pipeline('/data/a "b"/v.mp4', 10.0, 2000)
+    assert pipeline.endswith('location="/data/a \\"b\\"/v.mp4"')
+
+
+def test_the_summary_is_written_atomically(recorder_module, tmp_path):
+    path = str(tmp_path / "summary.json")
+    recorder_module.write_json_atomically(path, {"topics": [], "stopped": False})
+    assert json.load(open(path)) == {"topics": [], "stopped": False}
+    assert os.listdir(str(tmp_path)) == ["summary.json"]           # no temporary file left behind
+
+
+def test_the_summary_of_a_running_video_lists_its_frames(recorder_module, tmp_path):
+    recorder = _make(recorder_module, tmp_path)
+    recorder.latest = Message(10.0)
+    recorder.write_latest("REC")
+    summary = recorder.summary()
+    assert summary["frames"] == 1 and summary["video"].endswith("_experiment_camera_image_raw.mp4")
+    assert recorder.writer is not None                            # summary() does not close the video
 
 
 def test_every_frame_shows_the_id_and_the_command(recorder_module, tmp_path):
@@ -278,7 +333,7 @@ def test_the_text_goes_into_a_black_strip_on_top_and_never_over_the_picture(reco
     assert frame.source is message.image                         # the camera picture goes in unchanged
     assert frame.border == (strip, 0, 0, 0, (0, 0, 0))           # black, on top only
     assert frame.shape[:2] == (480 + strip, 640) and frame.shape[0] % 2 == 0
-    assert recorder_module.cv2.VideoWriter.call_args.args[3] == (640, 480 + strip)
+    assert recorder_module.cv2.VideoWriter.call_args.args[4] == (640, 480 + strip)   # (pipeline, CAP_GSTREAMER, 0, fps, size)
     calls = recorder_module.cv2.putText.call_args_list
     assert len(calls) == 2                                       # the id line and the command, no outline pass
     for call in calls:
