@@ -4,14 +4,13 @@
   <!-- #226: the simulation-side stack of one more Mobipick in its own copy of the scene (spawned by
        mobipick_gazebo/launch/worlds/<world_config>_x<N>_spawn_sim_objects.launch): fake localization in its own map
        frame, which lines up with robot 1's map (same coordinates in its copy), navigation with its own map copy, and
-       MoveIt, and with bringup:=true the tables demo bringup under the robot namespace. The GPT stack per robot is step 4
+       MoveIt, and the tables demo bringup under the robot namespace. The GPT stack per robot is step 4
        of #226. -->
   <arg name="namespace" default="mobipick2" doc="robot namespace, tf prefix and Gazebo model name" />
   <arg name="world_config" default="moelk_tables" />
   <arg name="offset_x" default="50.0" doc="x offset of this robot's scene copy in Gazebo [m]" />
   <arg name="moveit" default="true" doc="start move_group for this robot" />
-  <arg name="bringup" default="false" doc="also start the tables demo bringup (grasplan, pose selectors, DOPE relay, ft observer) for this robot" />
-  <arg name="cable_monitor" default="false" doc="with bringup: the cable entanglement monitor of this robot" />
+  <arg name="cable_monitor" default="false" doc="the cable entanglement monitor of this robot" />
   <arg name="use_mtc" default="false" />
   <arg name="mtc_cable_plan_check" default="false" />
   <arg name="mtc_lift_tolerate_touching_neighbours" default="false" />
@@ -46,7 +45,7 @@
   </include>
 
   <!-- grasplan, pose selectors (under /$(arg namespace)), DOPE relay, ft observer, cable monitor of this robot -->
-  <include if="$(arg bringup)" file="$(find tables_demo_bringup)/launch/bringup.launch">
+  <include file="$(find tables_demo_bringup)/launch/bringup.launch">
     <arg name="simulation" value="true" />
     <arg name="world_config" value="$(arg world_config)" />
     <arg name="namespace" value="$(arg namespace)" />

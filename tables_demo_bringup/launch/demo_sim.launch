@@ -14,7 +14,6 @@
   <arg name="cable_monitor" default="false" doc="true: start the observe-only arm cable monitor (mobipick_cable_entanglement, #118 #121): in the sim it presses the simulated UR protective stop when its model predicts an entangled cable; on the real robot it never commands anything and logs every tick and every protective stop for calibration" />
 
   <arg name="num_robots" default="1" doc="#226: 2 or 3 = that many identical copies of the world_config scene 50 m apart in one Gazebo, robot 1 (mobipick) in the first as with 1, robot k (mobipickK, map frame mobipickK/map) in copy k, for parallel experiments. Sim only; needs mobipick_gazebo/launch/worlds/WORLD_CONFIG_xN_spawn_sim_objects.launch (moelk_tables so far)" />
-  <arg name="extra_robots_bringup" default="false" doc="#226: also start the tables demo bringup (grasplan, pose selectors, DOPE relay, ft observer, cable monitor) for robots 2 and 3" />
 
   <!-- controls the simulation speed -->
   <arg name="physics_profile" default="fast" doc="options: slow, fast" />
@@ -45,12 +44,11 @@
     <arg name="grasp_fix" value="$(arg grasp_fix)" />
     <arg name="gui" value="$(arg gui)" />
   </include>
-  <!-- #226: the stacks of robots 2 and 3 in their scene copies (fake localization, navigation, MoveIt, optionally bringup) -->
+  <!-- #226: the stacks of robots 2 and 3 in their scene copies (fake localization, navigation, MoveIt, tables demo bringup) -->
   <include file="$(find tables_demo_bringup)/launch/includes/extra_mobipick_sim.launch" if="$(eval int(num_robots) >= 2)">
     <arg name="namespace" value="mobipick2" />
     <arg name="world_config" value="$(arg world_config)" />
     <arg name="offset_x" value="50.0" />
-    <arg name="bringup" value="$(arg extra_robots_bringup)" />
     <arg name="cable_monitor" value="$(arg cable_monitor)" />
     <arg name="use_mtc" value="$(arg use_mtc)" />
     <arg name="mtc_cable_plan_check" value="$(arg mtc_cable_plan_check)" />
@@ -61,7 +59,6 @@
     <arg name="namespace" value="mobipick3" />
     <arg name="world_config" value="$(arg world_config)" />
     <arg name="offset_x" value="100.0" />
-    <arg name="bringup" value="$(arg extra_robots_bringup)" />
     <arg name="cable_monitor" value="$(arg cable_monitor)" />
     <arg name="use_mtc" value="$(arg use_mtc)" />
     <arg name="mtc_cable_plan_check" value="$(arg mtc_cable_plan_check)" />
