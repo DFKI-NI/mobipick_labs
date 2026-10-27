@@ -70,7 +70,14 @@ GUI mounts into its containers at the same path).
 Per topic it writes `<id>_<topic>.mp4` (real time, `fps`, default 10). `<id>` is the video's unique id
 `v<YYYYMMDD>-<HHMMSS>-<4 hex>` (start time on the recorder's clock, UTC in the GUI containers like the folder name, plus
 4 random hex digits), shown first in the text strip of every frame, above the command, and appended as `<id>\t<absolute path>`
-to `<output_dir>/video_ids.tsv` (append-only, one line per video, so an id finds its file). With
+to `<output_dir>/video_ids.tsv` (append-only, one line per video, so an id finds its file).
+`title:=<short title>` puts a readable name into the file name after the id,
+`<id>_<title>.mp4` (several topics: `<id>_<title>_<topic>.mp4`), so a video can be told apart in a folder and
+linked with words: the title is lower-cased, every run of characters other than `a-z`, `0-9` is one `-`, and it is cut
+at 40 characters; empty (default) keeps `<id>_<topic>.mp4`. The `video_ids.tsv` line stays `<id>\t<absolute path>`
+(the title is in the path), and the id in the frames is unchanged. Whoever starts the recorder for a test passes it
+together with `command:=`, e.g. `title:="Baseline run 1: drill pick, sim"` (the link text shown to the user says the
+same in plain words). Existing videos keep their names. With
 `auto_pause:=true` (default) frames are written only while `/mobipick/cmd_vel`
 is non-zero or an arm joint (`joint_pattern`, default `ur5`; the simulated gripper finger is noisy at rest) moves faster than
 `joint_velocity_threshold`, kept for `motion_hold_s` after the last motion, so

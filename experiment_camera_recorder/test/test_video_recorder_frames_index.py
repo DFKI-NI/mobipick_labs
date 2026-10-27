@@ -380,3 +380,39 @@ def test_rows_stay_free_for_a_goal_that_arrives_after_the_video_opened(recorder_
     texts = [call.args[1] for call in recorder_module.cv2.putText.call_args_list]
     assert recorder.size == size and _written(recorder_module).shape[:2] == (size[1], size[0])   # same frame size
     assert len(texts) == rows and texts[-1].endswith("...")      # too long for the strip: cut, not drawn lower
+
+
+@pytest.mark.parametrize("text, expected", [
+    ("Baseline run 1: drill pick, sim", "baseline-run-1-drill-pick-sim"),
+    ("  --Ünï/cödé!!  ", "n-c-d"),
+    ("../../etc/passwd", "etc-passwd"),
+    ("", ""),
+    (None, ""),
+    ("a" * 60, "a" * 40),
+    ("word " * 10, "word-" * 7 + "word"),
+])
+def test_a_title_is_sanitised_for_the_file_name(recorder_module, text, expected):
+    assert recorder_module.sanitize_title(text) == expected
+
+
+def test_a_title_follows_the_id_in_the_file_name_and_the_id_index(recorder_module, tmp_path):
+    index = tmp_path / "video_ids.tsv"
+    recorder = recorder_module.TopicRecorder("/experiment_camera/image_raw", str(tmp_path), fps=5.0, codec="mp4v",
+                                             overlay=False, video_id=VID, command="x", ids_path=str(index),
+                                             title="Baseline run 1: drill pick, sim", title_only=True)
+    assert recorder.video_path == str(tmp_path / (VID + "_baseline-run-1-drill-pick-sim.mp4"))
+    assert recorder.frames_index_path.endswith(VID + "_baseline-run-1-drill-pick-sim_frames.jsonl")
+    recorder.latest = Message(10.0)
+    recorder.write_latest("REC")
+    assert index.read_text().split("\t")[0] == VID
+
+
+def test_with_several_topics_the_title_is_followed_by_the_topic_name(recorder_module, tmp_path):
+    recorder = recorder_module.TopicRecorder("/experiment_camera/image_raw", str(tmp_path), fps=5.0, codec="mp4v",
+                                             overlay=False, video_id=VID, command="x", title="drill pick")
+    assert recorder.video_path == str(tmp_path / (VID + "_drill-pick_experiment_camera_image_raw.mp4"))
+
+
+def test_without_a_title_the_file_name_is_unchanged(recorder_module, tmp_path):
+    recorder = _make(recorder_module, tmp_path)
+    assert recorder.video_path == str(tmp_path / (VID + "_experiment_camera_image_raw.mp4"))

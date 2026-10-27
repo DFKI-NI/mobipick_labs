@@ -6,6 +6,7 @@
   <arg name="image_topics" default="/experiment_camera/image_raw" />
   <arg name="output_dir" default="/data/experiment_recordings" />
   <arg name="name" default="" />
+  <arg name="title" default="" />  <!-- a short readable title of the video, e.g. baseline-run-1-drill-pick-sim: goes into the file name after the id (a-z, 0-9 and - only, at most 40 characters); empty: the file name carries the topic name -->
   <arg name="fps" default="10.0" />
   <arg name="command" default="" />  <!-- the command that runs the experiment, shown in the text strip of every frame -->
   <!-- the goal topic of the GPT demo (GUI speech input, agent_experiment.py): the last goal sent to the LLM is shown
@@ -26,6 +27,7 @@
     <param name="image_topics" value="$(arg image_topics)" />
     <param name="output_dir" value="$(arg output_dir)" />
     <param name="name" value="$(arg name)" />
+    <param name="title" type="str" value="$(arg title)" />
     <param name="fps" value="$(arg fps)" />
     <param name="command" type="str" value="$(arg command)" />
     <param name="command_topic" value="$(arg command_topic)" />

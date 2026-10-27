@@ -2,7 +2,7 @@
 
 """Record ROS image topics into videos that only contain the moments the robot moves.
 
-Every image topic in ``~image_topics`` is written to ``<output_dir>/<id>_<name>.mp4``; ``<id>`` is a unique video
+Every image topic in ``~image_topics`` is written to ``<output_dir>/<id>_<name>.mp4`` (with ``~title``, ``<id>_<title>.mp4``, see ``sanitize_title``); ``<id>`` is a unique video
 id ``v<YYYYMMDD>-<HHMMSS>-<4 hex>`` for easy reference, and every frame shows that id and what was run as lime
 text in a black strip added on top of the camera picture (the frames grow in height, the picture stays untouched):
 ``~command`` (the shell command of the experiment) and the last goal that arrived on ``~command_topic`` (default
@@ -47,6 +47,14 @@ from std_srvs.srv import Trigger, TriggerResponse
 
 def _safe_name(text):
     return re.sub(r"[^A-Za-z0-9_.-]+", "_", text.strip("/")) or "topic"
+
+
+def sanitize_title(text, max_length=40):
+    """The short readable title of a video for its file name: lower case, only ``[a-z0-9-]`` (every other run of
+    characters becomes one ``-``), no leading or trailing ``-``, at most ``max_length`` characters; "" stays ""
+    (the old file name)."""
+    title = re.sub(r"[^a-z0-9]+", "-", str(text or "").lower()).strip("-")
+    return title[:max_length].rstrip("-")
 
 
 def video_id(started, token=None):
@@ -185,7 +193,7 @@ class TopicRecorder:
     """Videos and snapshots of one image topic."""
 
     def __init__(self, topic, output_dir, fps, codec, overlay, video_id, command="", ids_path=None, crash_safe=True,
-                 bitrate_kbps=2000):
+                 bitrate_kbps=2000, title="", title_only=False):
         self.topic = topic
         self.name = _safe_name(topic)
         self.id = video_id
@@ -211,11 +219,15 @@ class TopicRecorder:
         self.rows = 0             # text rows of the strip
         self.frames = 0
         self.last_written_stamp = None
-        self.video_path = os.path.join(output_dir, "%s_%s.mp4" % (video_id, self.name))
+        # the file name after the id: the title (alone when it is the only topic, else with the topic name), or the
+        # topic name when there is no title
+        self.title = sanitize_title(title)
+        label = self.name if not self.title else self.title if title_only else "%s_%s" % (self.title, self.name)
+        self.video_path = os.path.join(output_dir, "%s_%s.mp4" % (video_id, label))
         # one JSON line per written frame: {"frame", "source_stamp", "wall_time", "ros_time", "label"}; the frame
         # index counts the frames of the video (0-based), skipped and duplicate images take no index and a pause
         # shows as a jump in the times, never as missing indices
-        self.frames_index_path = os.path.join(output_dir, "%s_%s_frames.jsonl" % (video_id, self.name))
+        self.frames_index_path = os.path.join(output_dir, "%s_%s_frames.jsonl" % (video_id, label))
         self._frames_index = None
         self.subscriber = rospy.Subscriber(topic, Image, self._callback, queue_size=1, buff_size=2 ** 24)
 
@@ -403,12 +415,13 @@ class VideoRecorder:
         self.stopped = False
         self.snapshots = 0
         self.started_wall = time.time()
+        title = rospy.get_param("~title", "")
         ids = set()
         while len(ids) < len(topics):                 # one id per video, unique also within this recording
             ids.add(video_id(started))
         ids_path = os.path.join(os.path.dirname(self.output_dir), "video_ids.tsv")
         self.recorders = [TopicRecorder(t, self.output_dir, self.fps, codec, overlay, i, self.command, ids_path,
-                                        crash_safe, bitrate_kbps)
+                                        crash_safe, bitrate_kbps, title, len(topics) == 1)
                           for t, i in zip(topics, sorted(ids))]
         self._set_overlays()
         self._write_summary()
