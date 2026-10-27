@@ -22,7 +22,7 @@ frame of a topic's video to its source image stamp and the recorder's wall and R
 time, so videos of different topics can be aligned exactly.
 
 A recorder can be killed without warning (it dies with the shell or container that started it), so with
-``~crash_safe`` (default) the videos are fragmented MP4 files (VP8 through GStreamer, a fragment per second) that
+``~crash_safe`` (default) the videos are fragmented MP4 files (H.264 through GStreamer, a fragment per second) that
 stay playable up to the last fragment, and ``summary.json`` is kept current while recording (``"stopped": false``
 until a clean stop).
 """
@@ -140,14 +140,24 @@ def command_lines(text, max_width, scale):
     return lines
 
 
-def crash_safe_pipeline(path, fps, bitrate_kbps):
-    """GStreamer pipeline for OpenCV's VideoWriter that writes ``path`` as a fragmented MP4 (VP8, one key frame and
-    one fragment per second): every finished fragment is playable, also when the recorder is killed (SIGKILL) and
-    never closes the file, while a plain MP4 writes its index only when it is closed."""
+CRASH_SAFE_CODECS = ("h264", "vp8")    # tried in this order; VLC and most players cannot play VP8 in an MP4
+
+
+def crash_safe_pipeline(path, fps, bitrate_kbps, codec="h264"):
+    """GStreamer pipeline for OpenCV's VideoWriter that writes ``path`` as a fragmented MP4 (one key frame and one
+    fragment per second): every finished fragment is playable, also when the recorder is killed (SIGKILL) and never
+    closes the file, while a plain MP4 writes its index only when it is closed. ``codec`` "h264" (x264enc of
+    gstreamer1.0-plugins-ugly, 4:2:0 main profile, which every player decodes) or "vp8" (vp8enc)."""
     location = path.replace("\\", "\\\\").replace('"', '\\"')
-    return ('appsrc ! videoconvert ! vp8enc deadline=1 cpu-used=4 threads=2 target-bitrate=%d keyframe-max-dist=%d ! '
-            'qtmux fragment-duration=1000 streamable=true ! filesink location="%s"'
-            % (int(bitrate_kbps * 1000), max(int(round(fps)), 1), location))
+    key_frame_distance = max(int(round(fps)), 1)
+    if codec == "vp8":
+        encoder = ('vp8enc deadline=1 cpu-used=4 threads=2 target-bitrate=%d keyframe-max-dist=%d'
+                   % (int(bitrate_kbps * 1000), key_frame_distance))
+    else:
+        encoder = ('video/x-raw,format=I420 ! x264enc speed-preset=veryfast tune=zerolatency threads=2 bitrate=%d '
+                   'key-int-max=%d ! video/x-h264,profile=main' % (max(int(round(bitrate_kbps)), 1), key_frame_distance))
+    return ('appsrc ! videoconvert ! %s ! qtmux fragment-duration=1000 streamable=true ! filesink location="%s"'
+            % (encoder, location))
 
 
 def write_json_atomically(path, data):
@@ -265,12 +275,17 @@ class TopicRecorder:
         """The crash-safe writer (crash_safe_pipeline), else OpenCV's FFMPEG writer with ``codec``, whose MP4 is
         unplayable when the recorder is killed before the stop."""
         if self.crash_safe:
-            writer = cv2.VideoWriter(crash_safe_pipeline(self.video_path, self.fps, self.bitrate_kbps),
-                                     cv2.CAP_GSTREAMER, 0, self.fps, self.size, True)
-            if writer.isOpened():
-                return writer
-            rospy.logwarn("%s: no GStreamer VP8 / qtmux writer, falling back to %s: the video is unplayable if the "
-                          "recorder is killed before it is stopped", self.topic, self.codec)
+            for codec in CRASH_SAFE_CODECS:
+                writer = cv2.VideoWriter(crash_safe_pipeline(self.video_path, self.fps, self.bitrate_kbps, codec),
+                                         cv2.CAP_GSTREAMER, 0, self.fps, self.size, True)
+                if writer.isOpened():
+                    if codec != CRASH_SAFE_CODECS[0]:
+                        rospy.logwarn("%s: no GStreamer x264enc (package gstreamer1.0-plugins-ugly), writing VP8: "
+                                      "VLC cannot play it, transcode it with ffmpeg -i <video> -c:v libx264 -pix_fmt "
+                                      "yuv420p <copy>.mp4 before showing it", self.topic)
+                    return writer
+            rospy.logwarn("%s: no GStreamer H.264 / VP8 qtmux writer, falling back to %s: the video is unplayable if "
+                          "the recorder is killed before it is stopped", self.topic, self.codec)
         writer = cv2.VideoWriter(self.video_path, cv2.VideoWriter_fourcc(*self.codec), self.fps, self.size)
         if not writer.isOpened():
             raise RuntimeError("could not open the video writer for %s in %s" % (self.topic, self.output_dir))
@@ -385,7 +400,7 @@ class VideoRecorder:
                           "and 'NO COMMAND YET' until then", self.command_topic)
         self.goals = []
         self.fps = float(rospy.get_param("~fps", 10.0))
-        codec = str(rospy.get_param("~codec", "mp4v"))
+        codec = str(rospy.get_param("~codec", "avc1"))
         crash_safe = bool(rospy.get_param("~crash_safe", True))
         bitrate_kbps = float(rospy.get_param("~bitrate_kbps", 2000.0))
         self.summary_period_s = float(rospy.get_param("~summary_period_s", 5.0))

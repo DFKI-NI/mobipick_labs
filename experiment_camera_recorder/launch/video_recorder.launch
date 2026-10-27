@@ -19,7 +19,7 @@
   <arg name="start_paused" default="false" />
   <arg name="overlay" default="true" />
   <arg name="joint_pattern" default="ur5" />  <!-- the simulated gripper finger reports ~0.18 rad/s at rest -->
-  <!-- fragmented VP8 MP4 that stays playable when the recorder is killed (false: OpenCV's mp4v, unplayable then) -->
+  <!-- fragmented H.264 MP4 that stays playable when the recorder is killed (false: OpenCV's avc1, unplayable then) -->
   <arg name="crash_safe" default="true" />
   <arg name="bitrate_kbps" default="2000" />
 

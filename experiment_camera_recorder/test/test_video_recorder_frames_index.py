@@ -174,16 +174,31 @@ def test_the_video_is_a_fragmented_mp4_that_survives_a_kill(recorder_module, tmp
     call = recorder_module.cv2.VideoWriter.call_args
     pipeline = call.args[0]
     assert call.args[1] == recorder_module.cv2.CAP_GSTREAMER
-    assert "qtmux fragment-duration=1000" in pipeline and "vp8enc" in pipeline
-    assert "keyframe-max-dist=5" in pipeline                    # a key frame per second (fps 5) starts each fragment
-    assert "target-bitrate=2000000" in pipeline
+    assert "qtmux fragment-duration=1000" in pipeline and "x264enc" in pipeline
+    assert "format=I420" in pipeline and "profile=main" in pipeline    # 4:2:0 main profile: every player decodes it
+    assert "key-int-max=5" in pipeline                          # a key frame per second (fps 5) starts each fragment
+    assert "bitrate=2000 " in pipeline                          # x264enc takes kbit/s
+
+
+def test_without_x264enc_it_writes_vp8_and_warns(recorder_module, tmp_path):
+    broken, vp8 = Mock(), Mock()
+    broken.isOpened.return_value = False
+    vp8.isOpened.return_value = True
+    recorder_module.cv2.VideoWriter = Mock(side_effect=[broken, vp8])
+    recorder = _make(recorder_module, tmp_path)
+    recorder.latest = Message(10.0)
+    recorder.write_latest("REC")
+    assert recorder.writer is vp8
+    pipeline = recorder_module.cv2.VideoWriter.call_args.args[0]
+    assert "vp8enc" in pipeline and "keyframe-max-dist=5" in pipeline and "target-bitrate=2000000" in pipeline
+    assert "VLC cannot play" in recorder_module.rospy.logwarn.call_args.args[0]
 
 
 def test_without_gstreamer_it_falls_back_to_the_codec_and_warns(recorder_module, tmp_path):
     broken, plain = Mock(), Mock()
     broken.isOpened.return_value = False
     plain.isOpened.return_value = True
-    recorder_module.cv2.VideoWriter = Mock(side_effect=[broken, plain])
+    recorder_module.cv2.VideoWriter = Mock(side_effect=[broken, broken, plain])
     recorder = _make(recorder_module, tmp_path)
     recorder.latest = Message(10.0)
     recorder.write_latest("REC")
