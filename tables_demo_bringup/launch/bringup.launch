@@ -10,6 +10,7 @@
   <arg name="mtc_cable_constraints" default="false" doc="old name of mtc_cable_plan_check, still accepted" />
   <arg name="mtc_cable_plan_check" default="$(arg mtc_cable_constraints)" doc="true (with use_mtc): check every planned MTC joint path against the arm cable model (mobipick_cable_entanglement) and throw away a plan that would stretch the cable tube, then try the next one; the same switch also makes the free motions keep wrist_3 within a window around its least-wound angle, a planning constraint (the real robot's wrist_3 limits are tighter than that window, so there only the check acts)" />
   <arg name="mtc_cable_replay_detour" default="false" doc="true (with mtc_cable_plan_check): when the cable guard refused a closed-set pick by its chain replay alone, move the arm to untangle_cable_guide_2_right as a separate motion and plan the pick once more from there; no detour while the named-move guard only logs (the real robot default); careful feature flag, off in code" />
+  <arg name="open_set_box_padding" default="0.0" doc="metres taken off every side of the open-set detector box of the target before it goes into the planning scene and the grasp geometry (the detector pads every side); 0.0 keeps the box as detected; careful feature flag, off in code" />
   <arg name="insert_cable_gate" default="false" doc="true: rank insert poses by predicted cable stretch and offer likely safe ones first (#219); safe feature flag, off in code" />
   <arg name="open_set_place_clearance_by_height" default="false" doc="true: release tall open-set objects at 1 cm and other open-set objects at 4 cm above their support (#202); careful feature flag, off in code" />
   <arg name="place_same_orientation_as_picked" default="true" doc="false: small objects (e.g. balls, fruit) are inserted with the gripper pointing straight down and the wrist turned as little as possible, instead of in the orientation they were grasped in (avoids winding up the arm cable)" />
@@ -90,6 +91,7 @@
     <arg name="use_mtc" value="$(arg use_mtc)" />
     <arg name="mtc_cable_plan_check" value="$(arg mtc_cable_plan_check)" />
     <arg name="mtc_cable_replay_detour" value="$(arg mtc_cable_replay_detour)" />
+    <arg name="open_set_box_padding" value="$(arg open_set_box_padding)" />
     <arg name="mtc_lift_tolerate_touching_neighbours" value="$(arg mtc_lift_tolerate_touching_neighbours)" />
     <arg name="namespace" value="$(arg namespace)" />
     <arg name="pose_selector_ns" value="$(arg pose_selector_ns)" />
