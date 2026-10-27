@@ -8,6 +8,7 @@
   <arg name="mtc_cable_replay_detour" default="false" doc="true (with mtc_cable_plan_check): when the cable guard refused a closed-set pick by its chain replay alone, move the arm to untangle_cable_guide_2_right as a separate motion and plan the pick once more from there; no detour while the named-move guard only logs (the real robot default); careful feature flag, off in code" />
   <arg name="open_set_box_padding" default="0.0" doc="metres taken off every side of the open-set detector box of the target before it goes into the planning scene and the grasp geometry (the detector pads every side); 0.0 keeps the box as detected; careful feature flag, off in code" />
   <arg name="open_set_align_jaw_to_box" default="false" doc="a near-vertical open-set grasp whose jaw is well off the axes of the target box (across its diagonal) gets a copy turned about its approach onto the nearest box axis whose side fits the gripper, tried first; safe feature flag, off in code" />
+  <arg name="open_set_strip_reported_padding" default="false" doc="take off the padding the open-set detection reports for its box (box_padding of the detected object) instead of open_set_box_padding, which stays the fallback for a detection without it; careful flag, off by default" />
   <!-- GripperCommand.max_effort used for AnyGrasp grasps of unknown objects; the Robotiq action server
        accepts 30..100, the simulated gripper maps it to a real torque limit. -1 keeps gripper_joint_efforts. -->
   <arg name="anygrasp_gripper_max_effort" default="50.0" />
@@ -53,6 +54,7 @@
     <param name="mtc_cable_replay_detour" type="bool" value="$(arg mtc_cable_replay_detour)" />
     <param name="open_set_box_padding" type="double" value="$(arg open_set_box_padding)" />
     <param name="open_set_align_jaw_to_box" type="bool" value="$(arg open_set_align_jaw_to_box)" />
+    <param name="open_set_strip_reported_padding" type="bool" value="$(arg open_set_strip_reported_padding)" />
     <param name="mtc_lift_tolerate_touching_neighbours" type="bool" value="$(arg mtc_lift_tolerate_touching_neighbours)" />
     <param name="anygrasp_gripper_max_effort" type="double" value="$(arg anygrasp_gripper_max_effort)" />
     <param name="anygrasp_use_gripper_width" type="bool" value="$(arg anygrasp_use_gripper_width)" />
