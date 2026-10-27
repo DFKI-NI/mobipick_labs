@@ -14,6 +14,7 @@
   <arg name="geometric_check" default="true" />
   <arg name="release_after_rest_s" default="0.0" />
   <arg name="release_during_rest" default="false" />
+  <arg name="untangle_with_chain" default="false" />
   <arg name="reset_at_trajectory_start" default="false" />
   <arg name="reset_cache_mrad" default="0.0" />
   <arg name="use_mtc" default="false" />
@@ -76,6 +77,7 @@
     <arg name="geometric_check" value="$(arg geometric_check)" />
     <arg name="release_after_rest_s" value="$(arg release_after_rest_s)" />
     <arg name="release_during_rest" value="$(arg release_during_rest)" />
+    <arg name="untangle_with_chain" value="$(arg untangle_with_chain)" />
     <arg name="reset_at_trajectory_start" value="$(arg reset_at_trajectory_start)" />
     <arg name="reset_cache_mrad" value="$(arg reset_cache_mrad)" />
   </include>
