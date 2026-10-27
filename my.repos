@@ -12,6 +12,11 @@ repositories:
     type: git
     url: https://github.com/oscar-lima/gazebo_jointed_chain.git
     version: main
+  gazebo_marker_visuals:
+    # draws marker topics in Gazebo, e.g. the cable monitor's model of the arm cable in the sim
+    type: git
+    url: https://github.com/oscar-lima/gazebo_marker_visuals.git
+    version: main
   grasplan:
     type: git
     url: https://github.com/DFKI-NI/grasplan.git

@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- Sim only, part of the cable monitor: draws the monitor's arm cable model (its carrier link chain of each span
+       the monitor computes: the wrist span by default, elbow and shoulder only when switched on; purple while the span
+       is ok, orange when it warns, red when it is entangled) in Gazebo, so a protective stop of the simulated cable
+       shows what stopped the arm. Visuals only (no collision, no physics). The robot's own cameras do not see them;
+       gzclient and the experiment (overview) camera do. Started by demo_sim / extra_mobipick_sim with the monitor
+       (cable_monitor true). -->
+  <arg name="namespace" default="mobipick" doc="robot namespace, tf prefix and Gazebo model name" />
+  <include file="$(find gazebo_marker_visuals)/launch/marker_visuals.launch" ns="$(arg namespace)">
+    <arg name="name" value="$(arg namespace)_cable_tube" />
+    <arg name="topic" value="/$(arg namespace)/cable_entanglement_monitor/disc_markers" />
+    <arg name="world_frame" value="map" />
+    <arg name="visibility" value="gui" />
+    <arg name="show_in_cameras" value="experiment_camera_sensor" />
+    <arg name="namespaces" value="cable_discs" />
+  </include>
+</launch>

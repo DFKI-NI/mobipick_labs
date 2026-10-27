@@ -50,6 +50,11 @@
          value="$(find mobipick_moveit_config)/config/sensors_gripper_cam_pointcloud_sim.yaml"/>
   </include>
 
+  <!-- the cable monitor's model of this robot's arm cable, drawn in Gazebo (part of the monitor) -->
+  <include if="$(arg cable_monitor)" file="$(find tables_demo_bringup)/launch/includes/cable_tube_sim.launch">
+    <arg name="namespace" value="$(arg namespace)" />
+  </include>
+
   <!-- grasplan, pose selectors (under /$(arg namespace)), DOPE relay, ft observer, cable monitor of this robot -->
   <include file="$(find tables_demo_bringup)/launch/bringup.launch">
     <arg name="simulation" value="true" />
