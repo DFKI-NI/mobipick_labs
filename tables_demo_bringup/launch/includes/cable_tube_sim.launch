@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <launch>
   <!-- Sim only, part of the cable monitor: draws the monitor's arm cable model (its carrier link chain of each span
-       the monitor computes: the wrist span by default, elbow and shoulder only when switched on; purple while the span
+       the monitor computes: the wrist span by default, elbow and shoulder only when switched on; green while the span
        is ok, orange when it warns, red when it is entangled) in Gazebo, so a protective stop of the simulated cable
        shows what stopped the arm. Visuals only (no collision, no physics). The robot's own cameras do not see them;
        gzclient and the experiment (overview) camera do. Started by demo_sim / extra_mobipick_sim with the monitor
