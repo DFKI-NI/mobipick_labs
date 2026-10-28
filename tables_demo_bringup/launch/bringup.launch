@@ -15,6 +15,7 @@
   <arg name="open_set_align_jaw_to_box" default="false" doc="a near-vertical open-set grasp whose jaw is well off the axes of the target box (across its diagonal) gets a copy turned about its approach onto the nearest box axis whose side fits the gripper, tried first; safe feature flag, off in code" />
   <arg name="open_set_strip_reported_padding" default="false" doc="take off the padding the open-set detection reports for its box (box_padding of the detected object) instead of open_set_box_padding, which stays the fallback for a detection without it; careful flag, off by default" />
   <arg name="insert_cable_gate" default="false" doc="true: rank insert poses by predicted cable stretch and offer likely safe ones first (#219); safe feature flag, off in code" />
+  <arg name="cable_detour_mode" default="hack" doc="hack: the closed-set objects visit the fixed untangle poses before a pick, place and insert, as always; cable_aware: no untangle pose at all (also no cable replay detour), the MTC cable guard is the protection and a refused motion fails with a clear text; careful flag, hack in the code" />
   <arg name="open_set_place_clearance_by_height" default="false" doc="true: release tall open-set objects at 1 cm and other open-set objects at 4 cm above their support (#202); careful feature flag, off in code" />
   <arg name="place_same_orientation_as_picked" default="true" doc="false: small objects (e.g. balls, fruit) are inserted with the gripper pointing straight down and the wrist turned as little as possible, instead of in the orientation they were grasped in (avoids winding up the arm cable)" />
   <arg name="insert_orientation" default="free_yaw" doc="free_yaw (default, #106: keep the picked roll and pitch, choose the yaw for the least wrist rotation), as_picked or gripper_down; empty: place_same_orientation_as_picked decides (true: as_picked, false: gripper_down)" />
@@ -90,6 +91,7 @@
 
   <!-- ::::: Grasp planning ::::: -->
   <include file="$(find tables_demo_bringup)/launch/includes/grasp_planning.launch">
+    <arg name="cable_detour_mode" value="$(arg cable_detour_mode)" />
     <arg name="planning_scene_config" value="$(find tables_demo_bringup)/config/$(arg world_config)_planning_scene.yaml" />
     <arg name="anygrasp_handles_execution" value="$(arg anygrasp_handles_execution)" />
     <arg name="use_mtc" value="$(arg use_mtc)" />
@@ -107,6 +109,7 @@
 
   <!-- ::::: Place object ::::: -->
   <include file="$(find tables_demo_bringup)/launch/includes/place.launch">
+    <arg name="cable_detour_mode" value="$(arg cable_detour_mode)" />
     <arg name="objects_of_interest" value="$(arg objects_of_interest)" />
     <arg name="use_mtc" value="$(arg use_mtc)" />
     <arg name="mtc_cable_plan_check" value="$(arg mtc_cable_plan_check)" />
@@ -119,6 +122,7 @@
 
   <!-- ::::: Insert object ::::: -->
   <include file="$(find tables_demo_bringup)/launch/includes/insert.launch">
+    <arg name="cable_detour_mode" value="$(arg cable_detour_mode)" />
     <arg name="place_same_orientation_as_picked" value="$(arg place_same_orientation_as_picked)" />
     <arg name="insert_orientation" value="$(arg insert_orientation)" />
     <arg name="use_mtc" value="$(arg use_mtc)" />

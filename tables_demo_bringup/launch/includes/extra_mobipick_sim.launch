@@ -22,6 +22,7 @@
   <arg name="mtc_cable_replay_live_state" default="false" />
   <arg name="mtc_cable_replay_detour" default="false" />
   <arg name="open_set_box_padding" default="0.0" />
+  <arg name="cable_detour_mode" default="hack" />
   <arg name="open_set_align_jaw_to_box" default="false" />
   <arg name="open_set_strip_reported_padding" default="false" />
   <arg name="mtc_lift_tolerate_touching_neighbours" default="false" />
@@ -72,6 +73,7 @@
     <arg name="mtc_cable_replay_live_state" value="$(arg mtc_cable_replay_live_state)" />
     <arg name="mtc_cable_replay_detour" value="$(arg mtc_cable_replay_detour)" />
     <arg name="open_set_box_padding" value="$(arg open_set_box_padding)" />
+    <arg name="cable_detour_mode" value="$(arg cable_detour_mode)" />
     <arg name="open_set_align_jaw_to_box" value="$(arg open_set_align_jaw_to_box)" />
     <arg name="open_set_strip_reported_padding" value="$(arg open_set_strip_reported_padding)" />
     <arg name="mtc_lift_tolerate_touching_neighbours" value="$(arg mtc_lift_tolerate_touching_neighbours)" />

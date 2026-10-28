@@ -16,6 +16,7 @@
   <arg name="map_frame" default="map" />
   <arg name="ps" value="$(eval '/' + arg('pose_selector_ns').strip('/') if arg('pose_selector_ns').strip('/') else '')" />
   <arg name="open_set_place_clearance_by_height" default="false" doc="true: release tall open-set objects at 1 cm and other open-set objects at 4 cm above their support (#202); careful feature flag, off in code" />
+  <arg name="cable_detour_mode" default="hack" doc="hack: the closed-set objects visit the fixed untangle poses before a pick, place and insert, as always; cable_aware: no untangle pose at all (also no cable replay detour), the MTC cable guard is the protection and a refused motion fails with a clear text; careful flag, hack in the code" />
 
   <!--place object wrapper node-->
   <node pkg="grasplan" type="place.py" name="place_object_node" output="screen" ns="$(arg namespace)" required="true">
@@ -30,6 +31,7 @@
     <param name="mtc_cable_plan_check" type="bool" value="$(arg mtc_cable_plan_check)" />
     <param name="mtc_cable_replay_live_state" type="bool" value="$(arg mtc_cable_replay_live_state)" />
     <param name="open_set_place_clearance_by_height" type="bool" value="$(arg open_set_place_clearance_by_height)" />
+    <param name="cable_detour_mode" type="string" value="$(arg cable_detour_mode)" />
   </node>
 
   <!-- a second pose selector for storing place poses -->
