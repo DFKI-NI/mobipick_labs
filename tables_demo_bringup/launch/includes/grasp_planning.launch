@@ -5,6 +5,7 @@
   <arg name="use_mtc" default="false" doc="true: plan and execute grasplan pick, place and insert with MoveIt Task Constructor instead of the MoveIt pick n place pipeline (move_group pickup/place actions)" />
   <arg name="mtc_lift_tolerate_touching_neighbours" default="false" doc="allow a just-attached object to clear only box neighbours already touching it during a straight-up MTC lift (#229; careful flag, off in code)" />
   <arg name="mtc_cable_plan_check" default="false" doc="true (with use_mtc): check every planned MTC joint path against the arm cable model (mobipick_cable_entanglement) and throw away a plan that would stretch the cable tube, then try the next one; the same switch also makes the free motions keep wrist_3 within a window around its least-wound angle, a planning constraint (the real robot's wrist_3 limits are tighter than that window, so there only the check acts)" />
+  <arg name="mtc_cable_replay_live_state" default="false" doc="true (with mtc_cable_plan_check): the cable guard's replay of a planned path through the carrier link chain goes on from the cable monitor's live chain (its chain_state service) instead of a fresh chain, so it sees what the motions before the path did; a fresh chain where the monitor resets its chain at every trajectory start; safe feature flag, off in code" />
   <arg name="mtc_cable_replay_detour" default="false" doc="true (with mtc_cable_plan_check): when the cable guard refused a closed-set pick by its chain replay alone, move the arm to untangle_cable_guide_2_right as a separate motion and plan the pick once more from there; no detour while the named-move guard only logs (the real robot default); careful feature flag, off in code" />
   <arg name="open_set_box_padding" default="0.0" doc="metres taken off every side of the open-set detector box of the target before it goes into the planning scene and the grasp geometry (the detector pads every side); 0.0 keeps the box as detected; careful feature flag, off in code" />
   <arg name="open_set_align_jaw_to_box" default="false" doc="a near-vertical open-set grasp whose jaw is well off the axes of the target box (across its diagonal) gets a copy turned about its approach onto the nearest box axis whose side fits the gripper, tried first; safe feature flag, off in code" />
@@ -51,6 +52,7 @@
     <param name="anygrasp_handles_execution" type="bool" value="$(arg anygrasp_handles_execution)" />
     <param name="use_mtc" type="bool" value="$(arg use_mtc)" />
     <param name="mtc_cable_plan_check" type="bool" value="$(arg mtc_cable_plan_check)" />
+    <param name="mtc_cable_replay_live_state" type="bool" value="$(arg mtc_cable_replay_live_state)" />
     <param name="mtc_cable_replay_detour" type="bool" value="$(arg mtc_cable_replay_detour)" />
     <param name="open_set_box_padding" type="double" value="$(arg open_set_box_padding)" />
     <param name="open_set_align_jaw_to_box" type="bool" value="$(arg open_set_align_jaw_to_box)" />
