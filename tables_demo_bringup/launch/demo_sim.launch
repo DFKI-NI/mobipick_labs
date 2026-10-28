@@ -11,6 +11,7 @@
   <arg name="mtc_cable_replay_detour" default="false" doc="true (with mtc_cable_plan_check): when the cable guard refused a closed-set pick by its chain replay alone, move the arm to untangle_cable_guide_2_right as a separate motion and plan the pick once more from there; no detour while the named-move guard only logs (the real robot default); careful feature flag, off in code" />
   <arg name="open_set_box_padding" default="0.0" doc="metres taken off every side of the open-set detector box of the target before it goes into the planning scene and the grasp geometry (the detector pads every side); 0.0 keeps the box as detected; careful feature flag, off in code" />
   <arg name="open_set_align_jaw_to_box" default="false" doc="a near-vertical open-set grasp whose jaw is well off the axes of the target box (across its diagonal) gets a copy turned about its approach onto the nearest box axis whose side fits the gripper, tried first; safe feature flag, off in code" />
+  <arg name="open_set_align_jaw_narrowest_side" default="false" doc="with open_set_align_jaw_to_box: the first turned copy closes across the narrowest side of the target box that fits the gripper, also for a grasp that already closes across a wider side; the nearest-side copy comes second, then the original; safe feature flag, off in code" />
   <arg name="open_set_strip_reported_padding" default="false" doc="take off the padding the open-set detection reports for its box (box_padding of the detected object) instead of open_set_box_padding, which stays the fallback for a detection without it; careful flag, off by default" />
   <arg name="insert_cable_gate" default="false" doc="true: rank insert poses by predicted cable stretch and offer likely safe ones first (#219); safe feature flag, off in code" />
   <arg name="cable_detour_mode" default="hack" doc="hack: the closed-set objects visit the fixed untangle poses before a pick, place and insert, as always; cable_aware: no untangle pose at all (also no cable replay detour), the MTC cable guard is the protection and a refused motion fails with a clear text; careful flag, hack in the code" />
@@ -75,6 +76,7 @@
     <arg name="open_set_box_padding" value="$(arg open_set_box_padding)" />
     <arg name="cable_detour_mode" value="$(arg cable_detour_mode)" />
     <arg name="open_set_align_jaw_to_box" value="$(arg open_set_align_jaw_to_box)" />
+    <arg name="open_set_align_jaw_narrowest_side" value="$(arg open_set_align_jaw_narrowest_side)" />
     <arg name="open_set_strip_reported_padding" value="$(arg open_set_strip_reported_padding)" />
     <arg name="mtc_lift_tolerate_touching_neighbours" value="$(arg mtc_lift_tolerate_touching_neighbours)" />
     <arg name="use_ur_polished_kinematics" value="$(arg use_ur_polished_kinematics)" />
@@ -97,6 +99,7 @@
     <arg name="open_set_box_padding" value="$(arg open_set_box_padding)" />
     <arg name="cable_detour_mode" value="$(arg cable_detour_mode)" />
     <arg name="open_set_align_jaw_to_box" value="$(arg open_set_align_jaw_to_box)" />
+    <arg name="open_set_align_jaw_narrowest_side" value="$(arg open_set_align_jaw_narrowest_side)" />
     <arg name="open_set_strip_reported_padding" value="$(arg open_set_strip_reported_padding)" />
     <arg name="mtc_lift_tolerate_touching_neighbours" value="$(arg mtc_lift_tolerate_touching_neighbours)" />
     <arg name="use_ur_polished_kinematics" value="$(arg use_ur_polished_kinematics)" />
@@ -165,6 +168,7 @@
     <arg name="open_set_box_padding" value="$(arg open_set_box_padding)" />
     <arg name="cable_detour_mode" value="$(arg cable_detour_mode)" />
     <arg name="open_set_align_jaw_to_box" value="$(arg open_set_align_jaw_to_box)" />
+    <arg name="open_set_align_jaw_narrowest_side" value="$(arg open_set_align_jaw_narrowest_side)" />
     <arg name="open_set_strip_reported_padding" value="$(arg open_set_strip_reported_padding)" />
     <arg name="mtc_lift_tolerate_touching_neighbours" value="$(arg mtc_lift_tolerate_touching_neighbours)" />
     <arg name="insert_cable_gate" value="$(arg insert_cable_gate)" />
