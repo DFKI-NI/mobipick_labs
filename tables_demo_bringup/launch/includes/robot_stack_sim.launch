@@ -1,22 +1,20 @@
 <?xml version="1.0"?>
 <launch>
-  <arg name="use_ur_polished_kinematics" default="false" />
-  <!-- #226: the simulation-side stack of one more Mobipick in its own copy of the scene (spawned by
-       mobipick_gazebo/launch/worlds/<world_config>_x<N>_spawn_sim_objects.launch): fake localization in its own map
-       frame, which lines up with robot 1's map (same coordinates in its copy), navigation with its own map copy, and
-       MoveIt, and the tables demo bringup under the robot namespace. The GPT stack per robot is step 4
-       of #226. -->
-  <arg name="namespace" default="mobipick2" doc="robot namespace, tf prefix and Gazebo model name" />
+  <!-- The ROS stack of ONE simulated Mobipick, the same include for robot 1 and for robot k of a multi-robot sim: so
+       robot k is robot 1 by construction and the argument list exists once. Fake localization, navigation, MoveIt, the
+       camera frustum marker, the cable monitor's tube drawing and the tables demo bringup (moveit_macros, pose selectors,
+       simulated DOPE relay, ft observer, grasplan pick/place/insert, cable monitor, tables_demo_planning params). The
+       Gazebo side of a robot (controllers, robot_state_publisher, ...) is mobipick_gazebo's mobipick_gazebo_common.launch,
+       also one include for every robot. Defaults = robot 1. -->
+  <arg name="namespace" default="mobipick" doc="robot namespace, tf prefix and Gazebo model name" />
+  <arg name="map_frame" default="map" doc="the robot's map frame (robot k in scene copy k: mobipickK/map)" />
+  <arg name="map_ns" default="" doc="namespace of its map servers, empty: /map (robot k: /mobipickK)" />
+  <arg name="pose_selector_ns" default="" doc="namespace of its pose selectors ('' = the global names of robot 1)" />
+  <arg name="offset_x" default="0.0" doc="x offset of its scene copy in Gazebo [m]; != 0: map -> map_frame static tf" />
   <arg name="world_config" default="moelk_tables" />
-  <arg name="offset_x" default="50.0" doc="x offset of this robot's scene copy in Gazebo [m]" />
-  <arg name="moveit" default="true" doc="start move_group for this robot" />
-  <arg name="cable_monitor" default="false" doc="the cable entanglement monitor of this robot" />
-  <arg name="geometric_check" default="true" />
-  <arg name="release_after_rest_s" default="0.0" />
-  <arg name="release_during_rest" default="false" />
-  <arg name="untangle_with_chain" default="false" />
-  <arg name="reset_at_trajectory_start" default="false" />
-  <arg name="reset_cache_mrad" default="0.0" />
+  <arg name="use_ur_polished_kinematics" default="false" />
+  <!-- bringup.launch arguments, passed on unchanged -->
+  <arg name="anygrasp_handles_execution" default="false" />
   <arg name="use_mtc" default="false" />
   <arg name="mtc_cable_plan_check" default="false" />
   <arg name="mtc_cable_support_margin" default="false" />
@@ -31,48 +29,67 @@
   <arg name="grasp_regrasp_on_overclose" default="false" />
   <arg name="open_set_strip_reported_padding" default="false" />
   <arg name="mtc_lift_tolerate_touching_neighbours" default="false" />
+  <arg name="insert_cable_gate" default="false" />
+  <arg name="place_same_orientation_as_picked" default="true" />
+  <arg name="insert_orientation" default="free_yaw" />
+  <arg name="cable_monitor" default="false" />
+  <arg name="geometric_check" default="true" />
+  <arg name="release_after_rest_s" default="0.0" />
+  <arg name="release_during_rest" default="false" />
+  <arg name="untangle_with_chain" default="false" />
+  <arg name="reset_at_trajectory_start" default="false" />
+  <arg name="reset_cache_mrad" default="0.0" />
 
-  <!-- one RViz for all robots: this robot's map frame sits at its copy's offset in the global map frame -->
-  <node pkg="tf2_ros" type="static_transform_publisher" name="$(arg namespace)_map_broadcaster"
-        args="$(arg offset_x) 0 0 0 0 0 map $(arg namespace)/map" />
+  <!-- one RViz for all robots: robot k's map frame sits at its copy's offset in the global map frame -->
+  <node if="$(eval float(arg('offset_x')) != 0.0)" pkg="tf2_ros" type="static_transform_publisher"
+        name="$(arg namespace)_map_broadcaster" args="$(arg offset_x) 0 0 0 0 0 map $(arg map_frame)" />
 
-  <!-- fake localisation (for simulation only), in this robot's map frame: pose = Gazebo pose - offset. -->
+  <!-- ::::: Navigation ::::: -->
+  <!-- fake localisation (for simulation only), in the robot's map frame: pose = Gazebo pose - offset -->
   <include file="$(find mir_gazebo)/launch/fake_localization.launch" ns="$(arg namespace)">
     <arg name="odom_frame_id" value="$(arg namespace)/odom" />
     <arg name="base_frame_id" value="$(arg namespace)/base_footprint" />
-    <arg name="global_frame_id" value="$(arg namespace)/map" />
+    <arg name="global_frame_id" value="$(eval '' if arg('map_frame') == 'map' else arg('map_frame'))" />
     <arg name="delta_x" value="$(arg offset_x)" />
   </include>
-
   <!-- navigation stack (move base) with its own copy of the map in its map frame -->
   <include file="$(find tables_demo_bringup)/launch/includes/navigation/$(arg world_config).launch">
     <arg name="namespace" value="$(arg namespace)" />
-    <arg name="map_ns" value="/$(arg namespace)" />
-    <arg name="map_frame" value="$(arg namespace)/map" />
+    <arg name="map_ns" value="$(arg map_ns)" />
+    <arg name="map_frame" value="$(arg map_frame)" />
   </include>
 
   <!-- ::::: Manipulation , MoveIt: arm movement ::::: -->
-  <include if="$(arg moveit)" file="$(find mobipick_moveit_config)/launch/moveit_planning_execution.launch">
+  <include file="$(find mobipick_moveit_config)/launch/moveit_planning_execution.launch">
+    <arg name="namespace" value="$(arg namespace)" />
     <!-- only passed when enabled: a mobipick_moveit_config without this arg (upstream noetic) must keep launching -->
     <arg name="use_ur_polished_kinematics" value="true" if="$(arg use_ur_polished_kinematics)" />
-    <arg name="namespace" value="$(arg namespace)" />
     <arg name="use_pointcloud" value="true"/>
+    <!-- Gazebo delivers about one gripper-camera frame per second here, so the octomap
+         is fed from a cheaper variant of the robot config: see the file for why. -->
     <arg name="pointcloud_sensor_config"
          value="$(find mobipick_moveit_config)/config/sensors_gripper_cam_pointcloud_sim.yaml"/>
   </include>
+
+  <!-- the camera frustum as a visualisation marker (robot 1: the global name it always had) -->
+  <node pkg="mobipick_pick_n_place" type="camera_marker_publisher" name="camera_marker_publisher"
+        ns="$(eval '/' if arg('pose_selector_ns') == '' else '/' + arg('namespace'))" output="screen">
+    <param name="camera_frame" value="$(arg namespace)/eef_main_cam_depth_frame" />
+  </node>
 
   <!-- the cable monitor's model of this robot's arm cable, drawn in Gazebo (part of the monitor) -->
   <include if="$(arg cable_monitor)" file="$(find tables_demo_bringup)/launch/includes/cable_tube_sim.launch">
     <arg name="namespace" value="$(arg namespace)" />
   </include>
 
-  <!-- grasplan, pose selectors (under /$(arg namespace)), DOPE relay, ft observer, cable monitor of this robot -->
+  <!-- ::::: The tables demo bringup of this robot ::::: -->
   <include file="$(find tables_demo_bringup)/launch/bringup.launch">
     <arg name="simulation" value="true" />
     <arg name="world_config" value="$(arg world_config)" />
     <arg name="namespace" value="$(arg namespace)" />
-    <arg name="pose_selector_ns" value="$(arg namespace)" />
-    <arg name="map_frame" value="$(arg namespace)/map" />
+    <arg name="pose_selector_ns" value="$(arg pose_selector_ns)" />
+    <arg name="map_frame" value="$(arg map_frame)" />
+    <arg name="anygrasp_handles_execution" value="$(arg anygrasp_handles_execution)" />
     <arg name="use_mtc" value="$(arg use_mtc)" />
     <arg name="mtc_cable_plan_check" value="$(arg mtc_cable_plan_check)" />
     <arg name="mtc_cable_support_margin" value="$(arg mtc_cable_support_margin)" />
@@ -87,6 +104,9 @@
     <arg name="grasp_regrasp_on_overclose" value="$(arg grasp_regrasp_on_overclose)" />
     <arg name="open_set_strip_reported_padding" value="$(arg open_set_strip_reported_padding)" />
     <arg name="mtc_lift_tolerate_touching_neighbours" value="$(arg mtc_lift_tolerate_touching_neighbours)" />
+    <arg name="insert_cable_gate" value="$(arg insert_cable_gate)" />
+    <arg name="place_same_orientation_as_picked" value="$(arg place_same_orientation_as_picked)" />
+    <arg name="insert_orientation" value="$(arg insert_orientation)" />
     <arg name="cable_monitor" value="$(arg cable_monitor)" />
     <arg name="geometric_check" value="$(arg geometric_check)" />
     <arg name="release_after_rest_s" value="$(arg release_after_rest_s)" />

@@ -66,62 +66,6 @@
   <!-- the Gazebo cable carrier of robot 1 (spawned once the robot's joint states arrive) -->
   <include if="$(arg cable_carrier_sim)" file="$(find mobipick_cable_entanglement)/launch/cable_carrier_sim.launch" />
 
-  <!-- #226: the stacks of robots 2 and 3 in their scene copies (fake localization, navigation, MoveIt, tables demo bringup) -->
-  <include file="$(find tables_demo_bringup)/launch/includes/extra_mobipick_sim.launch" if="$(eval int(num_robots) >= 2)">
-    <arg name="namespace" value="mobipick2" />
-    <arg name="world_config" value="$(arg world_config)" />
-    <arg name="offset_x" value="50.0" />
-    <arg name="cable_monitor" value="$(arg cable_monitor)" />
-    <arg name="geometric_check" value="$(arg geometric_check)" />
-    <arg name="release_after_rest_s" value="$(arg release_after_rest_s)" />
-    <arg name="release_during_rest" value="$(arg release_during_rest)" />
-    <arg name="untangle_with_chain" value="$(arg untangle_with_chain)" />
-    <arg name="reset_at_trajectory_start" value="$(arg reset_at_trajectory_start)" />
-    <arg name="reset_cache_mrad" value="$(arg reset_cache_mrad)" />
-    <arg name="use_mtc" value="$(arg use_mtc)" />
-    <arg name="mtc_cable_plan_check" value="$(arg mtc_cable_plan_check)" />
-    <arg name="mtc_cable_support_margin" value="$(arg mtc_cable_support_margin)" />
-    <arg name="mtc_cable_replay_live_state" value="$(arg mtc_cable_replay_live_state)" />
-    <arg name="mtc_cable_replay_detour" value="$(arg mtc_cable_replay_detour)" />
-    <arg name="open_set_box_padding" value="$(arg open_set_box_padding)" />
-    <arg name="cable_detour_mode" value="$(arg cable_detour_mode)" />
-    <arg name="open_set_align_jaw_to_box" value="$(arg open_set_align_jaw_to_box)" />
-    <arg name="open_set_align_jaw_narrowest_side" value="$(arg open_set_align_jaw_narrowest_side)" />
-    <arg name="skip_pre_open_when_open" value="$(arg skip_pre_open_when_open)" />
-    <arg name="grasp_standing_tilt_band" value="$(arg grasp_standing_tilt_band)" />
-    <arg name="grasp_regrasp_on_overclose" value="$(arg grasp_regrasp_on_overclose)" />
-    <arg name="open_set_strip_reported_padding" value="$(arg open_set_strip_reported_padding)" />
-    <arg name="mtc_lift_tolerate_touching_neighbours" value="$(arg mtc_lift_tolerate_touching_neighbours)" />
-    <arg name="use_ur_polished_kinematics" value="$(arg use_ur_polished_kinematics)" />
-  </include>
-  <include file="$(find tables_demo_bringup)/launch/includes/extra_mobipick_sim.launch" if="$(eval int(num_robots) >= 3)">
-    <arg name="namespace" value="mobipick3" />
-    <arg name="world_config" value="$(arg world_config)" />
-    <arg name="offset_x" value="100.0" />
-    <arg name="cable_monitor" value="$(arg cable_monitor)" />
-    <arg name="geometric_check" value="$(arg geometric_check)" />
-    <arg name="release_after_rest_s" value="$(arg release_after_rest_s)" />
-    <arg name="release_during_rest" value="$(arg release_during_rest)" />
-    <arg name="untangle_with_chain" value="$(arg untangle_with_chain)" />
-    <arg name="reset_at_trajectory_start" value="$(arg reset_at_trajectory_start)" />
-    <arg name="reset_cache_mrad" value="$(arg reset_cache_mrad)" />
-    <arg name="use_mtc" value="$(arg use_mtc)" />
-    <arg name="mtc_cable_plan_check" value="$(arg mtc_cable_plan_check)" />
-    <arg name="mtc_cable_support_margin" value="$(arg mtc_cable_support_margin)" />
-    <arg name="mtc_cable_replay_live_state" value="$(arg mtc_cable_replay_live_state)" />
-    <arg name="mtc_cable_replay_detour" value="$(arg mtc_cable_replay_detour)" />
-    <arg name="open_set_box_padding" value="$(arg open_set_box_padding)" />
-    <arg name="cable_detour_mode" value="$(arg cable_detour_mode)" />
-    <arg name="open_set_align_jaw_to_box" value="$(arg open_set_align_jaw_to_box)" />
-    <arg name="open_set_align_jaw_narrowest_side" value="$(arg open_set_align_jaw_narrowest_side)" />
-    <arg name="skip_pre_open_when_open" value="$(arg skip_pre_open_when_open)" />
-    <arg name="grasp_standing_tilt_band" value="$(arg grasp_standing_tilt_band)" />
-    <arg name="grasp_regrasp_on_overclose" value="$(arg grasp_regrasp_on_overclose)" />
-    <arg name="open_set_strip_reported_padding" value="$(arg open_set_strip_reported_padding)" />
-    <arg name="mtc_lift_tolerate_touching_neighbours" value="$(arg mtc_lift_tolerate_touching_neighbours)" />
-    <arg name="use_ur_polished_kinematics" value="$(arg use_ur_polished_kinematics)" />
-  </include>
-
   <!-- object_spawn:=random moves the open-set objects once the world has spawned everything (settle 8 s) -->
   <include file="$(find mobipick_open_set_objects)/launch/spawn_open_set_objects.launch" if="$(eval object_spawn == 'random' and world_config == 'cic_tables' and int(num_robots) == 1)">
     <arg name="world" value="$(arg world_config)" />
@@ -152,38 +96,85 @@
     <param name="robot_name" value="mobipick" />
   </node>
 
-  <!-- node to publish the camera frustum as visualisation marker -->
-  <node pkg="mobipick_pick_n_place" type="camera_marker_publisher" name="camera_marker_publisher" output="screen" >
-    <param name="camera_frame" value="mobipick/eef_main_cam_depth_frame" />
-  </node>
-
-  <!-- ::::: Navigation ::::: -->
-
-  <!-- fake localisation (for simulation only) -->
-  <include file="$(find mir_gazebo)/launch/fake_localization.launch" ns="mobipick">
-    <arg name="odom_frame_id" value="mobipick/odom" />
-    <arg name="base_frame_id" value="mobipick/base_footprint" />
-  </include>
-  <!-- navigation stack (move base) -->
-  <include file="$(find tables_demo_bringup)/launch/includes/navigation/$(arg world_config).launch"/>
-
-  <!-- ::::: Manipulation , MoveIt: arm movement ::::: -->
-  <include file="$(find mobipick_moveit_config)/launch/moveit_planning_execution.launch">
-    <!-- only passed when enabled: a mobipick_moveit_config without this arg (upstream noetic) must keep launching -->
-    <arg name="use_ur_polished_kinematics" value="true" if="$(arg use_ur_polished_kinematics)" />
-    <arg name="use_pointcloud" value="true"/>
-    <!-- Gazebo delivers about one gripper-camera frame per second here, so the octomap
-         is fed from a cheaper variant of the robot config: see the file for why. -->
-    <arg name="pointcloud_sensor_config"
-         value="$(find mobipick_moveit_config)/config/sensors_gripper_cam_pointcloud_sim.yaml"/>
-  </include>
-
-  <!-- the cable monitor's model of the arm cable, drawn in Gazebo (sim only, part of the monitor) -->
-  <include if="$(arg cable_monitor)" file="$(find tables_demo_bringup)/launch/includes/cable_tube_sim.launch" />
-
-  <include file="$(find tables_demo_bringup)/launch/bringup.launch" >
-    <arg name="simulation" value="true" />
+  <!-- ::::: The ROS stack of every robot: fake localization, navigation, MoveIt, camera marker, cable tube drawing and the
+       tables demo bringup, the same include for each; robot 1 keeps its global names (pose selectors, map) ::::: -->
+  <include file="$(find tables_demo_bringup)/launch/includes/robot_stack_sim.launch">
+    <arg name="namespace" value="mobipick" />
+    <arg name="map_frame" value="map" />
+    <arg name="map_ns" value="" />
+    <arg name="pose_selector_ns" value="" />
+    <arg name="offset_x" value="0.0" />
     <arg name="world_config" value="$(arg world_config)" />
+    <arg name="use_ur_polished_kinematics" value="$(arg use_ur_polished_kinematics)" />
+    <arg name="anygrasp_handles_execution" value="$(arg anygrasp_handles_execution)" />
+    <arg name="use_mtc" value="$(arg use_mtc)" />
+    <arg name="mtc_cable_plan_check" value="$(arg mtc_cable_plan_check)" />
+    <arg name="mtc_cable_support_margin" value="$(arg mtc_cable_support_margin)" />
+    <arg name="mtc_cable_replay_live_state" value="$(arg mtc_cable_replay_live_state)" />
+    <arg name="mtc_cable_replay_detour" value="$(arg mtc_cable_replay_detour)" />
+    <arg name="open_set_box_padding" value="$(arg open_set_box_padding)" />
+    <arg name="cable_detour_mode" value="$(arg cable_detour_mode)" />
+    <arg name="open_set_align_jaw_to_box" value="$(arg open_set_align_jaw_to_box)" />
+    <arg name="open_set_align_jaw_narrowest_side" value="$(arg open_set_align_jaw_narrowest_side)" />
+    <arg name="skip_pre_open_when_open" value="$(arg skip_pre_open_when_open)" />
+    <arg name="grasp_standing_tilt_band" value="$(arg grasp_standing_tilt_band)" />
+    <arg name="grasp_regrasp_on_overclose" value="$(arg grasp_regrasp_on_overclose)" />
+    <arg name="open_set_strip_reported_padding" value="$(arg open_set_strip_reported_padding)" />
+    <arg name="mtc_lift_tolerate_touching_neighbours" value="$(arg mtc_lift_tolerate_touching_neighbours)" />
+    <arg name="insert_cable_gate" value="$(arg insert_cable_gate)" />
+    <arg name="place_same_orientation_as_picked" value="$(arg place_same_orientation_as_picked)" />
+    <arg name="insert_orientation" value="$(arg insert_orientation)" />
+    <arg name="cable_monitor" value="$(arg cable_monitor)" />
+    <arg name="geometric_check" value="$(arg geometric_check)" />
+    <arg name="release_after_rest_s" value="$(arg release_after_rest_s)" />
+    <arg name="release_during_rest" value="$(arg release_during_rest)" />
+    <arg name="untangle_with_chain" value="$(arg untangle_with_chain)" />
+    <arg name="reset_at_trajectory_start" value="$(arg reset_at_trajectory_start)" />
+    <arg name="reset_cache_mrad" value="$(arg reset_cache_mrad)" />
+  </include>
+  <!-- robots 2 and 3 in their scene copies (spawned by WORLD_CONFIG_xN_spawn_sim_objects.launch above) -->
+  <include file="$(find tables_demo_bringup)/launch/includes/robot_stack_sim.launch" if="$(eval int(num_robots) >= 2)">
+    <arg name="namespace" value="mobipick2" />
+    <arg name="map_frame" value="mobipick2/map" />
+    <arg name="map_ns" value="/mobipick2" />
+    <arg name="pose_selector_ns" value="mobipick2" />
+    <arg name="offset_x" value="50.0" />
+    <arg name="world_config" value="$(arg world_config)" />
+    <arg name="use_ur_polished_kinematics" value="$(arg use_ur_polished_kinematics)" />
+    <arg name="anygrasp_handles_execution" value="$(arg anygrasp_handles_execution)" />
+    <arg name="use_mtc" value="$(arg use_mtc)" />
+    <arg name="mtc_cable_plan_check" value="$(arg mtc_cable_plan_check)" />
+    <arg name="mtc_cable_support_margin" value="$(arg mtc_cable_support_margin)" />
+    <arg name="mtc_cable_replay_live_state" value="$(arg mtc_cable_replay_live_state)" />
+    <arg name="mtc_cable_replay_detour" value="$(arg mtc_cable_replay_detour)" />
+    <arg name="open_set_box_padding" value="$(arg open_set_box_padding)" />
+    <arg name="cable_detour_mode" value="$(arg cable_detour_mode)" />
+    <arg name="open_set_align_jaw_to_box" value="$(arg open_set_align_jaw_to_box)" />
+    <arg name="open_set_align_jaw_narrowest_side" value="$(arg open_set_align_jaw_narrowest_side)" />
+    <arg name="skip_pre_open_when_open" value="$(arg skip_pre_open_when_open)" />
+    <arg name="grasp_standing_tilt_band" value="$(arg grasp_standing_tilt_band)" />
+    <arg name="grasp_regrasp_on_overclose" value="$(arg grasp_regrasp_on_overclose)" />
+    <arg name="open_set_strip_reported_padding" value="$(arg open_set_strip_reported_padding)" />
+    <arg name="mtc_lift_tolerate_touching_neighbours" value="$(arg mtc_lift_tolerate_touching_neighbours)" />
+    <arg name="insert_cable_gate" value="$(arg insert_cable_gate)" />
+    <arg name="place_same_orientation_as_picked" value="$(arg place_same_orientation_as_picked)" />
+    <arg name="insert_orientation" value="$(arg insert_orientation)" />
+    <arg name="cable_monitor" value="$(arg cable_monitor)" />
+    <arg name="geometric_check" value="$(arg geometric_check)" />
+    <arg name="release_after_rest_s" value="$(arg release_after_rest_s)" />
+    <arg name="release_during_rest" value="$(arg release_during_rest)" />
+    <arg name="untangle_with_chain" value="$(arg untangle_with_chain)" />
+    <arg name="reset_at_trajectory_start" value="$(arg reset_at_trajectory_start)" />
+    <arg name="reset_cache_mrad" value="$(arg reset_cache_mrad)" />
+  </include>
+  <include file="$(find tables_demo_bringup)/launch/includes/robot_stack_sim.launch" if="$(eval int(num_robots) >= 3)">
+    <arg name="namespace" value="mobipick3" />
+    <arg name="map_frame" value="mobipick3/map" />
+    <arg name="map_ns" value="/mobipick3" />
+    <arg name="pose_selector_ns" value="mobipick3" />
+    <arg name="offset_x" value="100.0" />
+    <arg name="world_config" value="$(arg world_config)" />
+    <arg name="use_ur_polished_kinematics" value="$(arg use_ur_polished_kinematics)" />
     <arg name="anygrasp_handles_execution" value="$(arg anygrasp_handles_execution)" />
     <arg name="use_mtc" value="$(arg use_mtc)" />
     <arg name="mtc_cable_plan_check" value="$(arg mtc_cable_plan_check)" />
