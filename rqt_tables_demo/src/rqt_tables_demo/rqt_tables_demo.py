@@ -8,8 +8,8 @@ import threading
 
 from qt_gui.plugin import Plugin
 from python_qt_binding import loadUi
-from python_qt_binding.QtWidgets import QWidget, QApplication
-from PyQt5.QtCore import Qt, QMetaObject, Q_ARG, QThread
+from python_qt_binding.QtWidgets import QWidget, QApplication, QHBoxLayout, QLabel
+from PyQt5.QtCore import Qt, QMetaObject, Q_ARG, QThread, pyqtSignal
 
 from grasplan.tools.common import objectToPick
 from geometry_msgs.msg import PoseStamped
@@ -21,6 +21,9 @@ from grasplan.msg import PickObjectAction, PickObjectGoal, PlaceObjectAction
 from grasplan.msg import PlaceObjectGoal, InsertObjectAction, InsertObjectGoal
 
 import robot_api
+from std_msgs.msg import String
+
+from rqt_tables_demo import robot_names
 
 try:
     from mobipick_api.perception import Perception as ApiPerception
@@ -69,6 +72,8 @@ def disable_during_execution(groupbox_attr):
 
 
 class RqtTablesDemo(Plugin):
+    robot_selected = pyqtSignal(str)  # the robot named on /selected_robot (the subscriber thread -> the Qt thread)
+
     def __init__(self, context):
         super(RqtTablesDemo, self).__init__(context)
         rospy.loginfo('Initializing rqt_tables_demo, have a happy pick, place and move and more!')
@@ -91,19 +96,22 @@ class RqtTablesDemo(Plugin):
 
         # ::: class variables
         self.tf_listener = tf.TransformListener()
-        # Get a Robot object using the robot's namespace. The robot API class (module.Class) must offer
+        # the robot the commands go to: ~robot_namespace, else the namespace the plugin was launched in, 'mobipick'
+        # (robot 1) otherwise; changed with the robot selector at the top. The robot API class (module.Class) must offer
         # base.move(x, y, yaw), arm.move(pose_name) and arm.pose_names like robot_api.Robot does.
-        self.robot_namespace = rospy.get_param('~robot_namespace', 'mobipick').strip('/')
-        self.robot = self.make_robot(rospy.get_param('~robot_api_class', 'robot_api.Robot'), self.robot_namespace)
-        # Gazebo model of the robot, for teletransportation in simulation
-        self.gazebo_model_name = rospy.get_param('~gazebo_model_name', self.robot_namespace)
+        self.launch_robot = robot_names.normalize(rospy.get_param('~robot_namespace', rospy.get_namespace()))
+        self.robot_ns = self.launch_robot
+        self.robot_api_class = rospy.get_param('~robot_api_class', 'robot_api.Robot')
+        self.robot = self.make_robot(self.robot_api_class, self.robot_ns)
+        # Gazebo model of the launch robot, for teletransportation in simulation (another robot: its namespace)
+        self.launch_gazebo_model_name = rospy.get_param('~gazebo_model_name', self.launch_robot)
         # a flag to know if pose selector is available or not
         self.is_pose_selector_available = False
         # mobipick_api perception client: AnyGrasp's open-set DetectObjects action, perceive (served by
         # mobipick_active_perception, closed-set only without it) and InspectObject (testing only)
         self.api_perception = None
         if ApiPerception is not None:
-            self.api_perception = ApiPerception(f'/{self.robot_namespace}/', self.robot.arm, None)
+            self.api_perception = ApiPerception(robot_names.prefix(self.robot_ns) + '/', self.robot.arm, None)
         self.is_gripper_srv_available = False
         self.action_client = None
 
@@ -191,74 +199,8 @@ class RqtTablesDemo(Plugin):
         self.hole_objects = rospy.get_param('hole_objects', ['klt'])
 
         # ::: services
-
-        # pose selector service clients
-        pose_selector_activate_srv_name = rospy.get_param(
-            '~pose_selector_activate_srv_name', '/pick_pose_selector_node/pose_selector_activate'
-        )
-        pose_selector_class_query_srv_name = rospy.get_param(
-            '~pose_selector_class_query_srv_name', '/pick_pose_selector_node/pose_selector_class_query'
-        )
-        pose_selector_get_all_poses_srv_name = rospy.get_param(
-            '~pose_selector_get_all_poses_srv_name', '/pick_pose_selector_node/pose_selector_get_all'
-        )
-        pose_selector_clear_srv_name = rospy.get_param(
-            '~pose_selector_clear_srv_name', '/pick_pose_selector_node/pose_selector_clear'
-        )
-        rospy.loginfo(
-            f'waiting for pose selector services: {pose_selector_activate_srv_name}, '
-            '{pose_selector_class_query_srv_name}, '
-            '{pose_selector_get_all_poses_srv_name}, '
-            '{pose_selector_clear_srv_name}'
-        )
-        # if wait_for_service fails, it will throw a
-        # rospy.exceptions.ROSException, and the node will exit (as long as
-        # this happens before moveit_commander.roscpp_initialize()).
-
-        try:
-            rospy.wait_for_service(pose_selector_activate_srv_name, self.wait_for_services)
-            rospy.wait_for_service(pose_selector_class_query_srv_name, 0.5)
-            rospy.wait_for_service(pose_selector_get_all_poses_srv_name, 0.5)
-            rospy.wait_for_service(pose_selector_clear_srv_name, 0.5)
-            self.activate_pose_selector_srv = rospy.ServiceProxy(pose_selector_activate_srv_name, SetBool)
-            self.pose_selector_class_query_srv = rospy.ServiceProxy(pose_selector_class_query_srv_name, ClassQuery)
-            self.pose_selector_get_all_poses_srv = rospy.ServiceProxy(pose_selector_get_all_poses_srv_name, GetPoses)
-            self.pose_selector_clear_srv = rospy.ServiceProxy(pose_selector_clear_srv_name, Trigger)
-            self.is_pose_selector_available = True
-            rospy.loginfo('found pose selector services')
-        except Exception:
-            self.is_pose_selector_available = False
-            self._widget.groupMoveAndActivatePS.setEnabled(False)
-            self._widget.PoseSelector_groupBox.setEnabled(False)
-            rospy.logwarn('pose selector not available, this functionality will not be available')
-
-        # services to actuate (open/close) gripper
-        # without them, ~gripper_via_api lets the buttons use the robot API's gripper.open() and gripper.close()
-        self.gripper_via_api = False
-        open_gripper_srv_name = rospy.get_param(
-            '~open_gripper_srv_name', f'/{self.robot_namespace}/pose_teacher/open_gripper'
-        )
-        close_gripper_srv_name = rospy.get_param(
-            '~close_gripper_srv_name', f'/{self.robot_namespace}/pose_teacher/close_gripper'
-        )
-        try:
-            rospy.wait_for_service(open_gripper_srv_name, self.wait_for_services)
-            rospy.wait_for_service(close_gripper_srv_name, 0.5)
-            self.open_gripper_srv = rospy.ServiceProxy(open_gripper_srv_name, Empty)
-            self.close_gripper_srv = rospy.ServiceProxy(close_gripper_srv_name, Empty)
-            self.is_gripper_srv_available = True
-            rospy.loginfo('found gripper open/close services')
-        except Exception:
-            self.is_gripper_srv_available = False
-            if rospy.get_param('~gripper_via_api', False) and hasattr(self.robot, 'gripper'):
-                self.gripper_via_api = True
-                rospy.loginfo('no gripper open/close services, the gripper buttons use the robot API instead')
-            else:
-                self._widget.cmdOpenGripper.setEnabled(False)
-                self._widget.cmdCloseGripper.setEnabled(False)
-                rospy.logwarn(
-                    'Could not found service to open/close gripper, this functionality will not be available'
-                )
+        self._connect_services()
+        self._add_robot_selector()
 
         # make a connection between the qt objects and this class methods
         self._widget.cmdNavigationGo.clicked.connect(self.navigation_go)
@@ -304,6 +246,107 @@ class RqtTablesDemo(Plugin):
             raise ImportError(f'cannot load the robot API class {api_class_path}: {error}') from error
         rospy.loginfo(f'controlling the robot in namespace /{namespace} with {api_class_path}')
         return api_class(namespace)
+
+    def _connect_services(self):
+        """pose selector and gripper service clients of the chosen robot"""
+        # pose selector service clients
+        # the names follow the chosen robot; the private params override them for the robot the plugin was
+        # launched for
+        ps = robot_names.pose_selector_services(self.robot_ns)
+        gripper = robot_names.gripper_services(self.robot_ns)
+        own = self.robot_ns == self.launch_robot
+        pose_selector_activate_srv_name = rospy.get_param(
+            '~pose_selector_activate_srv_name', ps['activate']) if own else ps['activate']
+        pose_selector_class_query_srv_name = rospy.get_param(
+            '~pose_selector_class_query_srv_name', ps['class_query']) if own else ps['class_query']
+        pose_selector_get_all_poses_srv_name = rospy.get_param(
+            '~pose_selector_get_all_poses_srv_name', ps['get_all']) if own else ps['get_all']
+        pose_selector_clear_srv_name = rospy.get_param(
+            '~pose_selector_clear_srv_name', ps['clear']) if own else ps['clear']
+        rospy.loginfo(
+            f'waiting for pose selector services: {pose_selector_activate_srv_name}, '
+            '{pose_selector_class_query_srv_name}, '
+            '{pose_selector_get_all_poses_srv_name}, '
+            '{pose_selector_clear_srv_name}'
+        )
+        # if wait_for_service fails, it will throw a
+        # rospy.exceptions.ROSException, and the node will exit (as long as
+        # this happens before moveit_commander.roscpp_initialize()).
+
+        try:
+            rospy.wait_for_service(pose_selector_activate_srv_name, self.wait_for_services)
+            rospy.wait_for_service(pose_selector_class_query_srv_name, 0.5)
+            rospy.wait_for_service(pose_selector_get_all_poses_srv_name, 0.5)
+            rospy.wait_for_service(pose_selector_clear_srv_name, 0.5)
+            self.activate_pose_selector_srv = rospy.ServiceProxy(pose_selector_activate_srv_name, SetBool)
+            self.pose_selector_class_query_srv = rospy.ServiceProxy(pose_selector_class_query_srv_name, ClassQuery)
+            self.pose_selector_get_all_poses_srv = rospy.ServiceProxy(pose_selector_get_all_poses_srv_name, GetPoses)
+            self.pose_selector_clear_srv = rospy.ServiceProxy(pose_selector_clear_srv_name, Trigger)
+            self.is_pose_selector_available = True
+            self._widget.groupMoveAndActivatePS.setEnabled(True)
+            self._widget.PoseSelector_groupBox.setEnabled(True)
+            rospy.loginfo('found pose selector services')
+        except Exception:
+            self.is_pose_selector_available = False
+            self._widget.groupMoveAndActivatePS.setEnabled(False)
+            self._widget.PoseSelector_groupBox.setEnabled(False)
+            rospy.logwarn('pose selector not available, this functionality will not be available')
+
+        # services to actuate (open/close) gripper
+        # without them, ~gripper_via_api lets the buttons use the robot API's gripper.open() and gripper.close()
+        self.gripper_via_api = False
+        open_gripper_srv_name = rospy.get_param('~open_gripper_srv_name', gripper['open']) if own else gripper['open']
+        close_gripper_srv_name = rospy.get_param('~close_gripper_srv_name', gripper['close']) if own \
+            else gripper['close']
+        try:
+            rospy.wait_for_service(open_gripper_srv_name, self.wait_for_services)
+            rospy.wait_for_service(close_gripper_srv_name, 0.5)
+            self.open_gripper_srv = rospy.ServiceProxy(open_gripper_srv_name, Empty)
+            self.close_gripper_srv = rospy.ServiceProxy(close_gripper_srv_name, Empty)
+            self.is_gripper_srv_available = True
+            self._widget.cmdOpenGripper.setEnabled(True)
+            self._widget.cmdCloseGripper.setEnabled(True)
+            rospy.loginfo('found gripper open/close services')
+        except Exception:
+            self.is_gripper_srv_available = False
+            if rospy.get_param('~gripper_via_api', False) and hasattr(self.robot, 'gripper'):
+                self.gripper_via_api = True
+                self._widget.cmdOpenGripper.setEnabled(True)
+                self._widget.cmdCloseGripper.setEnabled(True)
+                rospy.loginfo('no gripper open/close services, the gripper buttons use the robot API instead')
+            else:
+                self._widget.cmdOpenGripper.setEnabled(False)
+                self._widget.cmdCloseGripper.setEnabled(False)
+                rospy.logwarn(
+                    'Could not found service to open/close gripper, this functionality will not be available'
+                )
+
+    def _add_robot_selector(self):
+        """no selector of its own: the robot is the one chosen in the sim GUI's single robot selector, read from the
+        latched /selected_robot topic; this label shows which robot the commands go to"""
+        row = QHBoxLayout()
+        row.addWidget(QLabel('Robot:'))
+        self.labelRobot = QLabel(self.robot_ns)
+        self.labelRobot.setToolTip('every command of this panel goes to this robot; choose it in the robot selector '
+                                   'of the sim window')
+        row.addWidget(self.labelRobot, 1)
+        self._widget.main_left_verticalLayout.insertLayout(1, row)
+        self.robot_selected.connect(self._select_robot)
+        self._selected_robot_sub = rospy.Subscriber(robot_names.SELECTED_ROBOT_TOPIC, String,
+                                                    lambda msg: self.robot_selected.emit(msg.data))
+
+    def _select_robot(self, namespace):
+        """rebuild every client for the robot `namespace`"""
+        namespace = robot_names.normalize(namespace)
+        if namespace == self.robot_ns:
+            return
+        self.labelRobot.setText(namespace)
+        rospy.loginfo(f'commands now go to robot {namespace} (was {self.robot_ns})')
+        self.robot_ns = namespace
+        self.robot = self.make_robot(self.robot_api_class, self.robot_ns)
+        if ApiPerception is not None:
+            self.api_perception = ApiPerception(robot_names.prefix(self.robot_ns) + '/', self.robot.arm, None)
+        self._connect_services()
 
     def convert_pose_dict(self, input_dict):
         '''
@@ -405,11 +448,14 @@ class RqtTablesDemo(Plugin):
             # Move the robot's base using move_base.
             angular_q = self.wp_dic[waypoint_as_text][3:7]
             angular_rpy = list(tf.transformations.euler_from_quaternion(angular_q))
-            self.robot.base.move(self.wp_dic[waypoint_as_text][0], self.wp_dic[waypoint_as_text][1], angular_rpy[2])
+            frame = robot_names.map_frame(self.robot_ns)
+            frame_kwargs = {} if frame == 'map' else {'frame_id': frame}  # a robot API's base.move need not take a frame
+            self.robot.base.move(self.wp_dic[waypoint_as_text][0], self.wp_dic[waypoint_as_text][1], angular_rpy[2],
+                                 **frame_kwargs)
         elif self._widget.optNavigationTeletransport.isChecked():
             rospy.loginfo(f'Teletransporting robot to waypoint: {waypoint_as_text}')
             pose_stamped_msg = PoseStamped()
-            pose_stamped_msg.header.frame_id = 'map'
+            pose_stamped_msg.header.frame_id = robot_names.map_frame(self.robot_ns)
             pose_stamped_msg.pose.position.x = self.wp_dic[waypoint_as_text][0]
             pose_stamped_msg.pose.position.y = self.wp_dic[waypoint_as_text][1]
             pose_stamped_msg.pose.position.z = self.wp_dic[waypoint_as_text][2]
@@ -417,7 +463,8 @@ class RqtTablesDemo(Plugin):
             pose_stamped_msg.pose.orientation.y = self.wp_dic[waypoint_as_text][4]
             pose_stamped_msg.pose.orientation.z = self.wp_dic[waypoint_as_text][5]
             pose_stamped_msg.pose.orientation.w = self.wp_dic[waypoint_as_text][6]
-            self.set_model_pose(self.gazebo_model_name, pose_stamped_msg)
+            model = self.launch_gazebo_model_name if self.robot_ns == self.launch_robot else self.robot_ns
+            self.set_model_pose(model, pose_stamped_msg)
 
     @disable_during_execution('Manipulation_groupBox')
     def manipulation_go(self):
@@ -649,7 +696,7 @@ class RqtTablesDemo(Plugin):
             rospy.logerr('Invalid timeout value. Please enter a valid number.')
             return
 
-        pick_object_server_name = 'pick_object'
+        pick_object_server_name = robot_names.action_server(self.robot_ns, 'pick_object')
         self.action_client = actionlib.SimpleActionClient(pick_object_server_name, PickObjectAction)
 
         # Wait for the action server to be available
@@ -727,7 +774,7 @@ class RqtTablesDemo(Plugin):
             rospy.logerr('Invalid timeout value. Please enter a valid number.')
             return
 
-        place_object_server_name = 'place_object'
+        place_object_server_name = robot_names.action_server(self.robot_ns, 'place_object')
         self.action_client = actionlib.SimpleActionClient(place_object_server_name, PlaceObjectAction)
 
         # Wait for the action server to be available
@@ -784,7 +831,7 @@ class RqtTablesDemo(Plugin):
             rospy.logerr('Cannot insert, container object has not been perceived.')
             return
 
-        insert_object_server_name = 'insert_object'
+        insert_object_server_name = robot_names.action_server(self.robot_ns, 'insert_object')
         self.action_client = actionlib.SimpleActionClient(insert_object_server_name, InsertObjectAction)
 
         # Wait for the action server to be available
