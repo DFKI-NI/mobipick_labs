@@ -107,8 +107,16 @@ class RqtTablesDemo(Plugin):
         # base.move(x, y, yaw), arm.move(pose_name) and arm.pose_names like robot_api.Robot does.
         self.launch_robot = robot_names.normalize(rospy.get_param('~robot_namespace', rospy.get_namespace()))
         self.robot_ns = self.launch_robot
-        self.robot_api_class = rospy.get_param('~robot_api_class', 'robot_api.Robot')
+        # ~use_mobipick_api (feature flag, off by default): pose selector, pick, place and insert go through the
+        # Mobipick API (its Perception and Manipulation, which take their names from the robot namespace) instead of
+        # this plugin's own service and action clients
+        self.use_mobipick_api = rospy.get_param('~use_mobipick_api', False)
+        self.robot_api_class = rospy.get_param('~robot_api_class', '') or (
+            'mobipick_api.Robot' if self.use_mobipick_api else 'robot_api.Robot')
         self.robot = self.make_robot(self.robot_api_class, self.robot_ns)
+        if self.use_mobipick_api and not hasattr(self.robot.arm, 'pick_object'):
+            rospy.logwarn(f'{self.robot_api_class} has no pick_object: ~use_mobipick_api is ignored')
+            self.use_mobipick_api = False
         # Gazebo model of the launch robot, for teletransportation in simulation (another robot: its namespace)
         self.launch_gazebo_model_name = rospy.get_param('~gazebo_model_name', self.launch_robot)
         # a flag to know if pose selector is available or not
@@ -269,6 +277,11 @@ class RqtTablesDemo(Plugin):
             '~pose_selector_get_all_poses_srv_name', ps['get_all']) if own else ps['get_all']
         pose_selector_clear_srv_name = rospy.get_param(
             '~pose_selector_clear_srv_name', ps['clear']) if own else ps['clear']
+        if self.use_mobipick_api and self.api_perception is not None:
+            pose_selector_activate_srv_name = self.api_perception.pose_selector_activate_srv_name
+            pose_selector_class_query_srv_name = self.api_perception.pose_selector_class_query_srv_name
+            pose_selector_get_all_poses_srv_name = self.api_perception.pose_selector_get_all_poses_srv_name
+            pose_selector_clear_srv_name = self.api_perception.pose_selector_clear_srv_name
         rospy.loginfo(
             f'waiting for pose selector services: {pose_selector_activate_srv_name}, '
             '{pose_selector_class_query_srv_name}, '
@@ -297,6 +310,12 @@ class RqtTablesDemo(Plugin):
             self._widget.groupMoveAndActivatePS.setEnabled(False)
             self._widget.PoseSelector_groupBox.setEnabled(False)
             rospy.logwarn('pose selector not available, this functionality will not be available')
+        if self.use_mobipick_api and self.api_perception is not None:
+            # one source of the names and the proxies: the API's perception of this robot
+            self.activate_pose_selector_srv = self.api_perception.activate_pose_selector_srv
+            self.pose_selector_class_query_srv = self.api_perception.pose_selector_class_query_srv
+            self.pose_selector_get_all_poses_srv = self.api_perception.pose_selector_get_all_poses_srv
+            self.pose_selector_clear_srv = self.api_perception.pose_selector_clear_srv
 
         # services to actuate (open/close) gripper
         # without them, ~gripper_via_api lets the buttons use the robot API's gripper.open() and gripper.close()
@@ -714,6 +733,12 @@ class RqtTablesDemo(Plugin):
             rospy.logerr('Invalid timeout value. Please enter a valid number.')
             return
 
+        if self.use_mobipick_api:
+            ignore_list = [chk.text() for chk in self.ignore_from_ps_chks if chk.isChecked() and chk.text() != '-']
+            self._manipulate_via_api(f'pick {object_to_pick}', lambda: self.robot.arm.pick_object(
+                object_to_pick, support_surface_name, ignore_list, timeout=timeout))
+            return
+
         pick_object_server_name = robot_names.action_server(self.robot_ns, 'pick_object')
         self.action_client = actionlib.SimpleActionClient(pick_object_server_name, PickObjectAction)
 
@@ -760,6 +785,14 @@ class RqtTablesDemo(Plugin):
             rospy.logerr(f'Action server {pick_object_server_name} not available within the timeout period')
         self.action_client = None
 
+    def _manipulate_via_api(self, what, call):
+        """run a pick, place or insert of the Mobipick API for the chosen robot and log why it failed"""
+        rospy.loginfo(f'{what}: through the Mobipick API of robot {self.robot_ns}')
+        if call():
+            rospy.loginfo(f'{what}: succeeded')
+        else:
+            rospy.logerr(f'{what}: failed: {self.robot.arm.last_manipulation_message}')
+
     def open_gripper(self):
         # rosservice call /<robot namespace>/pose_teacher/open_gripper
         if self.is_gripper_srv_available:
@@ -790,6 +823,11 @@ class RqtTablesDemo(Plugin):
             timeout = float(self._widget.txtPlaceTimeout.toPlainText())
         except ValueError:
             rospy.logerr('Invalid timeout value. Please enter a valid number.')
+            return
+
+        if self.use_mobipick_api:
+            self._manipulate_via_api('place', lambda: self.robot.arm.place_object(
+                support_surface_name, self._widget.chkPlaceObjObserveBeforePlacing.isChecked(), timeout=timeout))
             return
 
         place_object_server_name = robot_names.action_server(self.robot_ns, 'place_object')
@@ -849,6 +887,11 @@ class RqtTablesDemo(Plugin):
             rospy.logerr('Cannot insert, container object has not been perceived.')
             return
 
+        if self.use_mobipick_api:
+            self._manipulate_via_api('insert', lambda: self.robot.arm.insert_object(
+                support_surface_name, observe_before_insert, timeout=timeout))
+            return
+
         insert_object_server_name = robot_names.action_server(self.robot_ns, 'insert_object')
         self.action_client = actionlib.SimpleActionClient(insert_object_server_name, InsertObjectAction)
 
@@ -900,6 +943,10 @@ class RqtTablesDemo(Plugin):
 
     def cancel(self):
         # TODO: extend the code to handle move base and perception (arm movement) cancellation as well
+        if self.use_mobipick_api:
+            if not self.robot.arm.cancel_manipulation():
+                rospy.logerr('cannot cancel goal, NOTE: cancel is implemented only for pick, place and insert')
+            return
         if not self.action_client:
             rospy.logerr('cannot cancel goal, NOTE: cancel is implemented only for pick, place and insert')
         else:
