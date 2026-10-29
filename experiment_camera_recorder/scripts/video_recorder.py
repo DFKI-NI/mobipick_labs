@@ -404,7 +404,7 @@ class VideoRecorder:
         self.model_label_param = str(rospy.get_param("~model_label_param", "experiment_model_label")).strip()
         if not self.command and not self.command_topic:
             raise ValueError("nothing tells what is run: pass command:=\"<the command>\" or command_topic:=<the goal "
-                             "topic> (a video must show what was run, #349)")
+                             "topic> (a video must show what was run)")
         if not self.command:
             rospy.logwarn("~command is empty: the videos show the goal that arrives on %s (with the model profile) "
                           "and 'NO COMMAND YET' until then", self.command_topic)
