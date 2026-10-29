@@ -492,3 +492,85 @@ def test_lead_in_zero_keeps_the_old_motion_only_behaviour(recorder_module, monke
     node, clock = _ticking(recorder_module, monkeypatch, lead_in_s=0.0)
     node._tick(None)
     assert _frames(node) == 0 and node.events == []
+
+
+def _subscribed_motion_topics(module, monkeypatch, tmp_path, params):
+    """the cmd_vel and joint_states topics a VideoRecorder built with these private parameters subscribes to"""
+    values = {"~image_topics": ["/experiment_camera/image_raw"], "~command": "run", "~output_dir": str(tmp_path)}
+    values.update(params)
+    module.rospy.get_param = lambda name, default=None: values.get(name, default)
+    for name in ("Service", "Publisher", "Timer", "Duration"):
+        setattr(module.rospy, name, Mock())
+    module.rospy.Subscriber = Mock()
+    monkeypatch.setattr(module, "TopicRecorder", Mock())
+    monkeypatch.setattr(module.VideoRecorder, "_set_overlays", Mock())
+    monkeypatch.setattr(module.VideoRecorder, "_write_summary", Mock())
+    monkeypatch.setattr(module.VideoRecorder, "_log_event", Mock())
+    module.VideoRecorder()
+    topics = [call.args[0] for call in module.rospy.Subscriber.call_args_list]
+    return [t for t in topics if t.endswith("cmd_vel")], [t for t in topics if t.endswith("joint_states")]
+
+
+TWO_CAMERAS = {"~image_topics": "/experiment_camera/image_raw /experiment_camera2/image_raw",
+               "~topic_robots": "mobipick mobipick2", "~title": "g382-run-1"}
+
+
+def test_by_default_the_motion_of_the_first_robot_counts(recorder_module, monkeypatch, tmp_path):
+    cmd_vel, joints = _subscribed_motion_topics(recorder_module, monkeypatch, tmp_path, {})
+    assert (cmd_vel, joints) == (["/mobipick/cmd_vel"], ["/mobipick/joint_states"])
+
+
+def test_every_robot_namespace_keeps_the_recording_going(recorder_module, monkeypatch, tmp_path):
+    cmd_vel, joints = _subscribed_motion_topics(recorder_module, monkeypatch, tmp_path,
+                                                {"~robot_namespaces": "mobipick /mobipick2"})
+    assert cmd_vel == ["/mobipick/cmd_vel", "/mobipick2/cmd_vel"]
+    assert joints == ["/mobipick/joint_states", "/mobipick2/joint_states"]
+
+
+def test_explicit_motion_topics_override_the_namespaces(recorder_module, monkeypatch, tmp_path):
+    cmd_vel, joints = _subscribed_motion_topics(recorder_module, monkeypatch, tmp_path,
+                                                {"~robot_namespaces": "mobipick mobipick2",
+                                                 "~cmd_vel_topic": "/a/cmd_vel"})
+    assert cmd_vel == ["/a/cmd_vel"]
+    assert joints == ["/mobipick/joint_states", "/mobipick2/joint_states"]
+
+
+def test_one_video_per_robot_with_the_robot_first_in_its_title(recorder_module, monkeypatch, tmp_path):
+    cmd_vel, joints = _subscribed_motion_topics(recorder_module, monkeypatch, tmp_path, TWO_CAMERAS)
+    calls = recorder_module.TopicRecorder.call_args_list
+    assert [call.args[0] for call in calls] == ["/experiment_camera/image_raw", "/experiment_camera2/image_raw"]
+    assert [(call.args[10], call.args[11]) for call in calls] == [("mobipick-g382-run-1", True),
+                                                                  ("mobipick2-g382-run-1", True)]
+    assert len({call.args[5] for call in calls}) == 2            # each video its own id
+    assert cmd_vel == ["/mobipick/cmd_vel", "/mobipick2/cmd_vel"]
+    assert joints == ["/mobipick/joint_states", "/mobipick2/joint_states"]
+
+
+def test_topic_robots_must_name_one_robot_per_camera(recorder_module, monkeypatch, tmp_path):
+    with pytest.raises(ValueError, match="2 image topics"):
+        _subscribed_motion_topics(recorder_module, monkeypatch, tmp_path, dict(TWO_CAMERAS, **{"~topic_robots": "x"}))
+
+
+def test_each_robot_video_is_written_only_while_its_robot_moves(recorder_module, monkeypatch):
+    node, clock = _ticking(recorder_module, monkeypatch)
+    node.recorders = [Mock(), Mock()]
+    node.topic_robots, node.robot_motion = ["mobipick", "mobipick2"], {}
+    node.joint_pattern, node.joint_velocity_threshold = recorder_module.re.compile("ur5"), 0.02
+    clock["now"] += 5.0                                          # after the lead-in
+    node._joint_states_callback(types.SimpleNamespace(name=["mobipick2/ur5_wrist_3_joint"], velocity=[0.5]),
+                                "mobipick2")
+    node._tick(None)
+    assert [r.write_latest.call_count for r in node.recorders] == [0, 1]
+    node.recorders[1].write_latest.assert_called_with("REC")
+    node._cmd_vel_callback(types.SimpleNamespace(linear=types.SimpleNamespace(x=0.2, y=0.0),
+                                                 angular=types.SimpleNamespace(z=0.0)), "mobipick")
+    node._tick(None)
+    assert [r.write_latest.call_count for r in node.recorders] == [1, 2]
+
+
+def test_in_the_lead_in_every_robot_video_is_written(recorder_module, monkeypatch):
+    node, clock = _ticking(recorder_module, monkeypatch)
+    node.recorders = [Mock(), Mock()]
+    node.topic_robots, node.robot_motion = ["mobipick", "mobipick2"], {}
+    node._tick(None)
+    assert [r.write_latest.call_args.args for r in node.recorders] == [("REC idle",), ("REC idle",)]

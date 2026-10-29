@@ -13,19 +13,25 @@
   <arg name="record_frequency" default="0.2" />
   <arg name="output_dir" default="" />
   <arg name="jpeg_quality" default="90" />
+  <!-- a second camera of the same world (another scene copy of a multi-robot sim) needs its own name: model, node and
+       topics /CAMERA_NAME/image_raw; offset_x shifts the pose along x by the copy offset -->
+  <arg name="camera_name" default="experiment_camera" />
+  <arg name="offset_x" default="0.0" />
+  <arg name="spawn_x" value="$(eval float(arg('x')) + float(arg('offset_x')))" />
 
-  <param name="experiment_camera_description"
+  <param name="$(arg camera_name)_description"
          command="$(find xacro)/xacro '$(find experiment_camera_recorder)/urdf/experiment_camera.urdf.xacro'
-                  width:=$(arg width) height:=$(arg height) update_rate:=$(arg update_rate)" />
+                  width:=$(arg width) height:=$(arg height) update_rate:=$(arg update_rate)
+                  camera_name:=$(arg camera_name)" />
 
-  <node pkg="gazebo_ros" type="spawn_model" name="spawn_experiment_camera" output="screen"
-        args="-urdf -param experiment_camera_description -model experiment_camera
-              -x $(arg x) -y $(arg y) -z $(arg z)
+  <node pkg="gazebo_ros" type="spawn_model" name="spawn_$(arg camera_name)" output="screen"
+        args="-urdf -param $(arg camera_name)_description -model $(arg camera_name)
+              -x $(arg spawn_x) -y $(arg y) -z $(arg z)
               -R $(arg roll) -P $(arg pitch) -Y $(arg yaw)" />
 
   <node if="$(arg record)" pkg="experiment_camera_recorder" type="frame_recorder.py"
-        name="experiment_camera_frame_recorder" output="screen">
-    <param name="image_topic" value="/experiment_camera/image_raw" />
+        name="$(arg camera_name)_frame_recorder" output="screen">
+    <param name="image_topic" value="/$(arg camera_name)/image_raw" />
     <param name="frequency" value="$(arg record_frequency)" />
     <param name="output_dir" value="$(arg output_dir)" />
     <param name="jpeg_quality" value="$(arg jpeg_quality)" />

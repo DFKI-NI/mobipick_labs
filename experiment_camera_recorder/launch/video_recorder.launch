@@ -21,6 +21,14 @@
   <arg name="lead_in_s" default="3.0" />
   <arg name="start_paused" default="false" />
   <arg name="overlay" default="true" />
+  <!-- one video per robot: the robot each of image_topics shows, separated by spaces, e.g. the overview cameras of a
+       two-robot sim image_topics:="/experiment_camera/image_raw /experiment_camera2/image_raw" with
+       topic_robots:="mobipick mobipick2": each video gets its own id, a title that starts with its robot
+       (<id>_mobipick2-<title>.mp4) and is written while that robot moves; empty: every video follows every robot -->
+  <arg name="topic_robots" default="" />
+  <!-- the robots whose motion (NS/cmd_vel, NS/joint_states) keeps the recording going, separated by spaces; empty:
+       those of topic_robots, else mobipick -->
+  <arg name="robot_namespaces" default="" />
   <arg name="joint_pattern" default="ur5" />  <!-- the simulated gripper finger reports ~0.18 rad/s at rest -->
   <!-- fragmented H.264 MP4 that stays playable when the recorder is killed (false: OpenCV's avc1, unplayable then) -->
   <arg name="crash_safe" default="true" />
@@ -41,6 +49,8 @@
     <param name="lead_in_s" value="$(arg lead_in_s)" />
     <param name="start_paused" value="$(arg start_paused)" />
     <param name="overlay" value="$(arg overlay)" />
+    <param name="topic_robots" type="str" value="$(arg topic_robots)" />
+    <param name="robot_namespaces" type="str" value="$(arg robot_namespaces)" />
     <param name="joint_pattern" value="$(arg joint_pattern)" />
     <param name="crash_safe" value="$(arg crash_safe)" />
     <param name="bitrate_kbps" value="$(arg bitrate_kbps)" />

@@ -16,7 +16,8 @@ velocity, arm or gripper joint velocities), so idle phases such as an agent
 thinking are cut automatically; the first ``~lead_in_s`` seconds and the ``~lead_in_s`` seconds after each goal
 are written also while the robot stands still, so a run in which the robot never moves (a refused plan) still gives a
 short video with the command and the robot at rest instead of none. The ``~pause`` / ``~resume`` services override that
-by hand. ``~snapshot`` (std_msgs/String label) saves the latest frame of every
+by hand. With ``~topic_robots`` (one robot namespace per image topic, e.g. the overview camera of each robot of a
+multi-robot sim) each video's title starts with its robot and it is written while that robot moves. ``~snapshot`` (std_msgs/String label) saves the latest frame of every
 topic as JPEG, ``~stop`` closes the videos. ``~status`` (std_srvs/Trigger) reports
 the state as JSON; ``events.jsonl`` in the output directory records pauses,
 resumes and snapshots with ROS and wall time, and ``<id>_<name>_frames.jsonl`` maps every
@@ -62,6 +63,13 @@ def sanitize_title(text, max_length=40):
 def video_id(started, token=None):
     """The unique video id ``v<YYYYMMDD>-<HHMMSS>-<4 hex>`` of a video started at datetime ``started``."""
     return "v%s-%s" % (started.strftime("%Y%m%d-%H%M%S"), token or secrets.token_hex(2))
+
+
+def motion_list(value):
+    """Topics or namespaces from a list parameter or a string separated by commas or white space."""
+    if isinstance(value, str):
+        return [item for item in re.split(r"[,\s]+", value) if item]
+    return [str(item) for item in value]
 
 
 def split_forbidden(topics, pattern):
@@ -413,8 +421,22 @@ class VideoRecorder:
         self.lead_in_s = float(rospy.get_param("~lead_in_s", 3.0))
         self.joint_velocity_threshold = float(rospy.get_param("~joint_velocity_threshold", 0.02))
         self.joint_pattern = re.compile(str(rospy.get_param("~joint_pattern", "ur5")))
-        cmd_vel_topic = rospy.get_param("~cmd_vel_topic", "/mobipick/cmd_vel")
-        joint_states_topic = rospy.get_param("~joint_states_topic", "/mobipick/joint_states")
+        # ~topic_robots: the robot (namespace) each image topic shows, one per topic, e.g. one overview camera per
+        # robot of a multi-robot sim: its video's title starts with the robot and it pauses on that robot's motion
+        self.topic_robots = [ns.strip("/") for ns in motion_list(rospy.get_param("~topic_robots", []))]
+        if self.topic_robots and len(self.topic_robots) != len(topics):
+            raise ValueError("~topic_robots names %d robots for %d image topics %s"
+                             % (len(self.topic_robots), len(topics), topics))
+        # the robots whose motion counts: ~robot_namespaces, else those of ~topic_robots, else mobipick; explicit
+        # ~cmd_vel_topic / ~joint_states_topic (lists or one topic) override their topics and count for every video
+        namespaces = ([ns.strip("/") for ns in motion_list(rospy.get_param("~robot_namespaces", ""))]
+                      or list(dict.fromkeys(self.topic_robots)) or ["mobipick"])
+        cmd_vel_topic = rospy.get_param("~cmd_vel_topic", None)
+        joint_states_topic = rospy.get_param("~joint_states_topic", None)
+        cmd_vel_topics = ([(t, None) for t in motion_list(cmd_vel_topic)] if cmd_vel_topic is not None
+                          else [("/%s/cmd_vel" % ns, ns) for ns in namespaces])
+        joint_states_topics = ([(t, None) for t in motion_list(joint_states_topic)] if joint_states_topic is not None
+                               else [("/%s/joint_states" % ns, ns) for ns in namespaces])
         if self.fps <= 0:
             raise ValueError("~fps must be positive")
 
@@ -428,6 +450,7 @@ class VideoRecorder:
         self.lock = threading.Lock()
         self.manual_paused = bool(rospy.get_param("~start_paused", False))
         self.last_motion = None
+        self.robot_motion = {}    # robot namespace (None: a topic of no robot) -> time of its last motion
         self.moving = False
         self.recording = False
         self.stopped = False
@@ -439,14 +462,21 @@ class VideoRecorder:
         while len(ids) < len(topics):                 # one id per video, unique also within this recording
             ids.add(video_id(started))
         ids_path = os.path.join(os.path.dirname(self.output_dir), "video_ids.tsv")
+        if self.topic_robots:                         # the file name says which robot the video shows
+            titles = ["-".join(part for part in (robot, title) if part) for robot in self.topic_robots]
+        else:
+            titles = [title] * len(topics)
+        title_only = len(topics) == 1 or bool(self.topic_robots)
         self.recorders = [TopicRecorder(t, self.output_dir, self.fps, codec, overlay, i, self.command, ids_path,
-                                        crash_safe, bitrate_kbps, title, len(topics) == 1)
-                          for t, i in zip(topics, sorted(ids))]
+                                        crash_safe, bitrate_kbps, video_title, title_only)
+                          for t, i, video_title in zip(topics, sorted(ids), titles)]
         self._set_overlays()
         self._write_summary()
 
-        rospy.Subscriber(cmd_vel_topic, Twist, self._cmd_vel_callback, queue_size=1)
-        rospy.Subscriber(joint_states_topic, JointState, self._joint_states_callback, queue_size=1)
+        for topic, robot in cmd_vel_topics:
+            rospy.Subscriber(topic, Twist, self._cmd_vel_callback, callback_args=robot, queue_size=1)
+        for topic, robot in joint_states_topics:
+            rospy.Subscriber(topic, JointState, self._joint_states_callback, callback_args=robot, queue_size=1)
         rospy.Subscriber("~snapshot", String, self._snapshot_callback, queue_size=10)
         if self.command_topic:
             rospy.Subscriber(self.command_topic, String, self._goal_callback, queue_size=10)
@@ -500,15 +530,23 @@ class VideoRecorder:
 
     # --- motion detection ---------------------------------------------------
 
-    def _cmd_vel_callback(self, message):
-        if any(abs(v) > 1e-3 for v in (message.linear.x, message.linear.y, message.angular.z)):
-            self.last_motion = time.time()
+    def _moved(self, robot):
+        self.last_motion = self.robot_motion[robot] = time.time()
 
-    def _joint_states_callback(self, message):
+    def _cmd_vel_callback(self, message, robot=None):
+        if any(abs(v) > 1e-3 for v in (message.linear.x, message.linear.y, message.angular.z)):
+            self._moved(robot)
+
+    def _joint_states_callback(self, message, robot=None):
         for name, velocity in zip(message.name, message.velocity):
             if self.joint_pattern.search(name) and abs(velocity) > self.joint_velocity_threshold:
-                self.last_motion = time.time()
+                self._moved(robot)
                 return
+
+    def _robot_moving(self, robot, now):
+        """whether the robot of a ~topic_robots video moved within ~motion_hold_s (a topic of no robot counts too)"""
+        times = [t for t in (self.robot_motion.get(robot), self.robot_motion.get(None)) if t is not None]
+        return bool(times) and now - max(times) <= self.motion_hold_s
 
     # --- recording loop -----------------------------------------------------
 
@@ -528,9 +566,15 @@ class VideoRecorder:
                 self._write_summary()
             if not should_record:
                 return
-            label = "REC" if moving else "REC idle"
-            for recorder in self.recorders:
-                recorder.write_latest(label)
+            robots = getattr(self, "topic_robots", None) or [None] * len(self.recorders)
+            for recorder, robot in zip(self.recorders, robots):
+                if robot is None:
+                    recorder.write_latest("REC" if moving else "REC idle")
+                    continue
+                # a video of one robot: written while that robot moves, in the lead-in, or without auto_pause
+                robot_moving = self._robot_moving(robot, now)
+                if robot_moving or lead_in or not self.auto_pause:
+                    recorder.write_latest("REC" if robot_moving else "REC idle")
             if now - self.summary_written >= self.summary_period_s:
                 self._write_summary()
 

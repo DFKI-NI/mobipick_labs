@@ -66,6 +66,8 @@ def launch_file_code(poses):
     <arg name=\"record\" value=\"$(arg record)\" />
     <arg name=\"record_frequency\" value=\"$(arg record_frequency)\" />
     <arg name=\"output_dir\" value=\"$(arg output_dir)\" />
+    <arg name=\"camera_name\" value=\"$(arg camera_name)\" />
+    <arg name=\"offset_x\" value=\"$(arg offset_x)\" />
   </include>
 """.format(world=world, **pose))
     worlds = ", ".join("'{}'".format(world) for world in poses)
@@ -76,6 +78,9 @@ def launch_file_code(poses):
   <arg name=\"record\" default=\"false\" />
   <arg name=\"record_frequency\" default=\"0.2\" />
   <arg name=\"output_dir\" default=\"\" />
+  <!-- another scene copy of a multi-robot sim: its own camera name, the same pose shifted by the copy offset -->
+  <arg name=\"camera_name\" default=\"experiment_camera\" />
+  <arg name=\"offset_x\" default=\"0.0\" />
 
 {blocks}
   <!-- worlds without a tuned pose get the camera.launch default pose -->
@@ -83,6 +88,8 @@ def launch_file_code(poses):
     <arg name=\"record\" value=\"$(arg record)\" />
     <arg name=\"record_frequency\" value=\"$(arg record_frequency)\" />
     <arg name=\"output_dir\" value=\"$(arg output_dir)\" />
+    <arg name=\"camera_name\" value=\"$(arg camera_name)\" />
+    <arg name=\"offset_x\" value=\"$(arg offset_x)\" />
   </include>
 </launch>
 """.format(blocks="\n".join(blocks), worlds=worlds)

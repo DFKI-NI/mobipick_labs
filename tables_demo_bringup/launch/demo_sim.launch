@@ -9,6 +9,7 @@
   <arg name="mtc_lift_tolerate_touching_neighbours" default="false" doc="allow a just-attached object to clear only box neighbours already touching it during a straight-up MTC lift (#229; careful flag, off in code)" />
   <arg name="mtc_cable_constraints" default="false" doc="old name of mtc_cable_plan_check, still accepted" />
   <arg name="mtc_cable_plan_check" default="$(arg mtc_cable_constraints)" doc="true (with use_mtc): check every planned MTC joint path against the arm cable model (mobipick_cable_entanglement) and throw away a plan that would stretch the cable tube, then try the next one; the same switch also makes the free motions keep wrist_3 within a window around its least-wound angle, a planning constraint (the real robot's wrist_3 limits are tighter than that window, so there only the check acts)" />
+  <arg name="mtc_cable_path_shaping" default="false" doc="true (with use_mtc and mtc_cable_plan_check): the arm cable model shapes the path before planning: the IK branch with the most cable slack, model-chosen joint waypoints and a wrist corridor; the cable guard stays the final check; careful feature flag, off in code" />
   <arg name="mtc_cable_support_margin" default="false" doc="true (with mtc_cable_plan_check): with the support wrist anchor (the sim) the MTC cable guard plans with a -0.07 geometric stretch margin instead of -0.115, so fewer arm paths are rejected as entangling; careful feature flag, off in code" />
   <arg name="mtc_cable_replay_live_state" default="false" doc="true (with mtc_cable_plan_check): the cable guard's replay of a planned path through the carrier link chain goes on from the cable monitor's live chain (its chain_state service) instead of a fresh chain, so it sees what the motions before the path did; a fresh chain where the monitor resets its chain at every trajectory start; safe feature flag, off in code" />
   <arg name="mtc_cable_replay_detour" default="false" doc="true (with mtc_cable_plan_check): when the cable guard refused a closed-set pick by its chain replay alone, move the arm to untangle_cable_guide_2_right as a separate motion and plan the pick once more from there; no detour while the named-move guard only logs (the real robot default); careful feature flag, off in code" />
@@ -34,7 +35,11 @@
   <arg name="reset_cache_mrad" default="0.0" doc="careful flag, off in code: > 0 = start-pose cache of the settled chain, rounding step in mrad" />
   <arg name="cable_carrier_sim" default="false" doc="sim only prototype, off by default: the arm cable carrier of the wrist span as a jointed chain in Gazebo (gazebo_jointed_chain plugin, PLACEHOLDER stiffness until the real carrier is measured), colliding only with the cable model's shapes; it logs strain and clamp force events and never presses the protective stop; slows the sim about 27 %" />
 
-  <arg name="num_robots" default="1" doc="#226: 2 or 3 = that many identical copies of the world_config scene 50 m apart in one Gazebo, robot 1 (mobipick) in the first as with 1, robot k (mobipickK, map frame mobipickK/map) in copy k, for parallel experiments. Sim only; needs mobipick_gazebo/launch/worlds/WORLD_CONFIG_xN_spawn_sim_objects.launch (moelk_tables so far)" />
+  <arg name="num_robots" default="1" doc="2 or 3 = that many identical copies of the world_config scene side by side in one Gazebo, copy_gap apart, robot 1 (mobipick) in the first as with 1, robot k (mobipickK, map frame mobipickK/map) in copy k, for parallel experiments. Sim only; needs mobipick_gazebo/launch/worlds/WORLD_CONFIG_xN_spawn_sim_objects.launch (moelk_tables so far)" />
+  <arg name="scene_size_x" default="15.9" doc="x extent of one scene copy, the bounding box of the moelk building with its tables and objects [m]; same default as mobipick_gazebo's moelk_tables_x2_spawn_sim_objects.launch" />
+  <arg name="copy_gap" default="1.0" doc="gap between the bounding boxes of neighbouring scene copies [m]" />
+  <arg name="copy_offset_x" value="$(eval float(arg('scene_size_x')) + float(arg('copy_gap')))" />
+  <arg name="copy_offset_x_3" value="$(eval 2 * float(arg('copy_offset_x')))" />
 
   <!-- controls the simulation speed -->
   <arg name="physics_profile" default="fast" doc="options: slow, fast" />
@@ -46,6 +51,7 @@
 
   <!-- Transparent overview camera and sparse experiment image recorder. -->
   <arg name="experiment_camera" default="true" />
+  <arg name="experiment_camera_copies" default="$(eval int(num_robots) > 1)" doc="with num_robots 2 or 3 and experiment_camera: one more overview camera per scene copy, /experiment_cameraK/image_raw for robot K at the pose of the first shifted by the copy offset, so each robot can get its own overview video" />
   <arg name="start_ground_truth_viz" default="true" doc="publish the Gazebo tables and objects (boxes + URDF meshes) on /sim_ground_truth/* for RViz; only reads Gazebo while someone subscribes" />
   <arg name="legacy_dope_object_publisher" default="false" doc="true: start the legacy gazebo_object_publisher (fake DOPE detections of table_1 and the power drill from Gazebo, #224); only robot_api's PickUpObject macro reads them" />
   <arg name="record_experiment_images" default="false" />
@@ -64,6 +70,8 @@
     <arg name="physics_profile" value="$(arg physics_profile)" />
     <arg name="grasp_fix" value="$(arg grasp_fix)" />
     <arg name="gui" value="$(arg gui)" />
+    <arg name="scene_size_x" value="$(arg scene_size_x)" />
+    <arg name="copy_gap" value="$(arg copy_gap)" />
   </include>
   <!-- the Gazebo cable carrier of robot 1 (spawned once the robot's joint states arrive) -->
   <include if="$(arg cable_carrier_sim)" file="$(find mobipick_cable_entanglement)/launch/cable_carrier_sim.launch" />
@@ -87,6 +95,19 @@
     <arg name="record_frequency" value="$(arg experiment_image_frequency)" />
     <arg name="output_dir" value="$(arg experiment_image_output_dir)" />
   </include>
+  <!-- the overview cameras of the other scene copies: one video per robot (video_recorder.launch topic_robots) -->
+  <group if="$(eval experiment_camera and experiment_camera_copies and int(num_robots) > 1)">
+    <include file="$(find experiment_camera_recorder)/launch/configured_camera.launch">
+      <arg name="world_config" value="$(arg world_config)" />
+      <arg name="camera_name" value="experiment_camera2" />
+      <arg name="offset_x" value="$(arg copy_offset_x)" />
+    </include>
+    <include if="$(eval int(num_robots) >= 3)" file="$(find experiment_camera_recorder)/launch/configured_camera.launch">
+      <arg name="world_config" value="$(arg world_config)" />
+      <arg name="camera_name" value="experiment_camera3" />
+      <arg name="offset_x" value="$(arg copy_offset_x_3)" />
+    </include>
+  </group>
 
   <!-- #224: the legacy pick_n_place object publisher turned Gazebo link poses into permanent fake DOPE detections
        (/mobipick/dope/detected_objects, /mobipick/dope/markers: a "table (1.0)" box at table_1 and "power_drill (1.0)")
@@ -111,6 +132,7 @@
     <arg name="anygrasp_handles_execution" value="$(arg anygrasp_handles_execution)" />
     <arg name="use_mtc" value="$(arg use_mtc)" />
     <arg name="mtc_cable_plan_check" value="$(arg mtc_cable_plan_check)" />
+    <arg name="mtc_cable_path_shaping" value="$(arg mtc_cable_path_shaping)" />
     <arg name="mtc_cable_support_margin" value="$(arg mtc_cable_support_margin)" />
     <arg name="mtc_cable_replay_live_state" value="$(arg mtc_cable_replay_live_state)" />
     <arg name="mtc_cable_replay_detour" value="$(arg mtc_cable_replay_detour)" />
@@ -140,12 +162,13 @@
     <arg name="map_frame" value="mobipick2/map" />
     <arg name="map_ns" value="/mobipick2" />
     <arg name="pose_selector_ns" value="mobipick2" />
-    <arg name="offset_x" value="50.0" />
+    <arg name="offset_x" value="$(arg copy_offset_x)" />
     <arg name="world_config" value="$(arg world_config)" />
     <arg name="use_ur_polished_kinematics" value="$(arg use_ur_polished_kinematics_robot2)" />
     <arg name="anygrasp_handles_execution" value="$(arg anygrasp_handles_execution)" />
     <arg name="use_mtc" value="$(arg use_mtc)" />
     <arg name="mtc_cable_plan_check" value="$(arg mtc_cable_plan_check)" />
+    <arg name="mtc_cable_path_shaping" value="$(arg mtc_cable_path_shaping)" />
     <arg name="mtc_cable_support_margin" value="$(arg mtc_cable_support_margin)" />
     <arg name="mtc_cable_replay_live_state" value="$(arg mtc_cable_replay_live_state)" />
     <arg name="mtc_cable_replay_detour" value="$(arg mtc_cable_replay_detour)" />
@@ -174,12 +197,13 @@
     <arg name="map_frame" value="mobipick3/map" />
     <arg name="map_ns" value="/mobipick3" />
     <arg name="pose_selector_ns" value="mobipick3" />
-    <arg name="offset_x" value="100.0" />
+    <arg name="offset_x" value="$(arg copy_offset_x_3)" />
     <arg name="world_config" value="$(arg world_config)" />
     <arg name="use_ur_polished_kinematics" value="$(arg use_ur_polished_kinematics_robot3)" />
     <arg name="anygrasp_handles_execution" value="$(arg anygrasp_handles_execution)" />
     <arg name="use_mtc" value="$(arg use_mtc)" />
     <arg name="mtc_cable_plan_check" value="$(arg mtc_cable_plan_check)" />
+    <arg name="mtc_cable_path_shaping" value="$(arg mtc_cable_path_shaping)" />
     <arg name="mtc_cable_support_margin" value="$(arg mtc_cable_support_margin)" />
     <arg name="mtc_cable_replay_live_state" value="$(arg mtc_cable_replay_live_state)" />
     <arg name="mtc_cable_replay_detour" value="$(arg mtc_cable_replay_detour)" />

@@ -4,6 +4,7 @@
   <xacro:arg name="height" default="720" />
   <xacro:arg name="update_rate" default="10.0" />
   <xacro:arg name="horizontal_fov" default="1.0472" />
+  <xacro:arg name="camera_name" default="experiment_camera" />
 
   <!--
     A static URDF link still needs valid inertial data to survive urdf2sdf
@@ -42,8 +43,8 @@
       <plugin name="experiment_camera_controller" filename="libgazebo_ros_camera.so">
         <alwaysOn>true</alwaysOn>
         <updateRate>$(arg update_rate)</updateRate>
-        <cameraName>experiment_camera</cameraName>
-        <!-- cameraName supplies the /experiment_camera namespace. -->
+        <cameraName>$(arg camera_name)</cameraName>
+        <!-- cameraName supplies the /CAMERA_NAME namespace of the topics. -->
         <robotNamespace>/</robotNamespace>
         <imageTopicName>image_raw</imageTopicName>
         <cameraInfoTopicName>camera_info</cameraInfoTopicName>

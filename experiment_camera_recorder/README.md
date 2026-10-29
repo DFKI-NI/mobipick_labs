@@ -67,6 +67,25 @@ refuses to start. A GPT demo run therefore needs no `command`: the goal is taken
 Videos go to `output_dir` (default `/data/experiment_recordings`, a host folder the
 GUI mounts into its containers at the same path).
 
+### One video per robot of a multi-robot sim
+
+With `num_robots` 2 or 3 the tables demo sim (`demo_sim.launch`) gives every scene copy its own overview camera:
+`/experiment_cameraK/image_raw` for robot K stands at the tuned pose of the first camera shifted along x by the copy
+offset, so it sees its copy exactly as the first camera sees the first (`experiment_camera_copies:=false` leaves
+the extra cameras out). One recorder records them all, one video per robot:
+
+```bash
+roslaunch experiment_camera_recorder video_recorder.launch \
+  image_topics:="/experiment_camera/image_raw /experiment_camera2/image_raw" topic_robots:="mobipick mobipick2" \
+  title:=two-robots-run-1 command:="<the command that was run>"
+```
+
+`topic_robots` names the robot each camera shows: every video gets its own id, the same text strip, a title that
+starts with its robot (`<id>_mobipick2-two-robots-run-1.mp4`), and with `auto_pause` it is written while that robot
+moves (`<ns>/cmd_vel`, `<ns>/joint_states`) and in the lead-in. `robot_namespaces` sets the robots whose motion
+counts when `topic_robots` is empty (default `mobipick`); the `cmd_vel_topic` and `joint_states_topic` parameters
+still override the motion topics, and then count for every video.
+
 Per topic it writes `<id>_<topic>.mp4` (real time, `fps`, default 10). `<id>` is the video's unique id
 `v<YYYYMMDD>-<HHMMSS>-<4 hex>` (start time on the recorder's clock, UTC in the GUI containers like the folder name, plus
 4 random hex digits), shown first in the text strip of every frame, above the command, and appended as `<id>\t<absolute path>`
