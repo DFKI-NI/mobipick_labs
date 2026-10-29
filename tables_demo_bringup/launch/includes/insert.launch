@@ -12,6 +12,7 @@
   <arg name="ps" value="$(eval '/' + arg('pose_selector_ns').strip('/') if arg('pose_selector_ns').strip('/') else '')" />
   <arg name="use_mtc" default="false" doc="true: plan and execute grasplan pick, place and insert with MoveIt Task Constructor instead of the MoveIt pick n place pipeline (move_group pickup/place actions)" />
   <arg name="mtc_cable_plan_check" default="false" doc="true (with use_mtc): check every planned MTC joint path against the arm cable model (mobipick_cable_entanglement) and throw away a plan that would stretch the cable tube, then try the next one; the same switch also makes the free motions keep wrist_3 within a window around its least-wound angle, a planning constraint (the real robot's wrist_3 limits are tighter than that window, so there only the check acts)" />
+  <arg name="mtc_cable_support_margin" default="false" doc="true (with mtc_cable_plan_check): with the support wrist anchor (the sim) the MTC cable guard plans with a -0.07 geometric stretch margin instead of -0.115, so fewer arm paths are rejected as entangling; careful feature flag, off in code" />
   <arg name="mtc_cable_replay_live_state" default="false" doc="true (with mtc_cable_plan_check): the cable guard's replay of a planned path through the carrier link chain goes on from the cable monitor's live chain (its chain_state service) instead of a fresh chain, so it sees what the motions before the path did; a fresh chain where the monitor resets its chain at every trajectory start; safe feature flag, off in code" />
   <arg name="insert_cable_gate" default="false" doc="true: rank insert poses by predicted cable stretch and offer likely safe ones first (#219); safe feature flag, off in code" />
   <arg name="cable_detour_mode" default="hack" doc="hack: the closed-set objects visit the fixed untangle poses before a pick, place and insert, as always; cable_aware: no untangle pose at all (also no cable replay detour), the MTC cable guard is the protection and a refused motion fails with a clear text; careful flag, hack in the code" />
@@ -28,6 +29,7 @@
     <param name="insert_orientation" type="str" value="$(arg insert_orientation)" />
     <param name="use_mtc" type="bool" value="$(arg use_mtc)" />
     <param name="mtc_cable_plan_check" type="bool" value="$(arg mtc_cable_plan_check)" />
+    <param name="mtc_cable_support_margin" type="bool" value="$(arg mtc_cable_support_margin)" />
     <param name="mtc_cable_replay_live_state" type="bool" value="$(arg mtc_cable_replay_live_state)" />
     <param name="insert_cable_gate" type="bool" value="$(arg insert_cable_gate)" />
     <param name="cable_detour_mode" type="string" value="$(arg cable_detour_mode)" />

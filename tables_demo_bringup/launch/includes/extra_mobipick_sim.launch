@@ -19,6 +19,7 @@
   <arg name="reset_cache_mrad" default="0.0" />
   <arg name="use_mtc" default="false" />
   <arg name="mtc_cable_plan_check" default="false" />
+  <arg name="mtc_cable_support_margin" default="false" />
   <arg name="mtc_cable_replay_live_state" default="false" />
   <arg name="mtc_cable_replay_detour" default="false" />
   <arg name="open_set_box_padding" default="0.0" />
@@ -74,6 +75,7 @@
     <arg name="map_frame" value="$(arg namespace)/map" />
     <arg name="use_mtc" value="$(arg use_mtc)" />
     <arg name="mtc_cable_plan_check" value="$(arg mtc_cable_plan_check)" />
+    <arg name="mtc_cable_support_margin" value="$(arg mtc_cable_support_margin)" />
     <arg name="mtc_cable_replay_live_state" value="$(arg mtc_cable_replay_live_state)" />
     <arg name="mtc_cable_replay_detour" value="$(arg mtc_cable_replay_detour)" />
     <arg name="open_set_box_padding" value="$(arg open_set_box_padding)" />
