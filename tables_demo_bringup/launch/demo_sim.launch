@@ -9,6 +9,7 @@
   <arg name="mtc_lift_tolerate_touching_neighbours" default="false" doc="allow a just-attached object to clear only box neighbours already touching it during a straight-up MTC lift (#229; careful flag, off in code)" />
   <arg name="mtc_cable_constraints" default="false" doc="old name of mtc_cable_plan_check, still accepted" />
   <arg name="mtc_cable_plan_check" default="$(arg mtc_cable_constraints)" doc="true (with use_mtc): check every planned MTC joint path against the arm cable model (mobipick_cable_entanglement) and throw away a plan that would stretch the cable tube, then try the next one; the same switch also makes the free motions keep wrist_3 within a window around its least-wound angle, a planning constraint (the real robot's wrist_3 limits are tighter than that window, so there only the check acts)" />
+  <arg name="pick_start_move_carrier_stops" default="false" doc="true (with use_mtc and the MTC cable guard): the open-set pick's start move from the grasp view to transport refuses a plan the cable chain replay predicts the monitor to stop, replans, then detours via the observation pose; refused there too, the pick stops without moving; careful feature flag, off in code" />
   <arg name="plan_pick_during_start_move" default="false" doc="true (with use_mtc): a closed-set pick plans and cable-checks its untangle arm poses up front, sends them as one motion and plans the pick with MTC while the arm moves; the plan is used only when the arm arrives where it starts, else it is planned again; careful feature flag, off in code" />
   <arg name="mtc_cable_path_shaping" default="false" doc="true (with use_mtc and mtc_cable_plan_check): the arm cable model shapes the path before planning: the IK branch with the most cable slack, model-chosen joint waypoints and a wrist corridor; the cable guard stays the final check; careful feature flag, off in code" />
   <arg name="mtc_cable_support_margin" default="false" doc="true (with mtc_cable_plan_check): with the support wrist anchor (the sim) the MTC cable guard plans with a -0.07 geometric stretch margin instead of -0.115, so fewer arm paths are rejected as entangling; careful feature flag, off in code" />
@@ -133,6 +134,7 @@
     <arg name="anygrasp_handles_execution" value="$(arg anygrasp_handles_execution)" />
     <arg name="use_mtc" value="$(arg use_mtc)" />
     <arg name="mtc_cable_plan_check" value="$(arg mtc_cable_plan_check)" />
+    <arg name="pick_start_move_carrier_stops" value="$(arg pick_start_move_carrier_stops)" />
     <arg name="plan_pick_during_start_move" value="$(arg plan_pick_during_start_move)" />
     <arg name="mtc_cable_path_shaping" value="$(arg mtc_cable_path_shaping)" />
     <arg name="mtc_cable_support_margin" value="$(arg mtc_cable_support_margin)" />
@@ -170,6 +172,7 @@
     <arg name="anygrasp_handles_execution" value="$(arg anygrasp_handles_execution)" />
     <arg name="use_mtc" value="$(arg use_mtc)" />
     <arg name="mtc_cable_plan_check" value="$(arg mtc_cable_plan_check)" />
+    <arg name="pick_start_move_carrier_stops" value="$(arg pick_start_move_carrier_stops)" />
     <arg name="plan_pick_during_start_move" value="$(arg plan_pick_during_start_move)" />
     <arg name="mtc_cable_path_shaping" value="$(arg mtc_cable_path_shaping)" />
     <arg name="mtc_cable_support_margin" value="$(arg mtc_cable_support_margin)" />
@@ -206,6 +209,7 @@
     <arg name="anygrasp_handles_execution" value="$(arg anygrasp_handles_execution)" />
     <arg name="use_mtc" value="$(arg use_mtc)" />
     <arg name="mtc_cable_plan_check" value="$(arg mtc_cable_plan_check)" />
+    <arg name="pick_start_move_carrier_stops" value="$(arg pick_start_move_carrier_stops)" />
     <arg name="plan_pick_during_start_move" value="$(arg plan_pick_during_start_move)" />
     <arg name="mtc_cable_path_shaping" value="$(arg mtc_cable_path_shaping)" />
     <arg name="mtc_cable_support_margin" value="$(arg mtc_cable_support_margin)" />
