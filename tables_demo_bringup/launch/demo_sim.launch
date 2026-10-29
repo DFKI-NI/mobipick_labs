@@ -13,6 +13,8 @@
   <arg name="open_set_align_jaw_to_box" default="false" doc="a near-vertical open-set grasp whose jaw is well off the axes of the target box (across its diagonal) gets a copy turned about its approach onto the nearest box axis whose side fits the gripper, tried first; safe feature flag, off in code" />
   <arg name="open_set_align_jaw_narrowest_side" default="false" doc="with open_set_align_jaw_to_box: the first turned copy closes across the narrowest side of the target box that fits the gripper, also for a grasp that already closes across a wider side; the nearest-side copy comes second, then the original; safe feature flag, off in code" />
   <arg name="open_set_strip_reported_padding" default="false" doc="take off the padding the open-set detection reports for its box (box_padding of the detected object) instead of open_set_box_padding, which stays the fallback for a detection without it; careful flag, off by default" />
+  <arg name="object_spawn" default="fixed" doc="sim only: fixed = the objects at the fixed poses of the world launch (default); random = the open-set objects (mobipick_open_set_objects) are moved once, after the world is up, to seeded random spots in the reachable front band of tables 1-3 (clear of each other and of the fixed objects). The closed-set (DOPE) objects stay at their fixed poses, so DOPE and the planning scene stay valid. A launch choice, not a feature flag; only the cic_tables world has the table list and sizes for it, other worlds ignore it" />
+  <arg name="object_seed" default="0" doc="sim only: seed of object_spawn:=random; the same seed gives the same scene" />
   <arg name="insert_cable_gate" default="false" doc="true: rank insert poses by predicted cable stretch and offer likely safe ones first (#219); safe feature flag, off in code" />
   <arg name="cable_detour_mode" default="hack" doc="hack: the closed-set objects visit the fixed untangle poses before a pick, place and insert, as always; cable_aware: no untangle pose at all (also no cable replay detour), the MTC cable guard is the protection and a refused motion fails with a clear text; careful flag, hack in the code" />
   <arg name="open_set_place_clearance_by_height" default="false" doc="true: release tall open-set objects at 1 cm and other open-set objects at 4 cm above their support (#202); careful feature flag, off in code" />
@@ -105,6 +107,13 @@
     <arg name="use_ur_polished_kinematics" value="$(arg use_ur_polished_kinematics)" />
   </include>
 
+  <!-- object_spawn:=random moves the open-set objects once the world has spawned everything (settle 8 s) -->
+  <include file="$(find mobipick_open_set_objects)/launch/spawn_open_set_objects.launch" if="$(eval object_spawn == 'random' and world_config == 'cic_tables' and int(num_robots) == 1)">
+    <arg name="world" value="$(arg world_config)" />
+    <arg name="seed" value="$(arg object_seed)" />
+    <arg name="front_depth" value="0.35" />
+    <arg name="wait_settle" value="8.0" />
+  </include>
   <!-- automatically unpause gazebo simulation after some time -->
   <node pkg="pbr_gazebo" type="gazebo_unpauser" name="gazebo_unpauser" output="screen" />
 
