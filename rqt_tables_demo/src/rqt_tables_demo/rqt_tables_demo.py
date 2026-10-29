@@ -128,6 +128,7 @@ class RqtTablesDemo(Plugin):
             self.api_perception = ApiPerception(robot_names.prefix(self.robot_ns) + '/', self.robot.arm, None)
         self.is_gripper_srv_available = False
         self.action_client = None
+        self.busy_robot = None  # the robot whose pick, place or insert through the API is running
 
         # make array of checkboxes that represent objects to ignore from planning scene when picking
         self.ignore_from_ps_chks = []
@@ -385,11 +386,17 @@ class RqtTablesDemo(Plugin):
         if namespace == self.robot_ns:
             return
         rospy.loginfo(f'commands now go to robot {namespace} (was {self.robot_ns})')
+        try:  # build the new robot first: when that fails, the commands stay with the robot they went to before
+            robot = self.make_robot(self.robot_api_class, namespace)
+            api_perception = None
+            if ApiPerception is not None:
+                api_perception = ApiPerception(robot_names.prefix(namespace) + '/', robot.arm, None)
+        except Exception as error:
+            rospy.logerr(f'cannot control robot {namespace} ({error}): commands stay with robot {self.robot_ns}')
+            return
         self.robot_ns = namespace
         self._show_robot_name()
-        self.robot = self.make_robot(self.robot_api_class, self.robot_ns)
-        if ApiPerception is not None:
-            self.api_perception = ApiPerception(robot_names.prefix(self.robot_ns) + '/', self.robot.arm, None)
+        self.robot, self.api_perception = robot, api_perception
         self._connect_services()
 
     def convert_pose_dict(self, input_dict):
@@ -742,7 +749,7 @@ class RqtTablesDemo(Plugin):
 
         if self.use_mobipick_api:
             ignore_list = [chk.text() for chk in self.ignore_from_ps_chks if chk.isChecked() and chk.text() != '-']
-            self._manipulate_via_api(f'pick {object_to_pick}', lambda: self.robot.arm.pick_object(
+            self._manipulate_via_api(f'pick {object_to_pick}', lambda robot: robot.arm.pick_object(
                 object_to_pick, support_surface_name, ignore_list, timeout=timeout))
             return
 
@@ -794,18 +801,36 @@ class RqtTablesDemo(Plugin):
 
     def _manipulate_via_api(self, what, call):
         """run a pick, place or insert of the Mobipick API for the chosen robot and log why it failed"""
-        rospy.loginfo(f'{what}: through the Mobipick API of robot {self.robot_ns}')
-        if call():
-            rospy.loginfo(f'{what}: succeeded')
-        else:
-            rospy.logerr(f'{what}: failed: {self.robot.arm.last_manipulation_message}')
+        # the robot that was chosen when the command started stays its robot: the robot selector may change self.robot
+        # while the command runs, and cancel and the failure text must still be those of the running one
+        robot = self.busy_robot = self.robot
+        rospy.loginfo(f'{what}: through the Mobipick API of robot {robot.namespace}')
+        try:
+            if call(robot):
+                rospy.loginfo(f'{what}: succeeded')
+            else:
+                rospy.logerr(f'{what}: failed: {robot.arm.last_manipulation_message}')
+        finally:
+            self.busy_robot = None
+
+    def _gripper_via_api(self, what, command):
+        """open or close the chosen robot's API gripper in a thread: a gripper driver that does not answer must not
+        freeze the window (the API call gives up after its timeout and says why)"""
+        gripper = self.robot.gripper
+
+        def task():
+            if command(gripper):
+                rospy.loginfo(f'{what}: done')
+            else:
+                rospy.logerr(f'{what}: failed: {gripper.last_gripper_message}')
+        threading.Thread(target=task, daemon=True).start()
 
     def open_gripper(self):
         # rosservice call /<robot namespace>/pose_teacher/open_gripper
         if self.is_gripper_srv_available:
             self.open_gripper_srv()
         elif self.gripper_via_api:
-            self.robot.gripper.open()
+            self._gripper_via_api('open gripper', lambda gripper: gripper.open())
         else:
             rospy.logerr('gripper service was not available when node started and therefore is unavailable')
 
@@ -814,7 +839,7 @@ class RqtTablesDemo(Plugin):
         if self.is_gripper_srv_available:
             self.close_gripper_srv()
         elif self.gripper_via_api:
-            self.robot.gripper.close()
+            self._gripper_via_api('close gripper', lambda gripper: gripper.close())
         else:
             rospy.logerr('gripper service was not available when node started and therefore is unavailable')
 
@@ -833,7 +858,7 @@ class RqtTablesDemo(Plugin):
             return
 
         if self.use_mobipick_api:
-            self._manipulate_via_api('place', lambda: self.robot.arm.place_object(
+            self._manipulate_via_api('place', lambda robot: robot.arm.place_object(
                 support_surface_name, self._widget.chkPlaceObjObserveBeforePlacing.isChecked(), timeout=timeout))
             return
 
@@ -895,7 +920,7 @@ class RqtTablesDemo(Plugin):
             return
 
         if self.use_mobipick_api:
-            self._manipulate_via_api('insert', lambda: self.robot.arm.insert_object(
+            self._manipulate_via_api('insert', lambda robot: robot.arm.insert_object(
                 support_surface_name, observe_before_insert, timeout=timeout))
             return
 
@@ -951,7 +976,7 @@ class RqtTablesDemo(Plugin):
     def cancel(self):
         # TODO: extend the code to handle move base and perception (arm movement) cancellation as well
         if self.use_mobipick_api:
-            if not self.robot.arm.cancel_manipulation():
+            if not (self.busy_robot or self.robot).arm.cancel_manipulation():
                 rospy.logerr('cannot cancel goal, NOTE: cancel is implemented only for pick, place and insert')
             return
         if not self.action_client:
