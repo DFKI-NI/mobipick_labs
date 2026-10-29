@@ -30,6 +30,7 @@
   <arg name="untangle_with_chain" default="false" doc="safe flag, off in code: the sim untangle service plans from the carried carrier link chain and keeps it through the release" />
   <arg name="reset_at_trajectory_start" default="false" doc="careful flag, off in code: the chain starts afresh when an executed trajectory starts" />
   <arg name="reset_cache_mrad" default="0.0" doc="careful flag, off in code: > 0 = start-pose cache of the settled chain, rounding step in mrad" />
+  <arg name="cable_carrier_sim" default="false" doc="sim only prototype, off by default: the arm cable carrier of the wrist span as a jointed chain in Gazebo (gazebo_jointed_chain plugin, PLACEHOLDER stiffness until the real carrier is measured), colliding only with the cable model's shapes; it logs strain and clamp force events and never presses the protective stop; slows the sim about 27 %" />
 
   <arg name="num_robots" default="1" doc="#226: 2 or 3 = that many identical copies of the world_config scene 50 m apart in one Gazebo, robot 1 (mobipick) in the first as with 1, robot k (mobipickK, map frame mobipickK/map) in copy k, for parallel experiments. Sim only; needs mobipick_gazebo/launch/worlds/WORLD_CONFIG_xN_spawn_sim_objects.launch (moelk_tables so far)" />
 
@@ -62,6 +63,9 @@
     <arg name="grasp_fix" value="$(arg grasp_fix)" />
     <arg name="gui" value="$(arg gui)" />
   </include>
+  <!-- the Gazebo cable carrier of robot 1 (spawned once the robot's joint states arrive) -->
+  <include if="$(arg cable_carrier_sim)" file="$(find mobipick_cable_entanglement)/launch/cable_carrier_sim.launch" />
+
   <!-- #226: the stacks of robots 2 and 3 in their scene copies (fake localization, navigation, MoveIt, tables demo bringup) -->
   <include file="$(find tables_demo_bringup)/launch/includes/extra_mobipick_sim.launch" if="$(eval int(num_robots) >= 2)">
     <arg name="namespace" value="mobipick2" />
