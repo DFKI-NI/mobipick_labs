@@ -12,6 +12,7 @@
   <arg name="open_set_align_jaw_to_box" default="false" doc="a near-vertical open-set grasp whose jaw is well off the axes of the target box (across its diagonal) gets a copy turned about its approach onto the nearest box axis whose side fits the gripper, tried first; safe feature flag, off in code" />
   <arg name="open_set_align_jaw_narrowest_side" default="false" doc="with open_set_align_jaw_to_box: the first turned copy closes across the narrowest side of the target box that fits the gripper, also for a grasp that already closes across a wider side; the nearest-side copy comes second, then the original; safe feature flag, off in code" />
   <arg name="skip_pre_open_when_open" default="false" doc="true: the pick skips its gripper pre-open when the finger joint already reads open (within 15 mm of the configured open width), about 0.9 s per pick; no reading or a partly closed gripper opens as before; safe feature flag, off in code" />
+  <arg name="grasp_standing_tilt_band" default="false" doc="true: for a standing elongated object taller than 5 cm the pick drops the open-set grasps whose approach is 25 to 65 deg off vertical (they pinch the rim and the object tips at the place); the unfiltered grasps stay when none is left; careful feature flag, off in code" />
   <arg name="open_set_strip_reported_padding" default="false" doc="take off the padding the open-set detection reports for its box (box_padding of the detected object) instead of open_set_box_padding, which stays the fallback for a detection without it; careful flag, off by default" />
   <!-- GripperCommand.max_effort used for AnyGrasp grasps of unknown objects; the Robotiq action server
        accepts 30..100, the simulated gripper maps it to a real torque limit. -1 keeps gripper_joint_efforts. -->
@@ -62,6 +63,7 @@
     <param name="open_set_align_jaw_to_box" type="bool" value="$(arg open_set_align_jaw_to_box)" />
     <param name="open_set_align_jaw_narrowest_side" type="bool" value="$(arg open_set_align_jaw_narrowest_side)" />
     <param name="skip_pre_open_when_open" type="bool" value="$(arg skip_pre_open_when_open)" />
+    <param name="grasp_standing_tilt_band" type="bool" value="$(arg grasp_standing_tilt_band)" />
     <param name="open_set_strip_reported_padding" type="bool" value="$(arg open_set_strip_reported_padding)" />
     <param name="mtc_lift_tolerate_touching_neighbours" type="bool" value="$(arg mtc_lift_tolerate_touching_neighbours)" />
     <param name="anygrasp_gripper_max_effort" type="double" value="$(arg anygrasp_gripper_max_effort)" />
