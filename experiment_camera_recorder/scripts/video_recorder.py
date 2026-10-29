@@ -13,7 +13,9 @@ new video (append-only). There is no sped-up copy (the viewer plays at 4x), and 
 ``~forbidden_topic_pattern`` (gripper / robot cameras, forbidden since 2026-10-04) are not recorded. With
 ``~auto_pause`` frames are only written while the robot moves (base command
 velocity, arm or gripper joint velocities), so idle phases such as an agent
-thinking are cut automatically; the ``~pause`` / ``~resume`` services override that
+thinking are cut automatically; the first ``~lead_in_s`` seconds and the ``~lead_in_s`` seconds after each goal
+are written also while the robot stands still, so a run in which the robot never moves (a refused plan) still gives a
+short video with the command and the robot at rest instead of none. The ``~pause`` / ``~resume`` services override that
 by hand. ``~snapshot`` (std_msgs/String label) saves the latest frame of every
 topic as JPEG, ``~stop`` closes the videos. ``~status`` (std_srvs/Trigger) reports
 the state as JSON; ``events.jsonl`` in the output directory records pauses,
@@ -408,6 +410,7 @@ class VideoRecorder:
         self.jpeg_quality = int(rospy.get_param("~jpeg_quality", 90))
         self.auto_pause = bool(rospy.get_param("~auto_pause", True))
         self.motion_hold_s = float(rospy.get_param("~motion_hold_s", 1.5))
+        self.lead_in_s = float(rospy.get_param("~lead_in_s", 3.0))
         self.joint_velocity_threshold = float(rospy.get_param("~joint_velocity_threshold", 0.02))
         self.joint_pattern = re.compile(str(rospy.get_param("~joint_pattern", "ur5")))
         cmd_vel_topic = rospy.get_param("~cmd_vel_topic", "/mobipick/cmd_vel")
@@ -430,6 +433,7 @@ class VideoRecorder:
         self.stopped = False
         self.snapshots = 0
         self.started_wall = time.time()
+        self.lead_in_until = self.started_wall + self.lead_in_s
         title = rospy.get_param("~title", "")
         ids = set()
         while len(ids) < len(topics):                 # one id per video, unique also within this recording
@@ -479,6 +483,7 @@ class VideoRecorder:
             model = ""
         with self.lock:
             self.goals.append({"goal": text, "model": model, "topic": self.command_topic})
+            self.lead_in_until = max(self.lead_in_until, time.time() + self.lead_in_s)
             self._log_event("goal", goal=text, model=model, topic=self.command_topic)
             self._set_overlays()
         rospy.loginfo("goal on %s (model %s): %s", self.command_topic, model or "unknown", text)
@@ -513,10 +518,12 @@ class VideoRecorder:
                 return
             now = time.time()
             moving = self.last_motion is not None and now - self.last_motion <= self.motion_hold_s
-            should_record = not self.manual_paused and (moving or not self.auto_pause)
+            lead_in = now < self.lead_in_until
+            should_record = not self.manual_paused and (moving or lead_in or not self.auto_pause)
             if should_record != self.recording:
                 self.recording = should_record
-                self._log_event("resume" if should_record else "pause", reason="manual" if self.manual_paused else "motion")
+                reason = "manual" if self.manual_paused else ("lead-in" if lead_in and not moving else "motion")
+                self._log_event("resume" if should_record else "pause", reason=reason)
                 self._publish_status()
                 self._write_summary()
             if not should_record:

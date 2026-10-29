@@ -16,6 +16,9 @@
   <arg name="forbidden_topic_pattern" default="gripper|eef|wrist|hand_cam|arm_cam" />
   <arg name="auto_pause" default="true" />
   <arg name="motion_hold_s" default="1.5" />
+  <!-- seconds written at the start and after each goal also while the robot stands still (with auto_pause), so a run
+       in which the robot never moves still gives a short video -->
+  <arg name="lead_in_s" default="3.0" />
   <arg name="start_paused" default="false" />
   <arg name="overlay" default="true" />
   <arg name="joint_pattern" default="ur5" />  <!-- the simulated gripper finger reports ~0.18 rad/s at rest -->
@@ -35,6 +38,7 @@
     <param name="forbidden_topic_pattern" value="$(arg forbidden_topic_pattern)" />
     <param name="auto_pause" value="$(arg auto_pause)" />
     <param name="motion_hold_s" value="$(arg motion_hold_s)" />
+    <param name="lead_in_s" value="$(arg lead_in_s)" />
     <param name="start_paused" value="$(arg start_paused)" />
     <param name="overlay" value="$(arg overlay)" />
     <param name="joint_pattern" value="$(arg joint_pattern)" />

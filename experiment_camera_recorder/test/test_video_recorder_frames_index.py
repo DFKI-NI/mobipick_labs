@@ -431,3 +431,64 @@ def test_with_several_topics_the_title_is_followed_by_the_topic_name(recorder_mo
 def test_without_a_title_the_file_name_is_unchanged(recorder_module, tmp_path):
     recorder = _make(recorder_module, tmp_path)
     assert recorder.video_path == str(tmp_path / (VID + "_experiment_camera_image_raw.mp4"))
+
+
+def _ticking(module, monkeypatch, auto_pause=True, lead_in_s=3.0):
+    """a VideoRecorder without ROS: only what _tick and _goal_callback use, the wall clock under the test's control"""
+    clock = {"now": 1000.0}
+    monkeypatch.setattr(module.time, "time", lambda: clock["now"])
+    node = module.VideoRecorder.__new__(module.VideoRecorder)
+    node.lock = module.threading.Lock()
+    node.stopped = node.manual_paused = node.recording = False
+    node.auto_pause, node.motion_hold_s, node.lead_in_s = auto_pause, 1.5, lead_in_s
+    node.last_motion, node.lead_in_until = None, clock["now"] + lead_in_s
+    node.summary_written, node.summary_period_s = clock["now"], 1e9
+    node.recorders = [Mock()]
+    node.goals, node.command_topic, node.model_label_param = [], "/recognized_speech", "experiment_model_label"
+    node.events = []
+    node._log_event = lambda kind, **data: node.events.append((kind, data.get("reason")))
+    node._publish_status = node._write_summary = node._set_overlays = lambda *a, **k: None
+    return node, clock
+
+
+def _frames(node):
+    return node.recorders[0].write_latest.call_count
+
+
+def test_a_robot_that_never_moves_still_gives_the_lead_in_frames(recorder_module, monkeypatch):
+    node, clock = _ticking(recorder_module, monkeypatch)
+    for _ in range(100):          # 10 s at 10 Hz, the robot at rest
+        node._tick(None)
+        clock["now"] += 0.1
+    assert 29 <= _frames(node) <= 31
+    assert node.events == [("resume", "lead-in"), ("pause", "motion")]
+
+
+def test_after_the_lead_in_only_motion_is_written(recorder_module, monkeypatch):
+    node, clock = _ticking(recorder_module, monkeypatch)
+    clock["now"] += 5.0
+    node._tick(None)
+    assert _frames(node) == 0
+    node.last_motion = clock["now"]
+    node._tick(None)
+    assert _frames(node) == 1 and node.events[-1] == ("resume", "motion")
+
+
+def test_a_goal_starts_another_lead_in(recorder_module, monkeypatch):
+    node, clock = _ticking(recorder_module, monkeypatch)
+    recorder_module.rospy.get_param_names = Mock(return_value=[])
+    recorder_module.rospy.get_param = Mock()
+    clock["now"] += 10.0
+    node._tick(None)
+    assert _frames(node) == 0
+    node._goal_callback(types.SimpleNamespace(data="Pick the apple"))
+    node._tick(None)
+    clock["now"] += 3.5
+    node._tick(None)
+    assert _frames(node) == 1
+
+
+def test_lead_in_zero_keeps_the_old_motion_only_behaviour(recorder_module, monkeypatch):
+    node, clock = _ticking(recorder_module, monkeypatch, lead_in_s=0.0)
+    node._tick(None)
+    assert _frames(node) == 0 and node.events == []

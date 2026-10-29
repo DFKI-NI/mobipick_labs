@@ -81,7 +81,12 @@ same in plain words). Existing videos keep their names. With
 `auto_pause:=true` (default) frames are written only while `/mobipick/cmd_vel`
 is non-zero or an arm joint (`joint_pattern`, default `ur5`; the simulated gripper finger is noisy at rest) moves faster than
 `joint_velocity_threshold`, kept for `motion_hold_s` after the last motion, so
-idle phases (an agent thinking, perception) are cut. Manual control:
+idle phases (an agent thinking, perception) are cut. The first `lead_in_s` seconds (default 3) and the `lead_in_s`
+seconds after each goal on `command_topic` are written also while the robot stands still, so a run in which the robot
+never moves (e.g. a refused plan) still gives a short video with the command and the robot at rest. For a test video keep
+`auto_pause` on and stop the recorder as soon as the command returns, in the same shell line
+(`<command>; rosservice call /experiment_video_recorder/stop`), so the video ends with the task's result;
+`auto_pause:=false` writes every idle second until the stop. Manual control:
 
 ```bash
 rosservice call /experiment_video_recorder/pause      # nothing is written until resume
