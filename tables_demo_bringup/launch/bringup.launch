@@ -16,6 +16,7 @@
   <arg name="open_set_align_jaw_narrowest_side" default="false" doc="with open_set_align_jaw_to_box: the first turned copy closes across the narrowest side of the target box that fits the gripper, also for a grasp that already closes across a wider side; the nearest-side copy comes second, then the original; safe feature flag, off in code" />
   <arg name="skip_pre_open_when_open" default="false" doc="true: the pick skips its gripper pre-open when the finger joint already reads open (within 15 mm of the configured open width), about 0.9 s per pick; no reading or a partly closed gripper opens as before; safe feature flag, off in code" />
   <arg name="grasp_standing_tilt_band" default="false" doc="true: for a standing elongated object taller than 5 cm the pick drops the open-set grasps whose approach is 25 to 65 deg off vertical (they pinch the rim and the object tips at the place); the unfiltered grasps stay when none is left; careful feature flag, off in code" />
+  <arg name="grasp_regrasp_on_overclose" default="false" doc="true: after the close the finger angle is compared with the one flat pads show on the perceived object width; closed 20 mm or more past it (a fingertip pinch) the gripper opens, goes deeper by the excess (at most 3 cm, never into the table, never on a backed-off grasp) and closes again before the lift; careful feature flag, off in code" />
   <arg name="open_set_strip_reported_padding" default="false" doc="take off the padding the open-set detection reports for its box (box_padding of the detected object) instead of open_set_box_padding, which stays the fallback for a detection without it; careful flag, off by default" />
   <arg name="insert_cable_gate" default="false" doc="true: rank insert poses by predicted cable stretch and offer likely safe ones first (#219); safe feature flag, off in code" />
   <arg name="cable_detour_mode" default="hack" doc="hack: the closed-set objects visit the fixed untangle poses before a pick, place and insert, as always; cable_aware: no untangle pose at all (also no cable replay detour), the MTC cable guard is the protection and a refused motion fails with a clear text; careful flag, hack in the code" />
@@ -106,6 +107,7 @@
     <arg name="open_set_align_jaw_narrowest_side" value="$(arg open_set_align_jaw_narrowest_side)" />
     <arg name="skip_pre_open_when_open" value="$(arg skip_pre_open_when_open)" />
     <arg name="grasp_standing_tilt_band" value="$(arg grasp_standing_tilt_band)" />
+    <arg name="grasp_regrasp_on_overclose" value="$(arg grasp_regrasp_on_overclose)" />
     <arg name="open_set_strip_reported_padding" value="$(arg open_set_strip_reported_padding)" />
     <arg name="mtc_lift_tolerate_touching_neighbours" value="$(arg mtc_lift_tolerate_touching_neighbours)" />
     <arg name="namespace" value="$(arg namespace)" />

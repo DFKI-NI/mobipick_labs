@@ -27,6 +27,7 @@
   <arg name="open_set_align_jaw_narrowest_side" default="false" />
   <arg name="skip_pre_open_when_open" default="false" />
   <arg name="grasp_standing_tilt_band" default="false" />
+  <arg name="grasp_regrasp_on_overclose" default="false" />
   <arg name="open_set_strip_reported_padding" default="false" />
   <arg name="mtc_lift_tolerate_touching_neighbours" default="false" />
 
@@ -81,6 +82,7 @@
     <arg name="open_set_align_jaw_narrowest_side" value="$(arg open_set_align_jaw_narrowest_side)" />
     <arg name="skip_pre_open_when_open" value="$(arg skip_pre_open_when_open)" />
     <arg name="grasp_standing_tilt_band" value="$(arg grasp_standing_tilt_band)" />
+    <arg name="grasp_regrasp_on_overclose" value="$(arg grasp_regrasp_on_overclose)" />
     <arg name="open_set_strip_reported_padding" value="$(arg open_set_strip_reported_padding)" />
     <arg name="mtc_lift_tolerate_touching_neighbours" value="$(arg mtc_lift_tolerate_touching_neighbours)" />
     <arg name="cable_monitor" value="$(arg cable_monitor)" />
