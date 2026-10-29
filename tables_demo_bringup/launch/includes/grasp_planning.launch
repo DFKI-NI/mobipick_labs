@@ -3,7 +3,7 @@
   <arg name="planning_scene_config" default="$(find tables_demo_bringup)/config/moelk_tables_planning_scene.yaml" />
   <arg name="anygrasp_handles_execution" default="false" />
   <arg name="use_mtc" default="false" doc="true: plan and execute grasplan pick, place and insert with MoveIt Task Constructor instead of the MoveIt pick n place pipeline (move_group pickup/place actions)" />
-  <arg name="mtc_lift_tolerate_touching_neighbours" default="false" doc="allow a just-attached object to clear only box neighbours already touching it during a straight-up MTC lift (#229; careful flag, off in code)" />
+  <arg name="mtc_lift_tolerate_touching_neighbours" default="false" doc="allow a just-attached object to clear only box neighbours already touching it during a straight-up MTC lift (careful flag, off in code)" />
   <arg name="mtc_cable_plan_check" default="false" doc="true (with use_mtc): check every planned MTC joint path against the arm cable model (mobipick_cable_entanglement) and throw away a plan that would stretch the cable tube, then try the next one; the same switch also makes the free motions keep wrist_3 within a window around its least-wound angle, a planning constraint (the real robot's wrist_3 limits are tighter than that window, so there only the check acts)" />
   <arg name="pick_start_move_carrier_stops" default="false" doc="true (with use_mtc and the MTC cable guard): the open-set pick's start move from the grasp view to transport refuses a plan the cable chain replay predicts the monitor to stop, replans, then detours via the observation pose; refused there too, the pick stops without moving; careful feature flag, off in code" />
   <arg name="plan_pick_during_start_move" default="false" doc="true (with use_mtc): a closed-set pick plans and cable-checks its untangle arm poses up front, sends them as one motion and plans the pick with MTC while the arm moves; the plan is used only when the arm arrives where it starts, else it is planned again; careful feature flag, off in code" />
@@ -23,11 +23,11 @@
        accepts 30..100, the simulated gripper maps it to a real torque limit. -1 keeps gripper_joint_efforts. -->
   <arg name="anygrasp_gripper_max_effort" default="50.0" />
   <arg name="anygrasp_use_gripper_width" default="false" />
-  <!-- #226 several Mobipicks in one sim: the robot's namespace (= its tf prefix), and the namespace of its pose
+  <!-- Several Mobipicks in one sim: the robot's namespace (= its tf prefix), and the namespace of its pose
        selectors ('' = the global /pick_pose_selector_node etc. of a single robot, as before; e.g. mobipick2) -->
   <arg name="namespace" default="mobipick" />
   <arg name="pose_selector_ns" default="" />
-  <!-- #226: the robot's map frame (a second Mobipick in its own scene copy: mobipick2/map) -->
+  <!-- The robot's map frame (a second Mobipick in its own scene copy: mobipick2/map) -->
   <arg name="map_frame" default="map" />
   <arg name="ps" value="$(eval '/' + arg('pose_selector_ns').strip('/') if arg('pose_selector_ns').strip('/') else '')" />
 

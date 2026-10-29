@@ -10,11 +10,11 @@
   <arg name="mtc_cable_path_shaping" default="false" doc="true (with use_mtc and mtc_cable_plan_check): the arm cable model shapes the path before planning: the IK branch with the most cable slack, model-chosen joint waypoints and a wrist corridor; the cable guard stays the final check; careful feature flag, off in code" />
   <arg name="mtc_cable_support_margin" default="false" doc="true (with mtc_cable_plan_check): with the support wrist anchor (the sim) the MTC cable guard plans with a -0.07 geometric stretch margin instead of -0.115, so fewer arm paths are rejected as entangling; careful feature flag, off in code" />
   <arg name="mtc_cable_replay_live_state" default="false" doc="true (with mtc_cable_plan_check): the cable guard's replay of a planned path through the carrier link chain goes on from the cable monitor's live chain (its chain_state service) instead of a fresh chain, so it sees what the motions before the path did; a fresh chain where the monitor resets its chain at every trajectory start; safe feature flag, off in code" />
-  <!-- #226 several Mobipicks in one sim: the robot's namespace (= its tf prefix), and the namespace of its pose
+  <!-- Several Mobipicks in one sim: the robot's namespace (= its tf prefix), and the namespace of its pose
        selectors ('' = the global /pick_pose_selector_node etc. of a single robot, as before; e.g. mobipick2) -->
   <arg name="namespace" default="mobipick" />
   <arg name="pose_selector_ns" default="" />
-  <!-- #226: the robot's map frame (a second Mobipick in its own scene copy: mobipick2/map) -->
+  <!-- The robot's map frame (a second Mobipick in its own scene copy: mobipick2/map) -->
   <arg name="map_frame" default="map" />
   <arg name="ps" value="$(eval '/' + arg('pose_selector_ns').strip('/') if arg('pose_selector_ns').strip('/') else '')" />
   <arg name="cable_detour_mode" default="hack" doc="hack: the closed-set objects visit the fixed untangle poses before a pick, place and insert, as always; cable_aware: no untangle pose at all (also no cable replay detour), the MTC cable guard is the protection and a refused motion fails with a clear text; careful flag, hack in the code" />

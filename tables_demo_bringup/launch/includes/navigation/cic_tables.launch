@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <launch>
-  <arg name="namespace" default="mobipick" doc="robot namespace and tf prefix (#226: mobipick2 for a second robot)" />
-  <arg name="map_ns" default="" doc="namespace of the map servers, empty: /map (#226)" />
-  <arg name="map_frame" default="map" doc="global map frame (#226: mobipick2/map for the robot in the second scene copy)" />
+  <arg name="namespace" default="mobipick" doc="robot namespace and tf prefix (mobipick2 for a second robot)" />
+  <arg name="map_ns" default="" doc="namespace of the map servers, empty: /map" />
+  <arg name="map_frame" default="map" doc="global map frame (mobipick2/map for the robot in the second scene copy)" />
 
   <!-- navigation stack (move base) -->
   <include file="$(find mir_navigation)/launch/start_planner.launch">

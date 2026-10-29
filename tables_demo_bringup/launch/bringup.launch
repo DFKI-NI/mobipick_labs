@@ -6,7 +6,7 @@
   <arg name="dope_converter_config" default="$(find pbr_objects)/config/class_ids.yaml" />
   <arg name="anygrasp_handles_execution" default="false" />
   <arg name="use_mtc" default="false" doc="true: plan and execute grasplan pick, place and insert with MoveIt Task Constructor instead of the MoveIt pick n place pipeline (move_group pickup/place actions)" />
-  <arg name="mtc_lift_tolerate_touching_neighbours" default="false" doc="allow a just-attached object to clear only box neighbours already touching it during a straight-up MTC lift (#229; careful flag, off in code)" />
+  <arg name="mtc_lift_tolerate_touching_neighbours" default="false" doc="allow a just-attached object to clear only box neighbours already touching it during a straight-up MTC lift (careful flag, off in code)" />
   <arg name="mtc_cable_constraints" default="false" doc="old name of mtc_cable_plan_check, still accepted" />
   <arg name="mtc_cable_plan_check" default="$(arg mtc_cable_constraints)" doc="true (with use_mtc): check every planned MTC joint path against the arm cable model (mobipick_cable_entanglement) and throw away a plan that would stretch the cable tube, then try the next one; the same switch also makes the free motions keep wrist_3 within a window around its least-wound angle, a planning constraint (the real robot's wrist_3 limits are tighter than that window, so there only the check acts)" />
   <arg name="pick_start_move_carrier_stops" default="false" doc="true (with use_mtc and the MTC cable guard): the open-set pick's start move from the grasp view to transport refuses a plan the cable chain replay predicts the monitor to stop, replans, then detours via the observation pose; refused there too, the pick stops without moving; careful feature flag, off in code" />
@@ -22,11 +22,11 @@
   <arg name="grasp_standing_tilt_band" default="false" doc="true: for a standing elongated object taller than 5 cm the pick drops the open-set grasps whose approach is 25 to 65 deg off vertical (they pinch the rim and the object tips at the place); the unfiltered grasps stay when none is left; careful feature flag, off in code" />
   <arg name="grasp_regrasp_on_overclose" default="false" doc="true: after the close the finger angle is compared with the one flat pads show on the perceived object width; closed 20 mm or more past it (a fingertip pinch) the gripper opens, goes deeper by the excess (at most 3 cm, never into the table, never on a backed-off grasp) and closes again before the lift; careful feature flag, off in code" />
   <arg name="open_set_strip_reported_padding" default="false" doc="take off the padding the open-set detection reports for its box (box_padding of the detected object) instead of open_set_box_padding, which stays the fallback for a detection without it; careful flag, off by default" />
-  <arg name="insert_cable_gate" default="false" doc="true: rank insert poses by predicted cable stretch and offer likely safe ones first (#219); safe feature flag, off in code" />
+  <arg name="insert_cable_gate" default="false" doc="true: rank insert poses by predicted cable stretch and offer likely safe ones first; safe feature flag, off in code" />
   <arg name="cable_detour_mode" default="hack" doc="hack: the closed-set objects visit the fixed untangle poses before a pick, place and insert, as always; cable_aware: no untangle pose at all (also no cable replay detour), the MTC cable guard is the protection and a refused motion fails with a clear text; careful flag, hack in the code" />
   <arg name="place_same_orientation_as_picked" default="true" doc="false: small objects (e.g. balls, fruit) are inserted with the gripper pointing straight down and the wrist turned as little as possible, instead of in the orientation they were grasped in (avoids winding up the arm cable)" />
-  <arg name="insert_orientation" default="free_yaw" doc="free_yaw (default, #106: keep the picked roll and pitch, choose the yaw for the least wrist rotation), as_picked or gripper_down; empty: place_same_orientation_as_picked decides (true: as_picked, false: gripper_down)" />
-  <arg name="cable_monitor" default="false" doc="true: start the observe-only arm cable monitor (mobipick_cable_entanglement, #118 #121): in the sim it presses the simulated UR protective stop when its model predicts an entangled cable; on the real robot it never commands anything and logs every tick and every protective stop for calibration" />
+  <arg name="insert_orientation" default="free_yaw" doc="free_yaw (default: keep the picked roll and pitch, choose the yaw for the least wrist rotation), as_picked or gripper_down; empty: place_same_orientation_as_picked decides (true: as_picked, false: gripper_down)" />
+  <arg name="cable_monitor" default="false" doc="true: start the observe-only arm cable monitor (mobipick_cable_entanglement): in the sim it presses the simulated UR protective stop when its model predicts an entangled cable; on the real robot it never commands anything and logs every tick and every protective stop for calibration" />
   <arg name="geometric_check" default="true" doc="the carrier link chain alone decides when false; monitor and MTC guard replay (cable_entanglement_monitor.launch)" />
   <arg name="release_after_rest_s" default="0.0" doc="careful flag, off in code: > 0 = the carrier link chain starts afresh when the arm moves again after resting that many seconds" />
   <arg name="release_during_rest" default="false" doc="careful flag, off in code: with release_after_rest_s > 0 the chain starts afresh once the arm has rested that long" />
@@ -34,11 +34,11 @@
   <arg name="reset_at_trajectory_start" default="false" doc="careful flag, off in code: the chain starts afresh when an executed trajectory starts" />
   <arg name="reset_cache_mrad" default="0.0" doc="careful flag, off in code: > 0 = start-pose cache of the settled chain, rounding step in mrad" />
 
-  <!-- #226 several Mobipicks in one sim: the robot's namespace (= its tf prefix), and the namespace of its pose
+  <!-- Several Mobipicks in one sim: the robot's namespace (= its tf prefix), and the namespace of its pose
        selectors ('' = the global /pick_pose_selector_node etc. of a single robot, as before; e.g. mobipick2) -->
   <arg name="namespace" default="mobipick" />
   <arg name="pose_selector_ns" default="" />
-  <!-- #226: the robot's map frame (a second Mobipick in its own scene copy: mobipick2/map) -->
+  <!-- The robot's map frame (a second Mobipick in its own scene copy: mobipick2/map) -->
   <arg name="map_frame" default="map" />
   <arg name="ps" value="$(eval '/' + arg('pose_selector_ns').strip('/') if arg('pose_selector_ns').strip('/') else '')" />
 

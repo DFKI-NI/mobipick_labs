@@ -2,11 +2,11 @@
 <launch>
   <arg name="world_config" default="moelk_tables" doc="objects arrangement, options: moelk_tables, cic_tables" />
   <arg name="anygrasp_handles_execution" default="false" />
-  <arg name="use_ur_polished_kinematics" default="false" doc="select the calibrated analytic UR5 IK plugin instead of TRAC-IK for MoveIt (#227)" />
+  <arg name="use_ur_polished_kinematics" default="false" doc="select the calibrated analytic UR5 IK plugin instead of TRAC-IK for MoveIt" />
   <arg name="use_ur_polished_kinematics_robot2" default="$(arg use_ur_polished_kinematics)" doc="IK solver of robot 2 (num_robots >= 2), for solver races; default the same as use_ur_polished_kinematics" />
   <arg name="use_ur_polished_kinematics_robot3" default="$(arg use_ur_polished_kinematics)" doc="IK solver of robot 3 (num_robots 3), for solver races; default the same as use_ur_polished_kinematics" />
   <arg name="use_mtc" default="false" doc="true: plan and execute grasplan pick, place and insert with MoveIt Task Constructor instead of the MoveIt pick n place pipeline (move_group pickup/place actions)" />
-  <arg name="mtc_lift_tolerate_touching_neighbours" default="false" doc="allow a just-attached object to clear only box neighbours already touching it during a straight-up MTC lift (#229; careful flag, off in code)" />
+  <arg name="mtc_lift_tolerate_touching_neighbours" default="false" doc="allow a just-attached object to clear only box neighbours already touching it during a straight-up MTC lift (careful flag, off in code)" />
   <arg name="mtc_cable_constraints" default="false" doc="old name of mtc_cable_plan_check, still accepted" />
   <arg name="mtc_cable_plan_check" default="$(arg mtc_cable_constraints)" doc="true (with use_mtc): check every planned MTC joint path against the arm cable model (mobipick_cable_entanglement) and throw away a plan that would stretch the cable tube, then try the next one; the same switch also makes the free motions keep wrist_3 within a window around its least-wound angle, a planning constraint (the real robot's wrist_3 limits are tighter than that window, so there only the check acts)" />
   <arg name="pick_start_move_carrier_stops" default="false" doc="true (with use_mtc and the MTC cable guard): the open-set pick's start move from the grasp view to transport refuses a plan the cable chain replay predicts the monitor to stop, replans, then detours via the observation pose; refused there too, the pick stops without moving; careful feature flag, off in code" />
@@ -24,11 +24,11 @@
   <arg name="open_set_strip_reported_padding" default="false" doc="take off the padding the open-set detection reports for its box (box_padding of the detected object) instead of open_set_box_padding, which stays the fallback for a detection without it; careful flag, off by default" />
   <arg name="object_spawn" default="fixed" doc="sim only: fixed = the objects at the fixed poses of the world launch (default); random = the open-set objects (mobipick_open_set_objects) are moved once, after the world is up, to seeded random spots in the reachable front band of tables 1-3 (clear of each other and of the fixed objects). The closed-set (DOPE) objects stay at their fixed poses, so DOPE and the planning scene stay valid. A launch choice, not a feature flag; only the cic_tables world has the table list and sizes for it, other worlds ignore it" />
   <arg name="object_seed" default="0" doc="sim only: seed of object_spawn:=random; the same seed gives the same scene" />
-  <arg name="insert_cable_gate" default="false" doc="true: rank insert poses by predicted cable stretch and offer likely safe ones first (#219); safe feature flag, off in code" />
+  <arg name="insert_cable_gate" default="false" doc="true: rank insert poses by predicted cable stretch and offer likely safe ones first; safe feature flag, off in code" />
   <arg name="cable_detour_mode" default="hack" doc="hack: the closed-set objects visit the fixed untangle poses before a pick, place and insert, as always; cable_aware: no untangle pose at all (also no cable replay detour), the MTC cable guard is the protection and a refused motion fails with a clear text; careful flag, hack in the code" />
   <arg name="place_same_orientation_as_picked" default="true" doc="false: small objects (e.g. balls, fruit) are inserted with the gripper pointing straight down and the wrist turned as little as possible, instead of in the orientation they were grasped in (avoids winding up the arm cable)" />
-  <arg name="insert_orientation" default="free_yaw" doc="free_yaw (default, #106: keep the picked roll and pitch, choose the yaw for the least wrist rotation), as_picked or gripper_down; empty: place_same_orientation_as_picked decides (true: as_picked, false: gripper_down)" />
-  <arg name="cable_monitor" default="false" doc="true: start the observe-only arm cable monitor (mobipick_cable_entanglement, #118 #121): in the sim it presses the simulated UR protective stop when its model predicts an entangled cable; on the real robot it never commands anything and logs every tick and every protective stop for calibration" />
+  <arg name="insert_orientation" default="free_yaw" doc="free_yaw (default: keep the picked roll and pitch, choose the yaw for the least wrist rotation), as_picked or gripper_down; empty: place_same_orientation_as_picked decides (true: as_picked, false: gripper_down)" />
+  <arg name="cable_monitor" default="false" doc="true: start the observe-only arm cable monitor (mobipick_cable_entanglement): in the sim it presses the simulated UR protective stop when its model predicts an entangled cable; on the real robot it never commands anything and logs every tick and every protective stop for calibration" />
   <arg name="geometric_check" default="true" doc="the carrier link chain alone decides when false; monitor and MTC guard replay (cable_entanglement_monitor.launch)" />
   <arg name="release_after_rest_s" default="0.0" doc="careful flag, off in code: > 0 = the carrier link chain starts afresh when the arm moves again after resting that many seconds" />
   <arg name="release_during_rest" default="false" doc="careful flag, off in code: with release_after_rest_s > 0 the chain starts afresh once the arm has rested that long" />
@@ -56,7 +56,7 @@
   <arg name="experiment_camera" default="true" />
   <arg name="experiment_camera_copies" default="$(eval int(num_robots) > 1)" doc="with num_robots 2 or 3 and experiment_camera: one more overview camera per scene copy, /experiment_cameraK/image_raw for robot K at the pose of the first shifted by the copy offset, so each robot can get its own overview video" />
   <arg name="start_ground_truth_viz" default="true" doc="publish the Gazebo tables and objects (boxes + URDF meshes) on /sim_ground_truth/* for RViz; only reads Gazebo while someone subscribes" />
-  <arg name="legacy_dope_object_publisher" default="false" doc="true: start the legacy gazebo_object_publisher (fake DOPE detections of table_1 and the power drill from Gazebo, #224); only robot_api's PickUpObject macro reads them" />
+  <arg name="legacy_dope_object_publisher" default="false" doc="true: start the legacy gazebo_object_publisher (fake DOPE detections of table_1 and the power drill from Gazebo); only robot_api's PickUpObject macro reads them" />
   <arg name="record_experiment_images" default="false" />
   <arg name="experiment_image_frequency" default="0.2" />
   <arg name="experiment_image_output_dir" default="" />
@@ -114,7 +114,7 @@
     </include>
   </group>
 
-  <!-- #224: the legacy pick_n_place object publisher turned Gazebo link poses into permanent fake DOPE detections
+  <!-- The legacy pick_n_place object publisher turned Gazebo link poses into permanent fake DOPE detections
        (/mobipick/dope/detected_objects, /mobipick/dope/markers: a "table (1.0)" box at table_1 and "power_drill (1.0)")
        before any perception. The tables demo perceives with the logical camera and the pose selector and nothing in it
        reads these topics (only robot_api's unused PickUpObject macro), so it is off; true brings it back for that macro. -->

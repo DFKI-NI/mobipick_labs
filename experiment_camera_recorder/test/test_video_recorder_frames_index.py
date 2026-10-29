@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""TopicRecorder's per-frame time sidecar (#165), video id, command text in the strip on top and refused gripper topics (#349). No ROS: python3 -m pytest test (cv2/rospy/cv_bridge stubbed)."""
+"""TopicRecorder's per-frame time sidecar, video id, command text in the strip on top and refused gripper topics. No ROS: python3 -m pytest test (cv2/rospy/cv_bridge stubbed)."""
 import importlib.util
 import json
 import os
