@@ -17,6 +17,7 @@
   <arg name="anygrasp_handles_execution" default="false" />
   <arg name="use_mtc" default="false" />
   <arg name="mtc_cable_plan_check" default="false" />
+  <arg name="plan_pick_during_start_move" default="false" />
   <arg name="mtc_cable_path_shaping" default="false" />
   <arg name="mtc_cable_support_margin" default="false" />
   <arg name="mtc_cable_replay_live_state" default="false" />
@@ -93,6 +94,7 @@
     <arg name="anygrasp_handles_execution" value="$(arg anygrasp_handles_execution)" />
     <arg name="use_mtc" value="$(arg use_mtc)" />
     <arg name="mtc_cable_plan_check" value="$(arg mtc_cable_plan_check)" />
+    <arg name="plan_pick_during_start_move" value="$(arg plan_pick_during_start_move)" />
     <arg name="mtc_cable_path_shaping" value="$(arg mtc_cable_path_shaping)" />
     <arg name="mtc_cable_support_margin" value="$(arg mtc_cable_support_margin)" />
     <arg name="mtc_cable_replay_live_state" value="$(arg mtc_cable_replay_live_state)" />
