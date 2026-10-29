@@ -3,6 +3,8 @@
   <arg name="world_config" default="moelk_tables" doc="objects arrangement, options: moelk_tables, cic_tables" />
   <arg name="anygrasp_handles_execution" default="false" />
   <arg name="use_ur_polished_kinematics" default="false" doc="select the calibrated analytic UR5 IK plugin instead of TRAC-IK for MoveIt (#227)" />
+  <arg name="use_ur_polished_kinematics_robot2" default="$(arg use_ur_polished_kinematics)" doc="IK solver of robot 2 (num_robots >= 2), for solver races; default the same as use_ur_polished_kinematics" />
+  <arg name="use_ur_polished_kinematics_robot3" default="$(arg use_ur_polished_kinematics)" doc="IK solver of robot 3 (num_robots 3), for solver races; default the same as use_ur_polished_kinematics" />
   <arg name="use_mtc" default="false" doc="true: plan and execute grasplan pick, place and insert with MoveIt Task Constructor instead of the MoveIt pick n place pipeline (move_group pickup/place actions)" />
   <arg name="mtc_lift_tolerate_touching_neighbours" default="false" doc="allow a just-attached object to clear only box neighbours already touching it during a straight-up MTC lift (#229; careful flag, off in code)" />
   <arg name="mtc_cable_constraints" default="false" doc="old name of mtc_cable_plan_check, still accepted" />
@@ -140,7 +142,7 @@
     <arg name="pose_selector_ns" value="mobipick2" />
     <arg name="offset_x" value="50.0" />
     <arg name="world_config" value="$(arg world_config)" />
-    <arg name="use_ur_polished_kinematics" value="$(arg use_ur_polished_kinematics)" />
+    <arg name="use_ur_polished_kinematics" value="$(arg use_ur_polished_kinematics_robot2)" />
     <arg name="anygrasp_handles_execution" value="$(arg anygrasp_handles_execution)" />
     <arg name="use_mtc" value="$(arg use_mtc)" />
     <arg name="mtc_cable_plan_check" value="$(arg mtc_cable_plan_check)" />
@@ -174,7 +176,7 @@
     <arg name="pose_selector_ns" value="mobipick3" />
     <arg name="offset_x" value="100.0" />
     <arg name="world_config" value="$(arg world_config)" />
-    <arg name="use_ur_polished_kinematics" value="$(arg use_ur_polished_kinematics)" />
+    <arg name="use_ur_polished_kinematics" value="$(arg use_ur_polished_kinematics_robot3)" />
     <arg name="anygrasp_handles_execution" value="$(arg anygrasp_handles_execution)" />
     <arg name="use_mtc" value="$(arg use_mtc)" />
     <arg name="mtc_cable_plan_check" value="$(arg mtc_cable_plan_check)" />
