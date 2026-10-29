@@ -323,6 +323,13 @@ class RqtTablesDemo(Plugin):
         open_gripper_srv_name = rospy.get_param('~open_gripper_srv_name', gripper['open']) if own else gripper['open']
         close_gripper_srv_name = rospy.get_param('~close_gripper_srv_name', gripper['close']) if own \
             else gripper['close']
+        if self.use_mobipick_api and hasattr(self.robot, 'gripper'):
+            # the buttons use the chosen robot's API gripper: no service name of this plugin
+            self.is_gripper_srv_available = False
+            self.gripper_via_api = True
+            self._widget.cmdOpenGripper.setEnabled(True)
+            self._widget.cmdCloseGripper.setEnabled(True)
+            return
         try:
             rospy.wait_for_service(open_gripper_srv_name, self.wait_for_services)
             rospy.wait_for_service(close_gripper_srv_name, 0.5)
