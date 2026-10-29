@@ -9,6 +9,7 @@ import threading
 from qt_gui.plugin import Plugin
 from python_qt_binding import loadUi
 from python_qt_binding.QtWidgets import QWidget, QApplication, QHBoxLayout, QLabel
+from PyQt5.QtGui import QPixmap
 from PyQt5.QtCore import Qt, QMetaObject, Q_ARG, QThread, pyqtSignal
 
 from grasplan.tools.common import objectToPick
@@ -24,6 +25,11 @@ import robot_api
 from std_msgs.msg import String
 
 from rqt_tables_demo import robot_names
+
+try:
+    from mobipick_gazebo import robot_colours  # the colour names and dots of the sim window's robot selector
+except ImportError:
+    robot_colours = None
 
 try:
     from mobipick_api.perception import Perception as ApiPerception
@@ -326,7 +332,10 @@ class RqtTablesDemo(Plugin):
         latched /selected_robot topic; this label shows which robot the commands go to"""
         row = QHBoxLayout()
         row.addWidget(QLabel('Robot:'))
-        self.labelRobot = QLabel(self.robot_ns)
+        self.dotRobot = QLabel()
+        row.addWidget(self.dotRobot)
+        self.labelRobot = QLabel()
+        self._show_robot_name()
         self.labelRobot.setToolTip('every command of this panel goes to this robot; choose it in the robot selector '
                                    'of the sim window')
         row.addWidget(self.labelRobot, 1)
@@ -335,14 +344,23 @@ class RqtTablesDemo(Plugin):
         self._selected_robot_sub = rospy.Subscriber(robot_names.SELECTED_ROBOT_TOPIC, String,
                                                     lambda msg: self.robot_selected.emit(msg.data))
 
+    def _show_robot_name(self):
+        """the robot's colour name and dot as the sim window's selector shows them (the bare namespace without the
+        mobipick_gazebo package)"""
+        name, icon = self.robot_ns, None
+        if robot_colours is not None:
+            name, icon = robot_colours.display_name(self.robot_ns), robot_colours.colour_icon(self.robot_ns)
+        self.labelRobot.setText(name)
+        self.dotRobot.setPixmap(icon.pixmap(12, 12) if icon is not None else QPixmap())
+
     def _select_robot(self, namespace):
         """rebuild every client for the robot `namespace`"""
         namespace = robot_names.normalize(namespace)
         if namespace == self.robot_ns:
             return
-        self.labelRobot.setText(namespace)
         rospy.loginfo(f'commands now go to robot {namespace} (was {self.robot_ns})')
         self.robot_ns = namespace
+        self._show_robot_name()
         self.robot = self.make_robot(self.robot_api_class, self.robot_ns)
         if ApiPerception is not None:
             self.api_perception = ApiPerception(robot_names.prefix(self.robot_ns) + '/', self.robot.arm, None)
