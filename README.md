@@ -287,6 +287,67 @@ Each `world_config` is characterized by four scenario-specific launch and YAML f
      walls matching the environment and table arrangement. Maps are typically
      stored in the `pbr_maps` repository.
 
+#### Several robots in one simulation (`num_robots`)
+
+`demo_sim.launch` can run two or three Mobipicks in one Gazebo, each in its own copy of the scene and each with its
+full stack (navigation, MoveIt, grasplan, pose selectors, cable monitor) under its own namespace, so experiments run
+side by side:
+
+```bash
+roslaunch tables_demo_bringup demo_sim.launch num_robots:=2   # or 3; the default 1 is the usual single robot
+```
+
+```
+ x = 0                     x = 16.9 m                x = 33.8 m
+ +----------------+  gap   +----------------+  gap   +----------------+
+ | scene copy 1   |  1 m   | scene copy 2   |  1 m   | scene copy 3   |
+ | robot mobipick |        | robot mobipick2|        | robot mobipick3|
+ | map frame: map |        | mobipick2/map  |        | mobipick3/map  |
+ +----------------+        +----------------+        +----------------+
+```
+
+- **Scene copies**: copy k is the `world_config` scene shifted along x by (k-1) times `scene_size_x` (15.9 m, the
+  bounding box of the moelk building) plus `copy_gap` (1.0 m), so 16.9 m and 33.8 m with the defaults. Only
+  `moelk_tables` has the needed `mobipick_gazebo/launch/worlds/<world_config>_x<N>_spawn_sim_objects.launch` files
+  so far; `cic_tables` runs with one robot only.
+- **Namespaces and frames**: robot 1 is `mobipick` with map frame `map` and the global pose selector names, as with
+  one robot; robot k is `mobipickK` with map frame `mobipickK/map` and its pose selectors under `/mobipickK`. A static
+  transform puts each `mobipickK/map` at its copy's offset in `map`, so one RViz shows all robots. The namespaces
+  are fixed in `demo_sim.launch` (the robot stack itself, `includes/robot_stack_sim.launch`, takes any
+  `namespace`).
+- **Per robot options**: `use_ur_polished_kinematics_robot2` and `_robot3` choose the IK solver of robots 2 and 3
+  (default: the same as `use_ur_polished_kinematics`); the other demo options apply to every robot alike.
+- **Looks and cameras**: `robot_colours:=true` paints each robot and a stripe along the walls of its copy in its own
+  colour (see the `mobipick_gazebo` README of the mobipick repository); with
+  `experiment_camera` each further copy gets its own overview camera `/experiment_cameraK/image_raw`
+  (`experiment_camera_copies`, on by default when `num_robots` > 1), see
+  [experiment_camera_recorder](experiment_camera_recorder/README.md).
+- **Sim GUI and robot selector**: with `gui:=true` one RQt window (`rqt_sim_gui_all`,
+  `mobipick_gazebo/config/sim_gui_x<N>.perspective`) holds one robot selector (the RQt plugin *Mobipick > Robot
+  selector*) plus the steering, joint trajectory controller and simulated e-stop panels. The selector lists every
+  namespace that runs a `move_base` (refreshed every 3 s), publishes the choice latched as `std_msgs/String` on
+  `/selected_robot` (default `mobipick`) and points the steering panel at `/<ns>/cmd_vel` and the joint trajectory
+  controller panel at `/<ns>/controller_manager`. The e-stop panel keeps every robot's dashboard running (each
+  robot's cable monitor presses its protective stop through it) and shows the selected robot's. With `gui:=false`
+  each robot starts its own headless e-stop dashboard.
+- **RQt tables demo**: one instance per robot, `roslaunch rqt_tables_demo rqt_tables_demo.launch
+  namespace:=mobipick2`; it does not follow `/selected_robot`.
+- **Stopping**: everything runs inside the one `demo_sim.launch`; ending it stops all robots.
+
+Limits (as of this writing):
+
+- `tables_demo_planning` (the symbolic planner of the tables demo) drives robot 1 only: it uses the `mobipick`
+  namespace, `/map` and the global pose selector names. Its parameters are loaded for every robot under
+  `<ns>/tables_demo_planning`, but nothing reads them for robots 2 and 3 yet.
+- The RQt tables demo's pose selector services default to robot 1's global names; with `namespace:=mobipickK` its
+  base and arm buttons act on robot K, the pose selector views do not.
+- Only robot 1 gets the optional extras `cable_carrier_sim`, the legacy DOPE object publisher
+  (`legacy_dope_object_publisher`) and the random open-set object placement (`object_spawn:=random`, one robot and
+  `cic_tables` only).
+- Resources grow with every robot (one MoveIt, navigation and grasplan stack each), and Gazebo's physics runs in
+  one thread for all of them: on a development laptop the real-time factor was 1.66 with one robot, 0.83 with two
+  and 0.44 with three, so two robots are practical and three run at under half real time.
+
 ### Running on Real Robot vs. Gazebo Simulation
 
 - **Real Robot**:
