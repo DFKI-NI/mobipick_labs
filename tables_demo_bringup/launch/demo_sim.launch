@@ -32,7 +32,7 @@
   <arg name="geometric_check" default="true" doc="the carrier link chain alone decides when false; monitor and MTC guard replay (cable_entanglement_monitor.launch)" />
   <arg name="release_after_rest_s" default="0.0" doc="careful flag, off in code: > 0 = the carrier link chain starts afresh when the arm moves again after resting that many seconds" />
   <arg name="release_during_rest" default="false" doc="careful flag, off in code: with release_after_rest_s > 0 the chain starts afresh once the arm has rested that long" />
-  <arg name="untangle_with_chain" default="false" doc="safe flag, off in code: the sim untangle service plans from the carried carrier link chain and keeps it through the release" />
+  <arg name="untangle_with_chain" default="false" doc="safe flag, off in code, simulation only: the sim untangle service plans from the carried carrier link chain and keeps it through the release; ignored on the real robot, where the monitor offers no untangle" />
   <arg name="reset_at_trajectory_start" default="false" doc="careful flag, off in code: the chain starts afresh when an executed trajectory starts" />
   <arg name="reset_cache_mrad" default="0.0" doc="careful flag, off in code: > 0 = start-pose cache of the settled chain, rounding step in mrad" />
   <arg name="cable_carrier_sim" default="false" doc="sim only prototype, off by default: the arm cable carrier of the wrist span as a jointed chain in Gazebo (gazebo_jointed_chain plugin, PLACEHOLDER stiffness until the real carrier is measured), colliding only with the cable model's shapes; it logs strain and clamp force events and never presses the protective stop; slows the sim about 27 %" />
