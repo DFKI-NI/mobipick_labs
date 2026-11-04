@@ -52,7 +52,7 @@
   <arg name="gui" default="true" />
 
   <!-- Transparent overview camera and sparse experiment image recorder. -->
-  <arg name="robot_colours" default="false" doc="sim only, a look, not a feature flag: true paints each robot's body covers in its colour by order (robot 1 blue, 2 orange, 3 green, 4 purple; mobipick_description/config/robot_colours.yaml) and draws a stripe of that colour high along the walls of its copy of the world, above what the cameras and lasers see; the floor stays" />
+  <arg name="robot_colours" default="false" doc="sim only, a look, not a feature flag: true paints each robot's body covers in its colour by order (robot 1 blue, 2 orange, 3 green, 4 purple; mobipick_description/config/robot_colours.yaml) and draws a stripe of that colour high along the walls of its copy of the world, above what the cameras and lasers see; the floor stays. Only with num_robots 2 or more: a single robot has nobody to be told apart from and keeps the plain look" />
   <arg name="experiment_camera" default="true" />
   <arg name="experiment_camera_copies" default="$(eval int(num_robots) > 1)" doc="with num_robots 2 or 3 and experiment_camera: one more overview camera per scene copy, /experiment_cameraK/image_raw for robot K at the pose of the first shifted by the copy offset, so each robot can get its own overview video" />
   <arg name="start_ground_truth_viz" default="true" doc="publish the Gazebo tables and objects (boxes + URDF meshes) on /sim_ground_truth/* for RViz; only reads Gazebo while someone subscribes" />
@@ -67,7 +67,7 @@
     <arg name="physics_profile" value="$(arg physics_profile)" />
     <arg name="grasp_fix" value="$(arg grasp_fix)" />
     <arg name="gui" value="$(arg gui)" />
-    <arg name="robot_colours" value="$(arg robot_colours)" />
+    <!-- one robot: no robot_colours, the robot and the walls keep the plain look -->
   </include>
   <include file="$(find mobipick_gazebo)/launch/worlds/$(arg world_config)_x$(arg num_robots)_spawn_sim_objects.launch" if="$(eval int(num_robots) > 1)">
     <arg name="joint_limits_parameters_file" value="$(arg joint_limits_parameters_file)" />

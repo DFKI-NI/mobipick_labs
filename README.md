@@ -318,7 +318,7 @@ roslaunch tables_demo_bringup demo_sim.launch num_robots:=2   # or 3; the defaul
 - **Per robot options**: `use_ur_polished_kinematics_robot2` and `_robot3` choose the IK solver of robots 2 and 3
   (default: the same as `use_ur_polished_kinematics`); the other demo options apply to every robot alike.
 - **Looks and cameras**: `robot_colours:=true` paints each robot and a stripe along the walls of its copy in its own
-  colour (see the `mobipick_gazebo` README of the mobipick repository); with
+  colour (see the `mobipick_gazebo` README of the mobipick repository); a single robot keeps the plain look; with
   `experiment_camera` each further copy gets its own overview camera `/experiment_cameraK/image_raw`
   (`experiment_camera_copies`, on by default when `num_robots` > 1), see
   [experiment_camera_recorder](experiment_camera_recorder/README.md).
