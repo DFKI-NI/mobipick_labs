@@ -22,12 +22,12 @@ repositories:
     url: https://github.com/DFKI-NI/grasplan.git
     version: noetic
   mir_robot:
-    # the fork branch path-follower-critic: the DWB path follower
-    # critic and SBPL settings the tables demo navigation is tested with (the apt ros-noetic-mir-navigation gets
-    # stuck often), plus the map_ns, map_frame and global_frame_id args of the multi-robot sim
+    # the fork branch mobipick-demo: the DWB path follower critic, the navigation launch args (sbpl_allocated_time,
+    # map_ns, map_frame, global_frame_id) and the cable charging sim, which the tables demo is tested with (the apt
+    # ros-noetic-mir-navigation gets stuck often)
     type: git
     url: https://github.com/oscar-lima/mir_robot.git
-    version: path-follower-critic
+    version: mobipick-demo
   mobipick:
     type: git
     url: https://github.com/DFKI-NI/mobipick.git
