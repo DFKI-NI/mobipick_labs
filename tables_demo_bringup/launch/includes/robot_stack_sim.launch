@@ -21,6 +21,15 @@
   <arg name="plan_pick_during_start_move" default="false" />
   <arg name="mtc_cable_path_shaping" default="false" />
   <arg name="mtc_cable_support_margin" default="false" />
+  <arg name="external_grasp_ik_timeout" default="0.1" />
+  <arg name="open_set_pick_from_current_state" default="false" />
+  <arg name="drop_floating_boxes_at_target" default="0.0" />
+  <arg name="place_sample_within_reach" default="false" />
+  <arg name="place_free_footprints_first" default="false" />
+  <arg name="place_drop_implausible_boxes" default="false" />
+  <arg name="mtc_cable_guard_named_moves" default="log" />
+  <arg name="mtc_place_reject_octomap_occupied" default="false" />
+  <arg name="mtc_grasp_check_squeeze" default="false" />
   <arg name="mtc_cable_replay_live_state" default="false" />
   <arg name="mtc_cable_replay_detour" default="false" />
   <arg name="open_set_box_padding" default="0.0" />
@@ -99,6 +108,15 @@
     <arg name="plan_pick_during_start_move" value="$(arg plan_pick_during_start_move)" />
     <arg name="mtc_cable_path_shaping" value="$(arg mtc_cable_path_shaping)" />
     <arg name="mtc_cable_support_margin" value="$(arg mtc_cable_support_margin)" />
+    <arg name="external_grasp_ik_timeout" value="$(arg external_grasp_ik_timeout)" />
+    <arg name="open_set_pick_from_current_state" value="$(arg open_set_pick_from_current_state)" />
+    <arg name="drop_floating_boxes_at_target" value="$(arg drop_floating_boxes_at_target)" />
+    <arg name="place_sample_within_reach" value="$(arg place_sample_within_reach)" />
+    <arg name="place_free_footprints_first" value="$(arg place_free_footprints_first)" />
+    <arg name="place_drop_implausible_boxes" value="$(arg place_drop_implausible_boxes)" />
+    <arg name="mtc_cable_guard_named_moves" value="$(arg mtc_cable_guard_named_moves)" />
+    <arg name="mtc_place_reject_octomap_occupied" value="$(arg mtc_place_reject_octomap_occupied)" />
+    <arg name="mtc_grasp_check_squeeze" value="$(arg mtc_grasp_check_squeeze)" />
     <arg name="mtc_cable_replay_live_state" value="$(arg mtc_cable_replay_live_state)" />
     <arg name="mtc_cable_replay_detour" value="$(arg mtc_cable_replay_detour)" />
     <arg name="open_set_box_padding" value="$(arg open_set_box_padding)" />
