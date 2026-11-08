@@ -53,9 +53,23 @@ class Robot:
         self.arm.move = self.arm.moves.append
 
 
-class CancelClient:
-    def __init__(self):
+class NavClient:
+    """the panel's own move_base client of one robot: a goal runs until the robot's gate opens"""
+    def __init__(self, gate):
+        self.gate = gate
+        self.goals = []
         self.cancels = 0
+
+    def wait_for_server(self, timeout=None):
+        return True
+
+    def send_goal_and_wait(self, goal, execute_timeout=None):
+        self.goals.append(goal)
+        self.gate.wait(5)
+        return 3
+
+    def get_goal_status_text(self):
+        return 'Goal reached.'
 
     def cancel_all_goals(self):
         self.cancels += 1
@@ -72,8 +86,9 @@ class Signal:
 class FakePanel:
     """the attributes the panel's command methods use, with the methods taken from the real class"""
     COMMAND_GROUPS = Panel.COMMAND_GROUPS
+    NAVIGATION_TIMEOUT = Panel.NAVIGATION_TIMEOUT
 
-    def __init__(self, robots):
+    def __init__(self, robots, gates):
         self.robots = robots
         self.robot_ns = 'mobipick'
         self.robot = robots['mobipick']
@@ -87,8 +102,10 @@ class FakePanel:
         self._busy_lock = threading.Lock()
         self._action_clients = {}
         self._api_busy_robots = {}
-        self._nav_cancel_clients = {ns: CancelClient() for ns in robots}
+        self._nav_clients = {ns: NavClient(gates[ns]) for ns in robots}
         self._api_ns = 'mobipick'
+        self._api_lock = threading.Lock()
+        self._api_holder = ''
         self._switching_to = None
         self._build_lock = threading.Lock()
         self.wp_dic = {'table_1': [12.21, 2.1, 0.0, 0.0, 0.0, 0.707, 0.707]}
@@ -103,8 +120,8 @@ class FakePanel:
         self._update_busy_ui()
 
 
-for _name in ('_run', '_is_busy', '_api_still_targets', '_update_busy_ui', 'navigation_go', '_navigate', 'cancel',
-              '_nav_cancel_client', '_robot_built', '_perceive_objs_task'):
+for _name in ('_run', '_is_busy', '_with_robot_api', '_update_busy_ui', 'navigation_go', '_navigate', 'cancel',
+              '_nav_client', '_robot_built', '_perceive_objs_task', 'manipulation_go', 'perceive_objs'):
     setattr(FakePanel, _name, getattr(Panel, _name))
 
 
@@ -120,7 +137,13 @@ def wait_until(condition, timeout=5.0):
 class PanelThreadsTest(unittest.TestCase):
     def setUp(self):
         self.gates = {ns: threading.Event() for ns in ('mobipick', 'mobipick2')}
-        self.panel = FakePanel({ns: Robot(ns, gate) for ns, gate in self.gates.items()})
+        self.panel = FakePanel({ns: Robot(ns, gate) for ns, gate in self.gates.items()}, self.gates)
+        real_now = panel_module.rospy.Time.now
+        panel_module.rospy.Time.now = staticmethod(lambda: panel_module.rospy.Time(0))  # no ROS node in the test
+        self.addCleanup(setattr, panel_module.rospy.Time, 'now', real_now)
+
+    def goals(self, ns):
+        return self.panel._nav_clients[ns].goals
 
     def tearDown(self):
         for gate in self.gates.values():
@@ -133,15 +156,16 @@ class PanelThreadsTest(unittest.TestCase):
         started = time.time()
         self.panel.navigation_go()  # robot 1 now drives until its gate opens
         self.assertLess(time.time() - started, 1.0, 'the Qt thread waited for the robot')
-        self.assertTrue(wait_until(lambda: self.panel.robots['mobipick'].base.goals))
+        self.assertTrue(wait_until(lambda: self.goals('mobipick')))
         self.assertFalse(self.navigation_box().enabled)
         self.assertIn('navigate to table_1', self.panel.labelBusy.text)
         self.panel.choose('mobipick2')
         self.assertTrue(self.navigation_box().enabled, 'robot 2 is blocked by robot 1')
         self.assertIn('other robots: mobipick: navigate to table_1', self.panel.labelBusy.text)
         self.panel.navigation_go()  # robot 2 drives at the same time
-        self.assertTrue(wait_until(lambda: self.panel.robots['mobipick2'].base.goals))
-        self.assertEqual(self.panel.robots['mobipick2'].base.goals[0][3], {'frame_id': 'mobipick2/map'})
+        self.assertTrue(wait_until(lambda: self.goals('mobipick2')))
+        self.assertEqual(self.goals('mobipick2')[0].target_pose.header.frame_id, 'mobipick2/map')
+        self.assertEqual(self.panel.robots['mobipick2'].base.goals, [], 'navigation used the robot API')
         self.gates['mobipick'].set()
         self.assertTrue(wait_until(lambda: not self.panel._is_busy('mobipick', 'navigate')))
         self.assertFalse(self.navigation_box().enabled, 'robot 2 still drives')
@@ -151,29 +175,29 @@ class PanelThreadsTest(unittest.TestCase):
 
     def test_a_second_navigate_of_a_busy_robot_is_refused(self):
         self.panel.navigation_go()
-        self.assertTrue(wait_until(lambda: self.panel.robots['mobipick'].base.goals))
+        self.assertTrue(wait_until(lambda: self.goals('mobipick')))
         self.panel.navigation_go()
         time.sleep(0.2)
-        self.assertEqual(len(self.panel.robots['mobipick'].base.goals), 1)
+        self.assertEqual(len(self.goals('mobipick')), 1)
 
     def test_cancel_stops_only_the_chosen_robots_navigation(self):
         self.panel.navigation_go()
         self.panel.choose('mobipick2')
         self.panel.navigation_go()
-        self.assertTrue(wait_until(lambda: self.panel.robots['mobipick2'].base.goals))
+        self.assertTrue(wait_until(lambda: self.goals('mobipick2')))
         self.panel.cancel()
-        self.assertEqual(self.panel._nav_cancel_clients['mobipick2'].cancels, 1)
-        self.assertEqual(self.panel._nav_cancel_clients['mobipick'].cancels, 0)
+        self.assertEqual(self.panel._nav_clients['mobipick2'].cancels, 1)
+        self.assertEqual(self.panel._nav_clients['mobipick'].cancels, 0)
 
     def test_cancel_without_a_running_navigation_sends_nothing(self):
         self.panel.cancel()
-        self.assertEqual(self.panel._nav_cancel_clients['mobipick'].cancels, 0)
+        self.assertEqual(self.panel._nav_clients['mobipick'].cancels, 0)
 
     def test_no_command_starts_while_a_chosen_robot_is_being_built(self):
         self.panel._switching_to = 'mobipick2'
         self.panel.navigation_go()
         time.sleep(0.2)
-        self.assertEqual(self.panel.robots['mobipick'].base.goals, [])
+        self.assertEqual(self.goals('mobipick'), [])
 
     def test_a_build_replaced_by_a_newer_choice_is_dropped(self):
         self.panel._switching_to = 'mobipick'
@@ -181,12 +205,27 @@ class PanelThreadsTest(unittest.TestCase):
         self.assertEqual(self.panel.robot_ns, 'mobipick')
         self.assertEqual(self.panel._switching_to, 'mobipick')
 
-    def test_a_multi_step_command_stops_when_the_robot_api_moved_to_another_robot(self):
+    def test_a_robot_api_command_does_not_start_when_the_robot_api_moved_to_another_robot(self):
         ctx = {'ns': 'mobipick', 'robot': self.panel.robots['mobipick'], 'activate': lambda on: None}
-        self.panel._api_ns = 'mobipick2'
-        self.panel._perceive_objs_task(ctx, ['observe100cm_right'])
+        self.panel._api_ns = 'mobipick2'  # robot 2 was built while this command waited for its turn
+        self.panel._with_robot_api(ctx, 'perceive', lambda: self.panel._perceive_objs_task(ctx, ['observe100cm_right']))
         self.assertEqual(self.panel.robots['mobipick'].arm.moves, [])
-        self.assertEqual(self.panel.robots['mobipick2'].arm.moves, [])
+        self.assertFalse(self.panel._api_lock.locked())
+
+    def test_a_robot_api_command_holds_the_robot_api_until_it_ends(self):
+        release = threading.Event()
+        self.panel.robots['mobipick'].arm.move = lambda pose: release.wait(5)
+        self.panel._widget.comboArmPoses = Box('home')
+        self.panel.manipulation_go()
+        self.assertTrue(wait_until(lambda: self.panel._api_lock.locked()))
+        self.assertEqual(self.panel._api_holder, 'robot mobipick: arm to home')
+        release.set()
+        self.assertTrue(wait_until(lambda: not self.panel._api_lock.locked()))
+
+    def test_navigation_does_not_hold_the_robot_api(self):
+        self.panel.navigation_go()
+        self.assertTrue(wait_until(lambda: self.goals('mobipick')))
+        self.assertFalse(self.panel._api_lock.locked(), 'a drive would block every robot switch')
 
     def test_a_failing_command_frees_its_robot(self):
         def boom(ctx):

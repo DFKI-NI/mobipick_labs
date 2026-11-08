@@ -41,6 +41,21 @@ def action_server(namespace, name):
     return prefix(namespace) + '/' + name
 
 
+_GOAL_STATES = {0: 'pending', 1: 'active', 2: 'preempted', 3: 'succeeded', 4: 'aborted', 5: 'rejected',
+                6: 'preempting', 7: 'recalling', 8: 'recalled', 9: 'lost'}
+
+
+def goal_end(state, status_text, timeout):
+    """"<state>: <status text>" for a move_base goal that ended (as the Mobipick API words it)"""
+    text = (status_text or '').strip()
+    if state == 1:  # still active: the timeout hit and the cancel got no answer
+        text = text or f'no result within {timeout:.0f} s'
+    elif state == 2 and not text:
+        text = f'cancelled after the timeout of {timeout:.0f} s'
+    name = _GOAL_STATES.get(state, f'state {state}')
+    return f'{name}: {text}' if text else name
+
+
 _NAV_STATUS = re.compile(r'^/([^/]+)/move_base/status$')
 
 

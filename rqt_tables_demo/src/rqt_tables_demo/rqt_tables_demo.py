@@ -15,7 +15,7 @@ from PyQt5.QtCore import Qt, QMetaObject, Q_ARG, QTimer, pyqtSignal
 
 from grasplan.tools.common import objectToPick
 from geometry_msgs.msg import PoseStamped
-from move_base_msgs.msg import MoveBaseAction
+from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from gazebo_msgs.srv import SetModelState
 from gazebo_msgs.msg import ModelState
 from std_srvs.srv import Empty, SetBool, Trigger
@@ -47,12 +47,14 @@ def service_name(proxy):
 class RqtTablesDemo(Plugin):
     robot_selected = pyqtSignal(str)  # the robot named on /selected_robot (the subscriber thread -> the Qt thread)
     robot_built = pyqtSignal(object)  # the clients of a newly chosen robot are ready (worker thread -> Qt thread)
+    build_waiting = pyqtSignal(str, str)  # a robot switch waits for a robot API command: (robot, what it waits for)
     busy_changed = pyqtSignal()  # a robot command started or ended (worker thread -> Qt thread)
     robots_listed = pyqtSignal(object)  # the robots with a running move_base (worker thread -> Qt thread)
 
     # the group boxes a running command blocks, for its own robot only: the other robots keep theirs
     COMMAND_GROUPS = ('Navigation_groupBox', 'Manipulation_groupBox', 'Perception_groupBox', 'OpenSet_groupBox',
                       'Perceive_groupBox', 'Inspect_groupBox')
+    NAVIGATION_TIMEOUT = 60.0  # s, then the goal is cancelled (as the robot API's base.move did)
 
     def __init__(self, context):
         super(RqtTablesDemo, self).__init__(context)
@@ -107,10 +109,13 @@ class RqtTablesDemo(Plugin):
         self._busy_lock = threading.Lock()
         self._action_clients = {}  # robot -> its pick, place or insert action client while one runs (cancel)
         self._api_busy_robots = {}  # robot -> its API robot object while a pick, place or insert through it runs
-        self._nav_cancel_clients = {}  # robot -> a move_base client used only to cancel the panel's navigation
-        # robot_api keeps one ROS wrapper per process: the robot built last receives every later robot_api call, so a
-        # command of several robot_api calls stops when another robot is built in between
+        self._nav_clients = {}  # robot -> the panel's own move_base client: navigate and cancel
+        # robot_api keeps one ROS wrapper per process: the robot built last receives every later robot_api call. A
+        # command that calls the robot API holds _api_lock for its whole run and a robot switch builds the next robot
+        # only in between, so no call goes to a robot built meanwhile; navigation does not use the robot API
         self._api_ns = self.robot_ns
+        self._api_lock = threading.Lock()
+        self._api_holder = ''  # what holds _api_lock, for the switch's hint
         self._switching_to = None  # the robot whose clients are being built after a selection
         self._build_lock = threading.Lock()
 
@@ -199,9 +204,10 @@ class RqtTablesDemo(Plugin):
 
         # ::: services
         self._apply_services(self._find_services(self.robot_ns, self.robot, self.api_perception))
-        self._nav_cancel_client(self.robot_ns)
+        self._nav_client(self.robot_ns)
         self._add_robot_selector()
         self.robot_built.connect(self._robot_built)
+        self.build_waiting.connect(self._build_waiting)
         self.busy_changed.connect(self._update_busy_ui)
 
         # make a connection between the qt objects and this class methods
@@ -332,13 +338,13 @@ class RqtTablesDemo(Plugin):
         self._widget.cmdOpenGripper.setEnabled(gripper)
         self._widget.cmdCloseGripper.setEnabled(gripper)
 
-    def _nav_cancel_client(self, namespace):
-        """a move_base client of robot `namespace` used only to cancel a navigation of this panel; made when the robot
-        is chosen, so its cancel topic is connected by the time Cancel is pressed"""
-        if namespace not in self._nav_cancel_clients:
-            self._nav_cancel_clients[namespace] = actionlib.SimpleActionClient(
+    def _nav_client(self, namespace):
+        """the panel's own move_base client of robot `namespace` (navigate and cancel); made when the robot is chosen,
+        so it is connected by the time a command needs it"""
+        if namespace not in self._nav_clients:
+            self._nav_clients[namespace] = actionlib.SimpleActionClient(
                 robot_names.action_server(namespace, 'move_base'), MoveBaseAction)
-        return self._nav_cancel_clients[namespace]
+        return self._nav_clients[namespace]
 
     def _add_robot_selector(self):
         """the robot switch: the robots of the sim by their colour names. A choice here asks the sim's selected-robot
@@ -481,22 +487,39 @@ class RqtTablesDemo(Plugin):
                          name=f'select robot {namespace}').start()
 
     def _build_robot(self, namespace):
-        """worker thread: the robot API, perception, services and navigation cancel client of robot `namespace`"""
+        """worker thread: the robot API, perception, services and navigation client of robot `namespace`; the robot API
+        part waits until no robot API command runs (the robot API serves the robot built last)"""
         with self._build_lock:  # one build at a time, and none for a choice that a newer one replaced
             if namespace != self._switching_to:
                 return
+            if not self._api_lock.acquire(blocking=False):
+                holder = self._api_holder or 'a robot API command'
+                rospy.loginfo(f'robot {namespace}: the switch waits until {holder} ends (the robot API serves one robot '
+                              'at a time)')
+                self.build_waiting.emit(namespace, f'waiting: {holder}')
+                self._api_lock.acquire()
             try:  # when this fails, the commands stay with the robot they went to before
-                robot = self.make_robot(self.robot_api_class, namespace)
-                self._api_ns = namespace
-                api_perception = None
-                if ApiPerception is not None:
-                    api_perception = ApiPerception(robot_names.prefix(namespace) + '/', robot.arm, None)
+                try:
+                    if namespace != self._switching_to:
+                        return
+                    robot = self.make_robot(self.robot_api_class, namespace)
+                    self._api_ns = namespace
+                    api_perception = None
+                    if ApiPerception is not None:
+                        api_perception = ApiPerception(robot_names.prefix(namespace) + '/', robot.arm, None)
+                finally:
+                    self._api_lock.release()
                 found = self._find_services(namespace, robot, api_perception)
-                self._nav_cancel_client(namespace)
+                self._nav_client(namespace)
             except Exception as error:
                 rospy.logerr(f'cannot control robot {namespace} ({error}): commands stay with robot {self.robot_ns}')
                 robot = api_perception = found = None
             self.robot_built.emit((namespace, robot, api_perception, found))
+
+    def _build_waiting(self, namespace, note):
+        """Qt thread: the switch to `namespace` waits for a robot API command of another robot; say for which"""
+        if namespace == self._switching_to:
+            self._show_robot_name(namespace, note)
 
     def _robot_built(self, built):
         """Qt thread: the commands go to the robot whose clients _build_robot made"""
@@ -552,14 +575,23 @@ class RqtTablesDemo(Plugin):
         with self._busy_lock:
             return any(what.startswith(what_prefix) for what in self._busy.get(ns, {}).values())
 
-    def _api_still_targets(self, ctx, what):
-        """False (and logged) when robot_api now serves another robot: the next step of a multi-step command would go
-        there (robot_api keeps one ROS wrapper per process, the robot built last owns it)"""
-        if self._api_ns == ctx['ns']:
-            return True
-        rospy.logerr(f'{what} on robot {ctx["ns"]}: stopped, robot {self._api_ns} was chosen meanwhile and the '
-                     'robot API now acts on it; choose the robot again and repeat')
-        return False
+    def _with_robot_api(self, ctx, what, task):
+        """worker thread: task() for robot ctx['ns'] while holding the robot API (one robot per process: the robot built
+        last receives every robot_api call). A robot switch waits until it ends; None when the robot API meanwhile
+        serves another robot (built while this command waited for its turn)"""
+        if not self._api_lock.acquire(blocking=False):
+            rospy.loginfo(f'robot {ctx["ns"]}: {what} waits until {self._api_holder or "a robot switch"} ends')
+            self._api_lock.acquire()
+        try:
+            if self._api_ns != ctx['ns']:
+                rospy.logerr(f'{what} on robot {ctx["ns"]}: not started, robot {self._api_ns} was chosen meanwhile '
+                             'and the robot API now acts on it; choose the robot again and repeat')
+                return None
+            self._api_holder = f'robot {ctx["ns"]}: {what}'
+            return task()
+        finally:
+            self._api_holder = ''
+            self._api_lock.release()
 
     def _update_busy_ui(self):
         """Qt thread: the command group boxes follow the chosen robot's running commands; the label lists them"""
@@ -694,17 +726,26 @@ class RqtTablesDemo(Plugin):
                       lambda ctx: self._teletransport(ctx, waypoint_as_text))
 
     def _navigate(self, ctx, waypoint_as_text):
-        rospy.loginfo(f'Navigating robot {ctx["ns"]} to waypoint: {waypoint_as_text}')
-        # Move the robot's base using move_base.
-        angular_q = self.wp_dic[waypoint_as_text][3:7]
-        angular_rpy = list(tf.transformations.euler_from_quaternion(angular_q))
-        frame = robot_names.map_frame(ctx['ns'])
-        frame_kwargs = {} if frame == 'map' else {'frame_id': frame}  # a robot API's base.move need not take a frame
-        base = ctx['robot'].base
-        state = base.move(self.wp_dic[waypoint_as_text][0], self.wp_dic[waypoint_as_text][1], angular_rpy[2],
-                          **frame_kwargs)
-        why = getattr(base, 'last_navigation_message', '') or f'goal state {state}'
-        rospy.loginfo(f'robot {ctx["ns"]} navigation to {waypoint_as_text} ended: {why}')
+        """move_base goal through the panel's own client of the robot, not the robot API's base.move: the robot API
+        serves one robot per process, and a drive of minutes must not hold it (a robot switch would wait for it)"""
+        ns = ctx['ns']
+        rospy.loginfo(f'Navigating robot {ns} to waypoint: {waypoint_as_text}')
+        waypoint = self.wp_dic[waypoint_as_text]
+        yaw = tf.transformations.euler_from_quaternion(waypoint[3:7])[2]
+        goal = MoveBaseGoal()
+        goal.target_pose.header.frame_id = robot_names.map_frame(ns)
+        goal.target_pose.header.stamp = rospy.Time.now()
+        goal.target_pose.pose.position.x, goal.target_pose.pose.position.y = waypoint[0], waypoint[1]
+        (goal.target_pose.pose.orientation.x, goal.target_pose.pose.orientation.y, goal.target_pose.pose.orientation.z,
+         goal.target_pose.pose.orientation.w) = tf.transformations.quaternion_from_euler(0.0, 0.0, yaw)
+        client = self._nav_client(ns)
+        if not client.wait_for_server(rospy.Duration(5.0)):
+            rospy.logerr(f'robot {ns} navigation to {waypoint_as_text}: not started, its move_base '
+                         f'({robot_names.action_server(ns, "move_base")}) does not answer')
+            return
+        state = client.send_goal_and_wait(goal, rospy.Duration(self.NAVIGATION_TIMEOUT))
+        why = robot_names.goal_end(state, client.get_goal_status_text(), self.NAVIGATION_TIMEOUT)
+        rospy.loginfo(f'robot {ns} navigation to {waypoint_as_text} ended: {why}')
 
     def _teletransport(self, ctx, waypoint_as_text):
         rospy.loginfo(f'Teletransporting robot {ctx["ns"]} to waypoint: {waypoint_as_text}')
@@ -726,14 +767,16 @@ class RqtTablesDemo(Plugin):
         def task(ctx):
             rospy.loginfo(f'Moving arm of robot {ctx["ns"]} to pose: {arm_pose}')
             ctx['robot'].arm.move(arm_pose)
-        self._run('Manipulation_groupBox', f'arm to {arm_pose}', task)
+        self._run('Manipulation_groupBox', f'arm to {arm_pose}',
+                  lambda ctx: self._with_robot_api(ctx, f'arm to {arm_pose}', lambda: task(ctx)))
 
     def perceive_objs(self):
         # read the widgets in the GUI thread; the task runs in the background
         observation_list = [combo.currentText() for combo in (
             self._widget.comboPerceptionObs1, self._widget.comboPerceptionObs2, self._widget.comboPerceptionObs3)
             if combo.currentText() != '']
-        self._run('Perception_groupBox', 'perceive', lambda ctx: self._perceive_objs_task(ctx, observation_list))
+        self._run('Perception_groupBox', 'perceive', lambda ctx: self._with_robot_api(
+            ctx, 'perceive', lambda: self._perceive_objs_task(ctx, observation_list)))
 
     def _perceive_objs_task(self, ctx, observation_list):
         ns = ctx['ns']
@@ -745,9 +788,7 @@ class RqtTablesDemo(Plugin):
         rospy.loginfo(f'robot {ns}: observation_list : {observation_list}')
         # iterate over observation poses and go one at a time
         for observation_pose in observation_list:
-            if not self._api_still_targets(ctx, 'perceive'):
-                return
-            # the robot API serves the robot built last in this process: say which one, a switch may have moved it
+            # the robot API serves the robot built last in this process: say which one (it must be this robot)
             rospy.loginfo(f'robot {ns}: moving arm to {observation_pose} (robot API serves {self._api_ns})')
             # move arm to observation pose
             ctx['robot'].arm.move(observation_pose)
@@ -890,9 +931,17 @@ class RqtTablesDemo(Plugin):
         self._set_text(widget, f'perceiving {targets} with {confidence} confidence...')
         rospy.loginfo(f'robot {ctx["ns"]}: perceiving {targets} through '
                       f'{getattr(api_perception, "perceive_action_name", "(unknown action)")}')
-        try:
-            text = api_perception.perceive(targets, confidence=confidence, use_vlm=use_vlm, align=align,
+        def perceive():
+            return api_perception.perceive(targets, confidence=confidence, use_vlm=use_vlm, align=align,
                                            dope_only=dope_only, gd_only=gd_only)
+        try:
+            # without the Perceive server the API falls back to its old observation, which moves the arm through the
+            # robot API; with the server the arm is the server's (its own process), and the robot switch need not wait
+            if getattr(api_perception, '_perceive_action_client', lambda: True)() is None:
+                text = self._with_robot_api(ctx, 'perceive targets', perceive)
+                text = 'failed:\nthe robot API acts on another robot now' if text is None else text
+            else:
+                text = perceive()
         except Exception as exc:  # invalid request or a service failure: show it instead of dying
             text = f'failed:\n{type(exc).__name__}: {exc}'
         rospy.loginfo(f'robot {ctx["ns"]}: perceive result:\n{text}')
@@ -1034,7 +1083,7 @@ class RqtTablesDemo(Plugin):
                     rospy.loginfo(f'{what}: done')
                 else:
                     rospy.logerr(f'{what}: failed: {gripper.last_gripper_message}')
-            self._run(None, what, task)
+            self._run(None, what, lambda ctx: self._with_robot_api(ctx, what, lambda: task(ctx)))
         else:
             rospy.logerr('gripper service was not available when node started and therefore is unavailable')
 
@@ -1091,23 +1140,19 @@ class RqtTablesDemo(Plugin):
         self._run('Manipulation_groupBox', 'insert', task)
 
     def hand_over_object(self):
-        self._run('Manipulation_groupBox', 'hand over', self._hand_over_task)
+        self._run('Manipulation_groupBox', 'hand over',
+                  lambda ctx: self._with_robot_api(ctx, 'hand over', lambda: self._hand_over_task(ctx)))
 
     def _hand_over_task(self, ctx):
         arm = ctx['robot'].arm
         arm.move('handover')
         rospy.loginfo('waiting for user to excert force on object')
         # observe force torque sensor using a treshold and a timeout
-        if not self._api_still_targets(ctx, 'hand over'):
-            return False
         if not arm.observe_force_torque(5.0, 25.0):
             rospy.logerr('Failed to handover object within 25 seconds')
-            if self._api_still_targets(ctx, 'hand over'):
-                arm.move('transport')
+            arm.move('transport')
             return False
 
-        if not self._api_still_targets(ctx, 'hand over'):
-            return False
         arm.execute('ReleaseGripper')
         rospy.loginfo('Success at handing over object')
         return True
@@ -1119,7 +1164,7 @@ class RqtTablesDemo(Plugin):
         ns = self.robot_ns
         cancelled = []
         if self._is_busy(ns, 'navigate'):
-            self._nav_cancel_client(ns).cancel_all_goals()
+            self._nav_client(ns).cancel_all_goals()
             cancelled.append('navigation')
         robot = self._api_busy_robots.get(ns)
         if robot is not None and robot.arm.cancel_manipulation():
