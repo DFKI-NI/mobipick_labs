@@ -85,6 +85,13 @@ class EnableIdPerRobotTest(unittest.TestCase):
         self.assertEqual(self.pick_list(), ['klt_1', 'screwdriver_2'])
         self.assertEqual(self.panel._widget.chkPickEnableId.tip, '')
 
+    def test_without_pose_selector_services_the_panel_says_so_instead_of_raising(self):
+        self.use('mobipick')
+        self.panel.pose_selector_get_all_poses_srv = None
+        self.panel.manipulation_update()
+        self.assertIn('robot mobipick:', self.panel._widget.chkPickEnableId.tip)
+        self.assertIn('not found', self.panel._widget.chkPickEnableId.tip)
+
 
 if __name__ == '__main__':
     unittest.main()

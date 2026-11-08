@@ -589,6 +589,8 @@ class RqtTablesDemo(Plugin):
         detected_objects_names = []
         detected_objects = []
         try:
+            if self.pose_selector_get_all_poses_srv is None:
+                raise rospy.ServiceException('its pose selector services were not found')
             resp = self.pose_selector_get_all_poses_srv()
         except rospy.ServiceException as error:
             message = pick_list.unreachable_hint(self.robot_ns, error)
