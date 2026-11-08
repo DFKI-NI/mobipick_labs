@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- The perception endpoints of one robot the panel can switch to, written as private parameters of the panel node
-     scoped to that robot (robots/<robot>/<name>): the panel's own clients and the Mobipick API it builds for that
-     robot read them there, so each robot keeps its own pose selector and perception actions. -->
+<!-- The perception endpoints and the map frame of one robot the panel can switch to, written as private parameters of
+     the panel node scoped to that robot (robots/<robot>/<name>): the panel's own clients and the Mobipick API it builds
+     for that robot read them there, so each robot keeps its own pose selector, perception actions and map frame. -->
 <launch>
   <arg name="node" doc="the panel node's full name, e.g. /mobipick/rqt_tables_demo" />
   <arg name="robot" doc="the robot's namespace, outer slashes allowed (stripped), inner segments kept (team/alpha)" />
   <arg name="pose_selector_ns" doc="namespace of its pick pose selector: '' = the global one" />
+  <arg name="map_frame" doc="the frame of its map, the one its navigation goals and teletransports are given in" />
   <arg name="key" value="$(eval arg('robot').strip('/'))" />
   <arg name="ps" value="$(eval '/' + arg('pose_selector_ns').strip('/') if arg('pose_selector_ns').strip('/') else '')" />
 
@@ -19,5 +20,6 @@
     <param name="inspect_object_action_name" value="/$(arg key)/inspect_object" />
     <param name="detect_objects_action_name" value="/$(arg key)/detect_objects" />
     <param name="verify_objects_action_name" value="/$(arg key)/verify_objects" />
+    <param name="map_frame" value="$(arg map_frame)" />
   </group>
 </launch>

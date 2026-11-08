@@ -38,6 +38,10 @@ class RobotNamesTest(unittest.TestCase):
         self.assertEqual(rn.robots_from_topics(topics), ['mobipick', 'mobipick2', 'mobipick10'])
         self.assertEqual(rn.robots_from_topics([], '/mobipick2/'), ['mobipick2'])
 
+    def test_a_robot_in_a_nested_namespace_is_listed_too(self):
+        topics = ['/fleet/robot3/move_base/status', '/mobipick/move_base/status', '/fleet/robot3/scan']
+        self.assertEqual(rn.robots_from_topics(topics), ['mobipick', 'fleet/robot3'])
+
     def test_a_choice_from_elsewhere_is_followed_once(self):
         self.assertEqual(rn.to_follow('mobipick', '/mobipick2'), 'mobipick2')
         self.assertIsNone(rn.to_follow('mobipick2', 'mobipick2/'))

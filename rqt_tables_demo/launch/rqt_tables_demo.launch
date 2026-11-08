@@ -6,6 +6,10 @@
   <arg name="namespace" default="mobipick" doc="namespace of the robot to control" />
   <arg name="robot_1" default="mobipick" doc="namespace of robot 1 of the sim, whose pick pose selector is robot_1_pose_selector_ns" />
   <arg name="robot_1_pose_selector_ns" default="" doc="namespace of robot 1's pick pose selector: '' = the global one" />
+  <arg name="robot_1_map_frame" default="map" doc="map frame of robot 1 (the global map, also when robot 1 is renamed); robot k of a multi-robot sim has &lt;robot k&gt;/map" />
+  <arg name="map_frame"
+       default="$(eval arg('robot_1_map_frame') if arg('namespace').strip('/') == arg('robot_1').strip('/') else arg('namespace').strip('/') + '/map')"
+       doc="map frame of the controlled robot: robot 1 has robot_1_map_frame, robot k of a multi-robot sim &lt;robot k&gt;/map (as in tables_demo_bringup)" />
   <arg name="pose_selector_ns"
        default="$(eval arg('robot_1_pose_selector_ns') if arg('namespace').strip('/') == arg('robot_1').strip('/') else arg('namespace'))"
        doc="namespace of the controlled robot's pick pose selector: robot 1 has robot_1_pose_selector_ns ('' = the global one), robot k of a multi-robot sim its own (as in tables_demo_bringup)" />
@@ -43,23 +47,27 @@
     <arg name="node" value="$(arg node)" />
     <arg name="robot" value="$(arg robot)" />
     <arg name="pose_selector_ns" value="$(arg pose_selector_ns)" />
+    <arg name="map_frame" value="$(arg map_frame)" />
   </include>
   <include file="$(dirname)/includes/robot_endpoints.launch" if="$(eval arg('robot_1').strip('/') != arg('robot'))">
     <arg name="node" value="$(arg node)" />
     <arg name="robot" value="$(arg robot_1)" />
     <arg name="pose_selector_ns" value="$(arg robot_1_pose_selector_ns)" />
+    <arg name="map_frame" value="$(arg robot_1_map_frame)" />
   </include>
   <include file="$(dirname)/includes/robot_endpoints.launch"
            if="$(eval int(arg('selectable_robots')) >= 2 and arg('robot_2').strip('/') != arg('robot'))">
     <arg name="node" value="$(arg node)" />
     <arg name="robot" value="$(arg robot_2)" />
     <arg name="pose_selector_ns" value="$(arg robot_2)" />
+    <arg name="map_frame" value="$(arg robot_2)/map" />
   </include>
   <include file="$(dirname)/includes/robot_endpoints.launch"
            if="$(eval int(arg('selectable_robots')) >= 3 and arg('robot_3').strip('/') != arg('robot'))">
     <arg name="node" value="$(arg node)" />
     <arg name="robot" value="$(arg robot_3)" />
     <arg name="pose_selector_ns" value="$(arg robot_3)" />
+    <arg name="map_frame" value="$(arg robot_3)/map" />
   </include>
 
 </launch>

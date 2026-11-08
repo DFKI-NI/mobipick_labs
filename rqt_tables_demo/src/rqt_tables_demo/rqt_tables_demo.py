@@ -725,6 +725,12 @@ class RqtTablesDemo(Plugin):
             self._run('Navigation_groupBox', f'teletransport to {waypoint_as_text}',
                       lambda ctx: self._teletransport(ctx, waypoint_as_text))
 
+    def _map_frame(self, namespace):
+        """the map frame of robot `namespace` as the launch file wrote it (~robots/<robot>/map_frame); without it the
+        default sim's convention (robot 1 'map', robot k '<robot k>/map'), which a renamed robot 1 would get wrong"""
+        frame = rospy.get_param(f'~robots/{robot_names.normalize(namespace)}/map_frame', None)
+        return frame or robot_names.map_frame(namespace)
+
     def _navigate(self, ctx, waypoint_as_text):
         """move_base goal through the panel's own client of the robot, not the robot API's base.move: the robot API
         serves one robot per process, and a drive of minutes must not hold it (a robot switch would wait for it)"""
@@ -733,7 +739,7 @@ class RqtTablesDemo(Plugin):
         waypoint = self.wp_dic[waypoint_as_text]
         yaw = tf.transformations.euler_from_quaternion(waypoint[3:7])[2]
         goal = MoveBaseGoal()
-        goal.target_pose.header.frame_id = robot_names.map_frame(ns)
+        goal.target_pose.header.frame_id = self._map_frame(ns)
         goal.target_pose.header.stamp = rospy.Time.now()
         goal.target_pose.pose.position.x, goal.target_pose.pose.position.y = waypoint[0], waypoint[1]
         (goal.target_pose.pose.orientation.x, goal.target_pose.pose.orientation.y, goal.target_pose.pose.orientation.z,
@@ -750,7 +756,7 @@ class RqtTablesDemo(Plugin):
     def _teletransport(self, ctx, waypoint_as_text):
         rospy.loginfo(f'Teletransporting robot {ctx["ns"]} to waypoint: {waypoint_as_text}')
         pose_stamped_msg = PoseStamped()
-        pose_stamped_msg.header.frame_id = robot_names.map_frame(ctx['ns'])
+        pose_stamped_msg.header.frame_id = self._map_frame(ctx['ns'])
         pose_stamped_msg.pose.position.x = self.wp_dic[waypoint_as_text][0]
         pose_stamped_msg.pose.position.y = self.wp_dic[waypoint_as_text][1]
         pose_stamped_msg.pose.position.z = self.wp_dic[waypoint_as_text][2]

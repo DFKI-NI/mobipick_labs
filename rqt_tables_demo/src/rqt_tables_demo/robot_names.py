@@ -2,7 +2,10 @@
 gripper services, action servers, map frame and Gazebo model. No ROS imports: unit-testable."""
 import re
 
-DEFAULT_ROBOT = 'mobipick'   # robot 1: its pose selector runs in the global namespace, its map frame is 'map'
+# robot 1 of the default sim: its pose selector runs in the global namespace, its map frame is 'map'. Only a fallback:
+# the launch file writes every selectable robot's names and map frame explicitly (robots/<robot>/...), so a renamed
+# robot 1 keeps the global ones
+DEFAULT_ROBOT = 'mobipick'
 SELECTED_ROBOT_TOPIC = '/selected_robot'   # std_msgs/String, latched: the robot every GUI of the sim acts on
 REQUEST_TOPIC = '/selected_robot/request'   # std_msgs/String: a switch asks the selected-robot owner node for a robot
 
@@ -56,7 +59,7 @@ def goal_end(state, status_text, timeout):
     return f'{name}: {text}' if text else name
 
 
-_NAV_STATUS = re.compile(r'^/([^/]+)/move_base/status$')
+_NAV_STATUS = re.compile(r'^/(.+)/move_base/status$')   # nested namespaces too: /fleet/robot3/move_base/status
 
 
 def _number(namespace):

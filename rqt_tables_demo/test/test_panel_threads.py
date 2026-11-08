@@ -120,7 +120,7 @@ class FakePanel:
         self._update_busy_ui()
 
 
-for _name in ('_run', '_is_busy', '_with_robot_api', '_update_busy_ui', 'navigation_go', '_navigate', 'cancel',
+for _name in ('_run', '_is_busy', '_with_robot_api', '_update_busy_ui', 'navigation_go', '_navigate', '_map_frame', 'cancel',
               '_nav_client', '_robot_built', '_perceive_objs_task', 'manipulation_go', 'perceive_objs'):
     setattr(FakePanel, _name, getattr(Panel, _name))
 
@@ -141,6 +141,9 @@ class PanelThreadsTest(unittest.TestCase):
         real_now = panel_module.rospy.Time.now
         panel_module.rospy.Time.now = staticmethod(lambda: panel_module.rospy.Time(0))  # no ROS node in the test
         self.addCleanup(setattr, panel_module.rospy.Time, 'now', real_now)
+        real_get_param = panel_module.rospy.get_param
+        panel_module.rospy.get_param = lambda name, default=None: default  # no parameter server: the default map frame
+        self.addCleanup(setattr, panel_module.rospy, 'get_param', real_get_param)
 
     def goals(self, ns):
         return self.panel._nav_clients[ns].goals

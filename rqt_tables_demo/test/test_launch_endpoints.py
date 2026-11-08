@@ -13,7 +13,7 @@ LAUNCH = os.path.join(os.path.dirname(__file__), '..', 'launch', 'rqt_tables_dem
 NAMES = ('pose_selector_activate_srv_name', 'pose_selector_class_query_srv_name',
          'pose_selector_get_all_poses_srv_name', 'pose_selector_delete_srv_name', 'pose_selector_clear_srv_name',
          'perceive_action_name', 'inspect_object_action_name', 'detect_objects_action_name',
-         'verify_objects_action_name')
+         'verify_objects_action_name', 'map_frame')
 
 
 @unittest.skipIf(shutil.which('roslaunch') is None, 'needs roslaunch')
@@ -43,6 +43,8 @@ class LaunchEndpointsTest(unittest.TestCase):
                          '/pick_pose_selector_node/pose_selector_delete')
         self.assertEqual(self.selector(robots, 'mobipick2'), '/mobipick2')
         self.assertEqual(self.selector(robots, 'mobipick3'), '/mobipick3')
+        self.assertEqual({robot: names['map_frame'] for robot, names in robots.items()},
+                         {'mobipick': 'map', 'mobipick2': 'mobipick2/map', 'mobipick3': 'mobipick3/map'})
 
     def test_a_panel_launched_for_robot_3_maps_the_same_robots(self):
         self.assertEqual(self.endpoints('namespace:=mobipick3'), self.endpoints('namespace:=mobipick'))
@@ -53,11 +55,17 @@ class LaunchEndpointsTest(unittest.TestCase):
         self.assertEqual(self.selector(robots, 'alpha'), '')
         self.assertEqual(robots['alpha']['perceive_action_name'], '/alpha/perceive')
         self.assertEqual(self.selector(robots, 'alpha2'), '/alpha2')
+        # a renamed robot 1 keeps the global map: its navigation goals must not go to alpha/map
+        self.assertEqual(robots['alpha']['map_frame'], 'map')
+        self.assertEqual(robots['alpha3']['map_frame'], 'alpha3/map')
+        # launched for robot 2 of the renamed sim: the same frames
+        self.assertEqual(self.endpoints('namespace:=alpha2', 'robot_1:=alpha'), robots)
 
     def test_a_nested_namespace_keeps_its_inner_segments(self):
         robots = self.endpoints('namespace:=/team/alpha/', 'robot_1:=team/alpha', 'selectable_robots:=1')
         self.assertEqual(sorted(robots), ['team/alpha'])
         self.assertEqual(robots['team/alpha']['verify_objects_action_name'], '/team/alpha/verify_objects')
+        self.assertEqual(robots['team/alpha']['map_frame'], 'map')
         self.assertEqual(self.selector(robots, 'team/alpha'), '')
 
     def test_a_custom_selector_of_the_launch_robot_covers_all_five_services(self):
