@@ -38,6 +38,12 @@ try:
 except ImportError:  # mobipick_api is optional; the open-set, perceive and inspect group boxes need it
     ApiPerception = None
 
+
+def service_name(proxy):
+    """the ROS name a service client calls, for the log: which robot's pose selector a call really reached"""
+    return getattr(proxy, 'resolved_name', None) or '(none)'
+
+
 class RqtTablesDemo(Plugin):
     robot_selected = pyqtSignal(str)  # the robot named on /selected_robot (the subscriber thread -> the Qt thread)
     robot_built = pyqtSignal(object)  # the clients of a newly chosen robot are ready (worker thread -> Qt thread)
@@ -635,7 +641,8 @@ class RqtTablesDemo(Plugin):
             if obj.obj_class in self.hole_objects:  # hole_objects: objects where other objects can be inserted
                 self._widget.comboInsertHole.addItems([obj.get_object_class_and_id_as_string()])
 
-        rospy.loginfo('update successful!')
+        rospy.loginfo(f'robot {self.robot_ns}: pick list updated from pose selector '
+                      f'{service_name(self.pose_selector_get_all_poses_srv)}: {", ".join(detected_objects_names)}')
 
     def transform_pose(self, input_pose, target_reference_frame):
         if input_pose is None:
@@ -721,77 +728,81 @@ class RqtTablesDemo(Plugin):
         self._run('Perception_groupBox', 'perceive', lambda ctx: self._perceive_objs_task(ctx, observation_list))
 
     def _perceive_objs_task(self, ctx, observation_list):
+        ns = ctx['ns']
         if ctx['activate'] is None:
-            rospy.logerr("pose selector is not available, can't perceive")
+            rospy.logerr(f"robot {ns}: pose selector is not available, can't perceive")
             return
-        rospy.loginfo(f'perceiving objects with robot {ctx["ns"]}')
-        rospy.loginfo(f'observation_list : {observation_list}')
+        selector = service_name(ctx['activate'])
+        rospy.loginfo(f'perceiving objects with robot {ns}, pose selector {selector}')
+        rospy.loginfo(f'robot {ns}: observation_list : {observation_list}')
         # iterate over observation poses and go one at a time
         for observation_pose in observation_list:
             if not self._api_still_targets(ctx, 'perceive'):
                 return
-            rospy.loginfo(f'moving arm to {observation_pose}')
+            # the robot API serves the robot built last in this process: say which one, a switch may have moved it
+            rospy.loginfo(f'robot {ns}: moving arm to {observation_pose} (robot API serves {self._api_ns})')
             # move arm to observation pose
             ctx['robot'].arm.move(observation_pose)
             # activate pose selector
-            rospy.loginfo('activating pose selector')
+            rospy.loginfo(f'robot {ns}: activating pose selector {selector}')
             resp = ctx['activate'](True)
-            rospy.loginfo(f'pose selector response to activation request: {resp}')
+            rospy.loginfo(f'robot {ns}: pose selector response to activation request: {resp}')
             # wait until pose selector gets updates
             rospy.sleep(3.0)
             # deactivate pose selector detections
-            rospy.loginfo('deactivating pose selector')
+            rospy.loginfo(f'robot {ns}: deactivating pose selector {selector}')
             resp = ctx['activate'](False)
 
     def _pose_selector_call(self, what, call):
         """a pose selector service call of the chosen robot in a worker thread (a selector that does not answer must
         not freeze the window)"""
         if not self.is_pose_selector_available:
-            rospy.logerr(f"pose selector is not available, can't {what}")
+            rospy.logerr(f"robot {self.robot_ns}: pose selector is not available, can't {what}")
             return
         proxies = {'activate': self.activate_pose_selector_srv, 'clear': self.pose_selector_clear_srv,
                    'get_all': self.pose_selector_get_all_poses_srv, 'class_query': self.pose_selector_class_query_srv}
-        self._run(None, f'pose selector {what}', lambda ctx: call(proxies))
+        self._run(None, f'pose selector {what}', lambda ctx: call(
+            proxies, f'robot {ctx["ns"]}: pose selector {service_name(proxies["activate"]).rsplit("/", 1)[0]}'))
 
     def perception_ps_activate(self):
-        def call(ps):
-            rospy.loginfo('activating pose selector')
-            rospy.loginfo(f'response: {ps["activate"](True)}')
+        def call(ps, who):
+            rospy.loginfo(f'{who}: activating')
+            rospy.loginfo(f'{who}: response: {ps["activate"](True)}')
         self._pose_selector_call('activate', call)
 
     def perception_ps_deactivate(self):
-        def call(ps):
-            rospy.loginfo('deactivating pose selector')
-            rospy.loginfo(f'response: {ps["activate"](False)}')
+        def call(ps, who):
+            rospy.loginfo(f'{who}: deactivating')
+            rospy.loginfo(f'{who}: response: {ps["activate"](False)}')
         self._pose_selector_call('deactivate', call)
 
     def perception_ps_clear(self):
-        def call(ps):
-            rospy.loginfo('clearing pose selector')
-            rospy.loginfo(f'response: {ps["clear"]()}')
+        def call(ps, who):
+            rospy.loginfo(f'{who}: clearing')
+            rospy.loginfo(f'{who}: response: {ps["clear"]()}')
         self._pose_selector_call('clear', call)
 
     def perception_ps_get_all_objs(self):
-        def call(ps):
-            rospy.loginfo('getting all objects from pose selector')
+        def call(ps, who):
+            rospy.loginfo(f'{who}: getting all objects')
             resp = ps['get_all']()
             if len(resp.poses.objects) > 0:
                 for pose_selector_object in resp.poses.objects:
-                    rospy.loginfo(pose_selector_object)
+                    rospy.loginfo(f'{who}: {pose_selector_object}')
             else:
-                rospy.logwarn('pose selector is empty')
+                rospy.logwarn(f'{who}: empty')
         self._pose_selector_call('get all objects', call)
 
     def perception_ps_class_query(self):
         object_class = self._widget.comboPerceptionPSClassQuery.currentText()
 
-        def call(ps):
-            rospy.loginfo(f'pose selector class query of object: {object_class}')
+        def call(ps, who):
+            rospy.loginfo(f'{who}: class query of object: {object_class}')
             resp = ps['class_query'](object_class)
             if len(resp.poses) == 0:
-                rospy.logwarn(f'object of class {object_class} is not in pose selector')
+                rospy.logwarn(f'{who}: object of class {object_class} is not in it')
             else:
-                rospy.loginfo(f'found {len(resp.poses)} instances of class {object_class}')
+                rospy.loginfo(f'{who}: found {len(resp.poses)} instances of class {object_class}')
                 rospy.loginfo(resp.poses)
         self._pose_selector_call('query class', call)
 
@@ -819,7 +830,7 @@ class RqtTablesDemo(Plugin):
             rospy.logwarn('type an object description first, e.g. "coke can"')
             self._set_open_set_result('type an object description first')
             return
-        rospy.loginfo(f'open-set detection of {object_name!r} (VLM verifier: {use_vlm}, '
+        rospy.loginfo(f'robot {ctx["ns"]}: open-set detection of {object_name!r} (VLM verifier: {use_vlm}, '
                       f'box >= {box_threshold:.2f}, accept >= {accept_threshold:.2f}; 0 = node default)')
         self._set_open_set_result(f'detecting {object_name!r}...')
         result = api_perception.detect_open_set(
@@ -836,7 +847,7 @@ class RqtTablesDemo(Plugin):
         for obj in result.objects:
             p = obj.pose.position
             lines.append(f'pose selector: {obj.class_id}_{obj.instance_id} at ({p.x:.2f}, {p.y:.2f}, {p.z:.2f})')
-        rospy.loginfo('\n'.join(lines))
+        rospy.loginfo(f'robot {ctx["ns"]}: ' + '\n'.join(lines))
         self._set_open_set_result('\n'.join(lines))
 
     @staticmethod
@@ -869,12 +880,14 @@ class RqtTablesDemo(Plugin):
             self._set_text(widget, 'type the targets first, e.g. table_2, multimeter, tennis ball')
             return
         self._set_text(widget, f'perceiving {targets} with {confidence} confidence...')
+        rospy.loginfo(f'robot {ctx["ns"]}: perceiving {targets} through '
+                      f'{getattr(api_perception, "perceive_action_name", "(unknown action)")}')
         try:
             text = api_perception.perceive(targets, confidence=confidence, use_vlm=use_vlm, align=align,
                                            dope_only=dope_only, gd_only=gd_only)
         except Exception as exc:  # invalid request or a service failure: show it instead of dying
             text = f'failed:\n{type(exc).__name__}: {exc}'
-        rospy.loginfo(f'perceive result:\n{text}')
+        rospy.loginfo(f'robot {ctx["ns"]}: perceive result:\n{text}')
         self._set_text(widget, text or '-')
 
     def inspect_object(self):
@@ -915,7 +928,7 @@ class RqtTablesDemo(Plugin):
         lines += list(result.outcomes)
         if result.alignment_cm:
             lines.append(f'base aligned by {result.alignment_cm:.1f} cm')
-        rospy.loginfo('\n'.join(lines))
+        rospy.loginfo(f'robot {ctx["ns"]}: inspect result:\n' + '\n'.join(lines))
         self._set_text(widget, '\n'.join(lines))
 
     def _timeout(self, widget):
