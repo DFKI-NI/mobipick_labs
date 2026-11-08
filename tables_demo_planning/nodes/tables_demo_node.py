@@ -45,13 +45,22 @@ from tables_demo_planning.components import Location
 from tables_demo_planning.tables_demo_api import TablesDemoAPI
 
 
+def robot_namespace() -> str:
+    """the robot this planner runs: ~robot_namespace, else the node's namespace, else mobipick (robot 1)"""
+    return (rospy.get_param('~robot_namespace', '') or rospy.get_namespace()).strip('/') or 'mobipick'
+
+
 if __name__ == '__main__':
     unified_planning.shortcuts.get_environment().credits_stream = None
 
     try:
-        api = TablesDemoAPI()
-        # Define goal.
-        goal_strs = sys.argv[1:]
+        # one planner per robot: `rosrun tables_demo_planning tables_demo_node.py __ns:=mobipick2` (or
+        # _robot_namespace:=mobipick2); no namespace: mobipick. ~map_frame overrides the robot's map frame (default map
+        # for mobipick, else <ns>/map)
+        rospy.init_node('tables_demo_node', anonymous=True)
+        api = TablesDemoAPI(robot_namespace(), rospy.get_param('~map_frame', '') or None)
+        # Define goal (the arguments without the ROS remappings and private params).
+        goal_strs = rospy.myargv(sys.argv)[1:]
         if goal_strs:
             api.domain.set_goals_by_strs(api.problem, goal_strs)
             api.run()

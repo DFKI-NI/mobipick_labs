@@ -11,21 +11,32 @@ from tables_demo_planning.tables_demo import EnvironmentRepresentation, TablesDe
 
 from symbolic_fact_generation.on_fact_generator import OnGenerator
 from symbolic_fact_generation.robot_facts_generator import RobotAtGenerator, HasArmPostureGenerator
+from symbolic_fact_generation.common.lib import retarget_robot_names
 from pose_selector.srv import PoseDelete, PoseDeleteRequest
 from mobipick_api import Robot as mobipick_api_robot
 from robot_api import TuplePose, is_instance
 from tables_demo_planning.UP_plan_visualization import UPPlanVisualization
 
 
+def default_map_frame(robot_namespace: str) -> str:
+    """The map frame of a robot of the sim: robot 1 (mobipick) uses map, robot k its own mobipickK/map."""
+    robot_namespace = robot_namespace.strip("/") or "mobipick"
+    return "map" if robot_namespace == "mobipick" else f"{robot_namespace}/map"
+
+
 class TablesDemoAPI:
     RETRIES_BEFORE_ABORTION = 2
 
-    def __init__(self) -> None:
-        self.mobipick = Robot("mobipick")
-        self.mobipick_api = mobipick_api_robot("mobipick", True, True)
+    def __init__(self, robot_namespace: str = "mobipick", map_frame: Optional[str] = None) -> None:
+        # the ROS names below are written for robot 1 (mobipick, map) and retargeted to the robot this planner runs
+        # (several robots, one planner each); robot 1 keeps them unchanged
+        self.robot_namespace = robot_namespace.strip("/") or "mobipick"
+        self.map_frame = map_frame or default_map_frame(self.robot_namespace)
+        self.mobipick = Robot("mobipick")  # the robot object of the planning domain (a name in plans, not a namespace)
+        self.mobipick_api = mobipick_api_robot(self.robot_namespace, True, True)
         self.domain = TablesDemoDomain(self.mobipick)
 
-        rosparam_namespace = "/mobipick/tables_demo_planning"
+        rosparam_namespace = self.ros_name("/mobipick/tables_demo_planning")
         self.api_poses: Dict[str, Pose] = {}
         table_names: List[str] = []
         self.initial_item_locations: Dict[Item, Location] = {}
@@ -102,24 +113,26 @@ class TablesDemoAPI:
         self.problem = self.domain.initialize_tables_demo_problem()
         self.subproblem = self.domain.initialize_item_search_problem()
 
-        self.pose_selector_delete = rospy.ServiceProxy("/pick_pose_selector_node/pose_selector_delete", PoseDelete)
+        self.pose_selector_delete = rospy.ServiceProxy(
+            self.ros_name("/pick_pose_selector_node/pose_selector_delete"), PoseDelete
+        )
 
         self.on_fact_generator = OnGenerator(
             fact_name='on',
             objects_of_interest=[str(item) for item in self.demo_items],
             container_objects=['klt'],
-            query_srv_str="/pick_pose_selector_node/pose_selector_class_query",
-            planning_scene_param="/mobipick/pick_object_node/planning_scene_boxes",
+            query_srv_str=self.ros_name("/pick_pose_selector_node/pose_selector_class_query"),
+            planning_scene_param=self.ros_name("/mobipick/pick_object_node/planning_scene_boxes"),
         )
         self.robot_at_fact_generator = RobotAtGenerator(
             fact_name='robot_at',
-            global_frame='/map',
-            robot_frame='/mobipick/base_link',
+            global_frame=self.ros_name('/map'),
+            robot_frame=self.ros_name('/mobipick/base_link'),
             undefined_pose_name="unknown_pose",
         )
         self.arm_pose_fact_generator = HasArmPostureGenerator(
             fact_name='robot_arm_pose',
-            joint_states_topic='/mobipick/joint_states',
+            joint_states_topic=self.ros_name('/mobipick/joint_states'),
             arm_posture_param='',
             arm_tolerance=0.01,
             undefined_pose_name="unknown",
@@ -132,6 +145,16 @@ class TablesDemoAPI:
         # Initialize plan visualization
         self.visualization = UPPlanVisualization()
         self.espeak_pub = rospy.Publisher("/espeak_node/speak_line", String, queue_size=1)
+
+    def ros_name(self, name: str) -> str:
+        """`name` written for robot 1 (/mobipick/..., /map, the global pose selectors) for the robot of this planner"""
+        return retarget_robot_names(name, self.robot_namespace, self.map_frame)
+
+    def move_base_to(self, pose: Pose) -> int:
+        """navigate to `pose`, given in the robot's map frame (the waypoints of its own scene)"""
+        if self.map_frame == "map":
+            return self.mobipick_api.base.move(pose)
+        return self.mobipick_api.base.move(pose, frame_id=self.map_frame)
 
     def replan(self) -> Optional[Plan]:
         self.env.print_believed_item_locations()
@@ -289,19 +312,19 @@ class TablesDemoAPI:
         return ArmPose.get(arm_pose_name) == arm_pose
 
     def move_base(self, robot: Robot, _: Pose, pose: Pose) -> bool:
-        if self.mobipick_api.base.move(pose) != 3:
+        if self.move_base_to(pose) != 3:
             rospy.logerr(f"Move base to {pose} FAILED!")
             # Move to home pose whenever movement fails. Note: This is a drastic workaround.
-            self.mobipick_api.base.move(self.api_poses["base_home_pose"])
+            self.move_base_to(self.api_poses["base_home_pose"])
             return False
 
         return self.env.move_base(self.mobipick, _, pose)
 
     def move_base_with_item(self, robot: Robot, item: Item, _: Pose, pose: Pose) -> bool:
-        if self.mobipick_api.base.move(pose) != 3:
+        if self.move_base_to(pose) != 3:
             rospy.logerr(f"Move base to {pose} FAILED!")
             # Move to home pose whenever movement fails. Note: This is a drastic workaround.
-            self.mobipick_api.base.move(self.api_poses["base_home_pose"])
+            self.move_base_to(self.api_poses["base_home_pose"])
             return False
 
         return self.env.move_base(self.mobipick, _, pose)
