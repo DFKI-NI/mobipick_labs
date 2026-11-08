@@ -23,6 +23,7 @@
   <arg name="mtc_cable_replay_live_state" default="false" doc="true (with mtc_cable_plan_check): the cable guard's replay of a planned path through the carrier link chain goes on from the cable monitor's live chain (its chain_state service) and the path must also pass a replay from a fresh chain (both must pass), so the guard sees what the motions before the path did; the fresh chain is also what is used where the monitor resets its chain at every trajectory start; careful feature flag, off in code" />
   <arg name="insert_cable_gate" default="false" doc="true: rank insert poses by predicted cable stretch and offer likely safe ones first; safe feature flag, off in code" />
   <arg name="cable_detour_mode" default="hack" doc="hack: the closed-set objects visit the fixed untangle poses before a pick, place and insert, as always; cable_aware: no untangle pose at all (also no cable replay detour), the MTC cable guard is the protection and a refused motion fails with a clear text; careful flag, hack in the code" />
+  <arg name="use_mesh_object_heights" default="false" doc="true: insert pose heights of the closed-set table classes come from the recognised mesh box instead of the hand-typed table (the release pose of the glue gun, meat and mustard moves down by up to 2.2 cm); careful feature flag, off in code" />
 
   <node pkg="grasplan" type="insert.py" name="insert_object_node" output="screen" ns="$(arg namespace)" required="true">
     <param name="global_reference_frame" type="string" value="$(arg map_frame)" />
@@ -47,6 +48,7 @@
     <param name="mtc_cable_replay_live_state" type="bool" value="$(arg mtc_cable_replay_live_state)" />
     <param name="insert_cable_gate" type="bool" value="$(arg insert_cable_gate)" />
     <param name="cable_detour_mode" type="string" value="$(arg cable_detour_mode)" />
+    <param name="use_mesh_object_heights" type="bool" value="$(arg use_mesh_object_heights)" />
   </node>
 
 </launch>

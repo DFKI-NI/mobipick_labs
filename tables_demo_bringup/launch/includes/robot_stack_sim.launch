@@ -43,6 +43,7 @@
   <arg name="open_set_strip_reported_padding" default="false" />
   <arg name="mtc_lift_tolerate_touching_neighbours" default="false" />
   <arg name="insert_cable_gate" default="false" />
+  <arg name="use_mesh_object_heights" default="false" />
   <arg name="place_same_orientation_as_picked" default="true" />
   <arg name="insert_orientation" default="free_yaw" />
   <arg name="cable_monitor" default="false" />
@@ -131,6 +132,7 @@
     <arg name="open_set_strip_reported_padding" value="$(arg open_set_strip_reported_padding)" />
     <arg name="mtc_lift_tolerate_touching_neighbours" value="$(arg mtc_lift_tolerate_touching_neighbours)" />
     <arg name="insert_cable_gate" value="$(arg insert_cable_gate)" />
+    <arg name="use_mesh_object_heights" value="$(arg use_mesh_object_heights)" />
     <arg name="place_same_orientation_as_picked" value="$(arg place_same_orientation_as_picked)" />
     <arg name="insert_orientation" value="$(arg insert_orientation)" />
     <arg name="cable_monitor" value="$(arg cable_monitor)" />
