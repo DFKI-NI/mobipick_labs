@@ -12,6 +12,11 @@ repositories:
     type: git
     url: https://github.com/oscar-lima/gazebo_jointed_chain.git
     version: main
+  gazebo_parking_brake:
+    # the generic Gazebo plugin that holds a parked wheeled base, as the real base brakes when idle (mobipick_gazebo)
+    type: git
+    url: https://github.com/oscar-lima/gazebo_parking_brake.git
+    version: main
   gazebo_marker_visuals:
     # draws marker topics in Gazebo, e.g. the cable monitor's model of the arm cable in the sim
     type: git

@@ -58,6 +58,7 @@
   <!-- controls the simulation speed -->
   <arg name="physics_profile" default="fast" doc="options: slow, fast" />
   <arg name="grasp_fix" default="true" doc="Attach grasped objects with the gazebo_grasp_fix plugin instead of relying on friction (legacy hack; on by default in this demo, the launch files below it default to off)" />
+  <arg name="parking_brake" default="true" doc="sim fidelity, not a feature flag: the gazebo_parking_brake plugin holds the parked base while it gets no drive command and stands still, as the real base brakes when idle (without it the base creeps a few mm with every arm motion and same-spot test series drift); false only to debug" />
   <arg name="joint_limits_parameters_file" default="$(find mobipick_description)/config/joint_limits.yaml" doc="ur5 joint limits yaml; mobipick_description/config/joint_limits_no_cable_guide.yaml drops the wrist_1/wrist_3 limits that only protect the real arm cable (the sim has none)" />
 
   <!-- if true, gzclient is started -->
@@ -78,6 +79,7 @@
     <arg name="joint_limits_parameters_file" value="$(arg joint_limits_parameters_file)" />
     <arg name="physics_profile" value="$(arg physics_profile)" />
     <arg name="grasp_fix" value="$(arg grasp_fix)" />
+    <arg name="parking_brake" value="$(arg parking_brake)" />
     <arg name="gui" value="$(arg gui)" />
     <!-- one robot: no robot_colours, the robot and the walls keep the plain look -->
   </include>
@@ -85,6 +87,7 @@
     <arg name="joint_limits_parameters_file" value="$(arg joint_limits_parameters_file)" />
     <arg name="physics_profile" value="$(arg physics_profile)" />
     <arg name="grasp_fix" value="$(arg grasp_fix)" />
+    <arg name="parking_brake" value="$(arg parking_brake)" />
     <arg name="gui" value="$(arg gui)" />
     <arg name="scene_size_x" value="$(arg scene_size_x)" />
     <arg name="copy_gap" value="$(arg copy_gap)" />
