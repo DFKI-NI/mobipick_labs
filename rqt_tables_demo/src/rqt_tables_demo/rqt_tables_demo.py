@@ -1,6 +1,7 @@
 import importlib
 import os
 import rospy
+import rosgraph
 import rospkg
 import tf
 import actionlib
@@ -8,9 +9,9 @@ import threading
 
 from qt_gui.plugin import Plugin
 from python_qt_binding import loadUi
-from python_qt_binding.QtWidgets import QWidget, QHBoxLayout, QLabel
+from python_qt_binding.QtWidgets import QWidget, QComboBox, QHBoxLayout, QLabel
 from PyQt5.QtGui import QPixmap
-from PyQt5.QtCore import Qt, QMetaObject, Q_ARG, pyqtSignal
+from PyQt5.QtCore import Qt, QMetaObject, Q_ARG, QTimer, pyqtSignal
 
 from grasplan.tools.common import objectToPick
 from geometry_msgs.msg import PoseStamped
@@ -41,6 +42,7 @@ class RqtTablesDemo(Plugin):
     robot_selected = pyqtSignal(str)  # the robot named on /selected_robot (the subscriber thread -> the Qt thread)
     robot_built = pyqtSignal(object)  # the clients of a newly chosen robot are ready (worker thread -> Qt thread)
     busy_changed = pyqtSignal()  # a robot command started or ended (worker thread -> Qt thread)
+    robots_listed = pyqtSignal(object)  # the robots with a running move_base (worker thread -> Qt thread)
 
     # the group boxes a running command blocks, for its own robot only: the other robots keep theirs
     COMMAND_GROUPS = ('Navigation_groupBox', 'Manipulation_groupBox', 'Perception_groupBox', 'OpenSet_groupBox',
@@ -333,34 +335,130 @@ class RqtTablesDemo(Plugin):
         return self._nav_cancel_clients[namespace]
 
     def _add_robot_selector(self):
-        """no selector of its own: the robot is the one chosen in the sim GUI's single robot selector, read from the
-        latched /selected_robot topic; this label shows which robot the commands go to and what it is busy with"""
+        """the robot switch: the robots of the sim by their colour names. A choice here asks the sim's selected-robot
+        owner node (the only writer of the latched /selected_robot); without one the panel publishes /selected_robot
+        itself. The panel changes robot when /selected_robot names one, so the sim window's selector and the other
+        panels switch together. The label next to it shows what the panel's commands are busy with."""
         row = QHBoxLayout()
         row.addWidget(QLabel('Robot:'))
         self.dotRobot = QLabel()
         row.addWidget(self.dotRobot)
-        self.labelRobot = QLabel()
-        self._show_robot_name()
-        self.labelRobot.setToolTip('every command of this panel goes to this robot; choose it in the robot selector '
-                                   'of the sim window')
+        self.comboRobot = QComboBox()
+        self.comboRobot.setSizeAdjustPolicy(QComboBox.AdjustToContents)
+        self.comboRobot.setToolTip('every command of this panel goes to this robot; the sim window and the other '
+                                   'panels switch with it')
+        self.comboRobot.activated.connect(lambda index: self._choose_robot(self.comboRobot.itemData(index)))
+        row.addWidget(self.comboRobot)
+        self.labelRobot = QLabel()  # "(connecting)" while the chosen robot's clients are being made
         row.addWidget(self.labelRobot)
         self.labelBusy = QLabel()
         self.labelBusy.setToolTip('the commands this panel runs, per robot; the buttons of a running command are '
                                   'blocked for its robot only')
         row.addWidget(self.labelBusy, 1)
         self._widget.main_left_verticalLayout.insertLayout(1, row)
-        self.robot_selected.connect(self._select_robot)
+        self._fill_robots([self.robot_ns])
+        self._show_robot_name()
+        self.robots_listed.connect(self._fill_robots)
+        self._robot_list_timer = QTimer(self._widget)
+        self._robot_list_timer.timeout.connect(self._list_robots)
+        self._robot_list_timer.start(3000)
+        self._list_robots()
+        # without the owner node: the /selected_robot publisher is made when a robot is chosen here (a panel that only
+        # follows must not latch a choice, nor count as a writer of the topic)
+        self._owner_running = False
+        self._published = None
+        self._selected_robot_pub = None
+        self._request_pub = rospy.Publisher(robot_names.REQUEST_TOPIC, String, queue_size=1)
+        self.robot_selected.connect(self._heard_robot)
         self._selected_robot_sub = rospy.Subscriber(robot_names.SELECTED_ROBOT_TOPIC, String,
                                                     lambda msg: self.robot_selected.emit(msg.data))
 
-    def _show_robot_name(self, namespace=None, note=''):
-        """the robot's colour name and dot as the sim window's selector shows them (the bare namespace without the
-        mobipick_gazebo package)"""
-        namespace = namespace or self.robot_ns
+    def _list_robots(self):
+        """ask the master for the robots and the owner node in a worker thread (a slow or remote master must not
+        freeze the window)"""
+        def task():
+            try:
+                master = rosgraph.Master(rospy.get_name())
+                topics = [name for name, _ in master.getPublishedTopics('/')]
+                self._owner_running = robot_names.owner_running(master.getSystemState())
+            except Exception as error:  # no master answer: keep the list
+                rospy.logwarn_throttle(30, f'could not list the robots: {error}')
+                return
+            self.robots_listed.emit(robot_names.robots_from_topics(topics, self.robot_ns))
+        threading.Thread(target=task, daemon=True, name='list robots').start()
+
+    def _fill_robots(self, robots):
+        """Qt thread: the switch lists `robots` (plus the chosen one) by colour name; the namespace is the item data"""
+        robots = list(robots)
+        for robot in (self.robot_ns, self._switching_to):
+            if robot and robot not in robots:
+                robots.append(robot)
+        if robots == [self.comboRobot.itemData(i) for i in range(self.comboRobot.count())]:
+            return
+        self.comboRobot.clear()
+        for namespace in robots:
+            self._add_robot_item(namespace)
+        self._show_robot_name(self._switching_to, 'connecting' if self._switching_to else '')
+
+    def _add_robot_item(self, namespace):
         name, icon = namespace, None
         if robot_colours is not None:
             name, icon = robot_colours.display_name(namespace), robot_colours.colour_icon(namespace)
-        self.labelRobot.setText(f'{name} ({note})' if note else name)
+        if icon is not None:
+            self.comboRobot.addItem(icon, name, namespace)
+        else:
+            self.comboRobot.addItem(name, namespace)
+
+    def _choose_robot(self, namespace):
+        """Qt thread: a robot chosen in this panel's switch: ask the owner node (the panel follows its answer on
+        /selected_robot), or without one tell every GUI and make the robot's clients"""
+        namespace = robot_names.normalize(namespace)
+        if self._owner_running:
+            self._drop_own_choice()
+            self._request_pub.publish(String(data=namespace))
+            self.labelRobot.setText('(asking)')
+            return
+        self._publish_choice(namespace)
+        self._select_robot(namespace)
+
+    def _heard_robot(self, namespace):
+        """Qt thread: /selected_robot names a robot (the owner node, the sim window, another panel or this one).
+        Without the owner node, once this panel has published, it publishes a choice made elsewhere again, so all
+        latched messages name the same robot."""
+        namespace = robot_names.normalize(namespace)
+        if self._owner_running:
+            self._drop_own_choice()
+        elif self._published is not None and robot_names.to_follow(self._published, namespace) is not None:
+            self._publish_choice(namespace)
+        self._select_robot(namespace)
+        # a refused request comes back as the robot already chosen: the switch shows that robot again
+        self._show_robot_name(self._switching_to, 'connecting' if self._switching_to else '')
+
+    def _publish_choice(self, namespace):
+        """Qt thread, without the owner node: latch `namespace` on /selected_robot for every GUI"""
+        if self._selected_robot_pub is None:
+            self._selected_robot_pub = rospy.Publisher(robot_names.SELECTED_ROBOT_TOPIC, String, queue_size=1,
+                                                       latch=True)
+        self._published = namespace
+        self._selected_robot_pub.publish(String(data=namespace))
+
+    def _drop_own_choice(self):
+        """Qt thread: the owner node runs: withdraw this panel's publisher (made before the owner came up), so the
+        owner is the only writer and no latched message of this panel contradicts it"""
+        if self._selected_robot_pub is not None:
+            self._selected_robot_pub.unregister()
+            self._selected_robot_pub = None
+            self._published = None
+
+    def _show_robot_name(self, namespace=None, note=''):
+        """the switch shows the robot by the colour name and dot of the sim window's selector (the bare namespace
+        without the mobipick_gazebo package); `note` e.g. "connecting" while its clients are being made"""
+        namespace = namespace or self.robot_ns
+        if self.comboRobot.findData(namespace) < 0:  # chosen elsewhere before the robot list showed it
+            self._add_robot_item(namespace)
+        self.comboRobot.setCurrentIndex(self.comboRobot.findData(namespace))
+        icon = robot_colours.colour_icon(namespace) if robot_colours is not None else None
+        self.labelRobot.setText(f'({note})' if note else '')
         self.dotRobot.setPixmap(icon.pixmap(12, 12) if icon is not None else QPixmap())
 
     def _select_robot(self, namespace):

@@ -32,5 +32,21 @@ class RobotNamesTest(unittest.TestCase):
         self.assertEqual(rn.normalize('/mobipick2/'), 'mobipick2')
 
 
+    def test_the_robots_are_the_ones_with_a_move_base_in_natural_order(self):
+        topics = ['/mobipick10/move_base/status', '/mobipick2/move_base/status', '/mobipick/move_base/status',
+                  '/mobipick2/scan', '/move_base/status']
+        self.assertEqual(rn.robots_from_topics(topics), ['mobipick', 'mobipick2', 'mobipick10'])
+        self.assertEqual(rn.robots_from_topics([], '/mobipick2/'), ['mobipick2'])
+
+    def test_a_choice_from_elsewhere_is_followed_once(self):
+        self.assertEqual(rn.to_follow('mobipick', '/mobipick2'), 'mobipick2')
+        self.assertIsNone(rn.to_follow('mobipick2', 'mobipick2/'))
+
+
+    def test_the_owner_runs_when_a_node_listens_on_the_request_topic(self):
+        self.assertTrue(rn.owner_running(([], [['/selected_robot/request', ['/selected_robot']]], [])))
+        self.assertFalse(rn.owner_running(([], [['/selected_robot', ['/rqt']]], [])))
+
+
 if __name__ == '__main__':
     unittest.main()
