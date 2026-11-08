@@ -107,6 +107,31 @@ class EnableIdPerRobotTest(unittest.TestCase):
         self.panel.manipulation_update()
         self.assertEqual(check.text, '')
 
+    def test_a_robot_switch_refreshes_the_ticked_list_and_clears_the_label_of_the_other_robot(self):
+        check = self.panel._widget.chkPickEnableId
+        check.checked = True
+        self.selectors['mobipick'] = selector()
+        self.use('mobipick')
+        self.panel.manipulation_update()
+        self.assertIn('no perceived objects of mobipick', check.text)
+        self.panel._switching_to = 'mobipick2'
+        self.panel._apply_services = lambda found: self.use('mobipick2')
+        self.panel._show_robot_name = self.panel._update_busy_ui = lambda: None
+        self.panel._robot_built(('mobipick2', object(), None, {}))
+        self.assertEqual(check.text, '')
+        self.assertEqual(self.pick_list(), ['power_drill_with_grip_7'])
+
+    def test_a_robot_switch_with_enable_id_off_only_clears_the_label(self):
+        check = self.panel._widget.chkPickEnableId
+        check.text, check.tip = 'no perceived objects of mobipick', 'old'
+        self.panel._switching_to = 'mobipick2'
+        self.panel.robot_ns = 'mobipick'
+        self.panel._apply_services = lambda found: self.use('mobipick2')
+        self.panel._show_robot_name = self.panel._update_busy_ui = lambda: None
+        self.panel._robot_built(('mobipick2', object(), None, {}))
+        self.assertEqual((check.text, check.tip), ('', ''))
+        self.assertEqual(self.pick_list(), [])
+
 
 if __name__ == '__main__':
     unittest.main()

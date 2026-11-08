@@ -508,6 +508,11 @@ class RqtTablesDemo(Plugin):
             rospy.loginfo(f'commands now go to robot {namespace} (was {self.robot_ns})')
             self.robot_ns, self.robot, self.api_perception = namespace, robot, api_perception
             self._apply_services(found)
+            if self._widget.chkPickEnableId.isChecked():
+                self.manipulation_update()  # the list and the label are the new robot's, not the old one's
+            else:
+                self._widget.chkPickEnableId.setText('')
+                self._widget.chkPickEnableId.setToolTip('')
         self._show_robot_name()
         self._update_busy_ui()
 
