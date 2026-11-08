@@ -602,6 +602,7 @@ class RqtTablesDemo(Plugin):
             message = pick_list.unreachable_hint(self.robot_ns, error)
             rospy.logerr(message)
             self._widget.chkPickEnableId.setToolTip(message)
+            self._widget.chkPickEnableId.setText(pick_list.unreachable_label(self.robot_ns))
             return
         for obj in resp.poses.objects:
             object_to_pick = objectToPick()
@@ -618,11 +619,13 @@ class RqtTablesDemo(Plugin):
             message = pick_list.empty_hint(self.robot_ns)
             rospy.logwarn(message)
             self._widget.chkPickEnableId.setToolTip(message)
+            self._widget.chkPickEnableId.setText(pick_list.empty_label(self.robot_ns))
             self._widget.comboPickObj.clear()
             self._widget.comboPickObj.addItems(self.objects_of_interest)
             self._widget.comboInsertHole.clear()
             return
         self._widget.chkPickEnableId.setToolTip('')
+        self._widget.chkPickEnableId.setText('')
 
         break_count = len(detected_objects_names)
         for i, ignore_chk in enumerate(self.ignore_from_ps_chks):

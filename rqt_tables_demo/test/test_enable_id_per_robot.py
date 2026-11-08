@@ -92,6 +92,21 @@ class EnableIdPerRobotTest(unittest.TestCase):
         self.assertIn('robot mobipick:', self.panel._widget.chkPickEnableId.tip)
         self.assertIn('not found', self.panel._widget.chkPickEnableId.tip)
 
+    def test_the_enable_id_label_says_when_the_selector_is_empty_or_unreachable_and_clears_when_filled(self):
+        check = self.panel._widget.chkPickEnableId
+        check.checked = True
+        self.selectors['mobipick'] = selector()
+        self.use('mobipick')
+        self.panel.manipulation_update()
+        self.assertIn('no perceived objects', check.text)
+        self.assertIn('mobipick', check.text)
+        self.panel.pose_selector_get_all_poses_srv = None
+        self.panel.manipulation_update()
+        self.assertIn('not reachable', check.text)
+        self.use('mobipick2')
+        self.panel.manipulation_update()
+        self.assertEqual(check.text, '')
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -16,3 +16,14 @@ def empty_hint(robot_ns):
 def unreachable_hint(robot_ns, error):
     robot = (robot_ns or '').strip('/') or 'mobipick'
     return f'cannot read the pose selector of robot {robot}: {error}'
+
+
+def empty_label(robot_ns):
+    """short text beside the enable id box: ticking it lists nothing because the robot's pose selector is empty"""
+    robot = (robot_ns or '').strip('/') or 'mobipick'
+    return f'no perceived objects of {robot}'
+
+
+def unreachable_label(robot_ns):
+    robot = (robot_ns or '').strip('/') or 'mobipick'
+    return f'pose selector of {robot} not reachable'
