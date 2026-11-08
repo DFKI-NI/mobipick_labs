@@ -6,7 +6,8 @@ import os
 import unittest
 
 import rospy
-from tables_demo_planning.tables_demo_api import TablesDemoAPI, default_map_frame
+from tables_demo_planning.tables_demo_api import TablesDemoAPI, default_map_frame, plan_graph_topic
+from tables_demo_planning import UP_plan_visualization
 
 _spec = importlib.util.spec_from_file_location(
     'tables_demo_node', os.path.join(os.path.dirname(__file__), '..', 'nodes', 'tables_demo_node.py'))
@@ -63,6 +64,28 @@ class RobotNamespaceTest(unittest.TestCase):
         api1.mobipick_api = api.mobipick_api
         api1.move_base_to('pose')
         self.assertEqual(calls[-1], {}, 'robot 1 calls base.move exactly as before')
+
+
+class PlanGraphTopicTest(unittest.TestCase):
+    """each planner shows its plan on its own robot's topic, so two plan windows can show both robots"""
+    def test_robot_1_keeps_the_topic_of_the_plan_window(self):
+        self.assertEqual(plan_graph_topic('mobipick'), '/dot_graph_visualization/dot_graph')
+        self.assertEqual(plan_graph_topic(''), '/dot_graph_visualization/dot_graph')
+
+    def test_robots_2_and_3_get_their_own_topic(self):
+        self.assertEqual(plan_graph_topic('/mobipick2/'), '/mobipick2/dot_graph_visualization/dot_graph')
+        self.assertEqual(plan_graph_topic('mobipick3'), '/mobipick3/dot_graph_visualization/dot_graph')
+
+    def test_the_visualization_publishes_on_the_given_topic(self):
+        topics = []
+        real = UP_plan_visualization.rospy.Publisher
+        UP_plan_visualization.rospy.Publisher = lambda topic, *args, **kwargs: topics.append(topic)
+        try:
+            UP_plan_visualization.UPPlanVisualization(plan_graph_topic('mobipick2'))
+            UP_plan_visualization.UPPlanVisualization()
+        finally:
+            UP_plan_visualization.rospy.Publisher = real
+        self.assertEqual(topics, ['/mobipick2/dot_graph_visualization/dot_graph', '/dot_graph_visualization/dot_graph'])
 
 
 class NodeNamespaceTest(unittest.TestCase):

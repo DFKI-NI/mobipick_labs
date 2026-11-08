@@ -53,11 +53,15 @@ class VisualizationNode:
     action: object
 
 
+# the topic the plan window (dot_graph_visualization) listens to by default
+PLAN_GRAPH_TOPIC = "/dot_graph_visualization/dot_graph"
+
+
 class PlanVisualization:
-    def __init__(self) -> None:
+    def __init__(self, topic: str = PLAN_GRAPH_TOPIC) -> None:
         self.graph: Dot = None
         self.nodes: Dict[str, VisualizationNode] = {}
-        self.plan_pub = rospy.Publisher("/dot_graph_visualization/dot_graph", String, queue_size=1)
+        self.plan_pub = rospy.Publisher(topic, String, queue_size=1)
 
     def visualize(self) -> None:
         """Update the visualization by dot code from self.graph."""

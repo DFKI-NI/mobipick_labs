@@ -15,13 +15,20 @@ from symbolic_fact_generation.common.lib import retarget_robot_names
 from pose_selector.srv import PoseDelete, PoseDeleteRequest
 from mobipick_api import Robot as mobipick_api_robot
 from robot_api import TuplePose, is_instance
-from tables_demo_planning.UP_plan_visualization import UPPlanVisualization
+from tables_demo_planning.UP_plan_visualization import PLAN_GRAPH_TOPIC, UPPlanVisualization
 
 
 def default_map_frame(robot_namespace: str) -> str:
     """The map frame of a robot of the sim: robot 1 (mobipick) uses map, robot k its own mobipickK/map."""
     robot_namespace = robot_namespace.strip("/") or "mobipick"
     return "map" if robot_namespace == "mobipick" else f"{robot_namespace}/map"
+
+
+def plan_graph_topic(robot_namespace: str) -> str:
+    """The topic a planner shows its plan on: robot 1 (mobipick) the plan window's default topic, robot k its own
+    /mobipickK/dot_graph_visualization/dot_graph (type it into the topic field of a second plan window)."""
+    robot_namespace = robot_namespace.strip("/") or "mobipick"
+    return PLAN_GRAPH_TOPIC if robot_namespace == "mobipick" else f"/{robot_namespace}{PLAN_GRAPH_TOPIC}"
 
 
 class TablesDemoAPI:
@@ -143,7 +150,8 @@ class TablesDemoAPI:
             self.pose_selector_delete(PoseDeleteRequest(class_id=class_id, instance_id=int(instance_id)))
 
         # Initialize plan visualization
-        self.visualization = UPPlanVisualization()
+        self.visualization = UPPlanVisualization(plan_graph_topic(self.robot_namespace))
+        rospy.loginfo(f"plan of robot {self.robot_namespace} shown on {plan_graph_topic(self.robot_namespace)}")
         self.espeak_pub = rospy.Publisher("/espeak_node/speak_line", String, queue_size=1)
 
     def ros_name(self, name: str) -> str:

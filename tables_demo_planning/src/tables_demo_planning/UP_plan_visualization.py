@@ -57,10 +57,14 @@ class VisualizationNode:
     action_str: str
 
 
+# the topic the plan window (dot_graph_visualization) listens to by default
+PLAN_GRAPH_TOPIC = "/dot_graph_visualization/dot_graph"
+
+
 class UPPlanVisualization:
-    def __init__(self) -> None:
+    def __init__(self, topic: str = PLAN_GRAPH_TOPIC) -> None:
         self.graph: Dot = None
-        self.plan_pub = rospy.Publisher("/dot_graph_visualization/dot_graph", String, queue_size=1)
+        self.plan_pub = rospy.Publisher(topic, String, queue_size=1)
         self.nodes: Dict[Union[MethodInstance, ActionInstance], VisualizationNode] = {}
         self.node_name_to_vis_node_map: Dict[str, VisualizationNode] = {}
 
