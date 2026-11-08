@@ -4,6 +4,20 @@
   <arg name="world_config" default="moelk_tables" doc="objects arrangement, options: moelk_tables, cic_tables" />
   <arg name="objects_of_interest" default="[relay, screwdriver, multimeter, power_drill_with_grip, klt, hot_glue_gun]"/>
   <arg name="namespace" default="mobipick" doc="namespace of the robot to control" />
+  <arg name="robot_1" default="mobipick" doc="namespace of robot 1 of the sim, whose pick pose selector is robot_1_pose_selector_ns" />
+  <arg name="robot_1_pose_selector_ns" default="" doc="namespace of robot 1's pick pose selector: '' = the global one" />
+  <arg name="pose_selector_ns"
+       default="$(eval arg('robot_1_pose_selector_ns') if arg('namespace').strip('/') == arg('robot_1').strip('/') else arg('namespace'))"
+       doc="namespace of the controlled robot's pick pose selector: robot 1 has robot_1_pose_selector_ns ('' = the global one), robot k of a multi-robot sim its own (as in tables_demo_bringup)" />
+  <!-- the panel can switch to the other robots of the sim: the perception endpoints of every robot it can choose are
+       written below scoped to that robot (robots/<robot>/...), as the Mobipick API reads them (scoped before unscoped
+       private names, which would reach every robot); robot k of a multi-robot sim is robot_1 plus k (mobipick2) with
+       its own pose selector, as in tables_demo_bringup -->
+  <arg name="selectable_robots" default="3" doc="robots 1 to this number get their perception endpoints mapped (one more than the sim runs costs nothing)" />
+  <arg name="node" value="$(eval '/' + arg('namespace').strip('/') + '/rqt_tables_demo')" />
+  <arg name="robot" value="$(eval arg('namespace').strip('/'))" />
+  <arg name="robot_2" value="$(arg robot_1)2" />
+  <arg name="robot_3" value="$(arg robot_1)3" />
   <arg name="waypoints_file" default="$(find mobipick_pick_n_place)/config/$(arg world_config)_demo.yaml"
        doc="named base poses (navigation waypoints and table surfaces) in the format of mobipick_pick_n_place's &lt;world&gt;_demo.yaml" />
   <arg name="robot_api_class" default=""
@@ -23,5 +37,29 @@
     <param name="gripper_via_api" value="$(arg gripper_via_api)" />
     <param name="gazebo_model_name" value="$(arg gazebo_model_name)" />
   </node>
+
+  <!-- the robot the panel is launched for (its pose_selector_ns), then robots 1 to selectable_robots of the sim -->
+  <include file="$(dirname)/includes/robot_endpoints.launch">
+    <arg name="node" value="$(arg node)" />
+    <arg name="robot" value="$(arg robot)" />
+    <arg name="pose_selector_ns" value="$(arg pose_selector_ns)" />
+  </include>
+  <include file="$(dirname)/includes/robot_endpoints.launch" if="$(eval arg('robot_1').strip('/') != arg('robot'))">
+    <arg name="node" value="$(arg node)" />
+    <arg name="robot" value="$(arg robot_1)" />
+    <arg name="pose_selector_ns" value="$(arg robot_1_pose_selector_ns)" />
+  </include>
+  <include file="$(dirname)/includes/robot_endpoints.launch"
+           if="$(eval int(arg('selectable_robots')) >= 2 and arg('robot_2').strip('/') != arg('robot'))">
+    <arg name="node" value="$(arg node)" />
+    <arg name="robot" value="$(arg robot_2)" />
+    <arg name="pose_selector_ns" value="$(arg robot_2)" />
+  </include>
+  <include file="$(dirname)/includes/robot_endpoints.launch"
+           if="$(eval int(arg('selectable_robots')) >= 3 and arg('robot_3').strip('/') != arg('robot'))">
+    <arg name="node" value="$(arg node)" />
+    <arg name="robot" value="$(arg robot_3)" />
+    <arg name="pose_selector_ns" value="$(arg robot_3)" />
+  </include>
 
 </launch>

@@ -265,19 +265,21 @@ class RqtTablesDemo(Plugin):
     def _connect_services(self):
         """pose selector and gripper service clients of the chosen robot"""
         # pose selector service clients
-        # the names follow the chosen robot; the private params override them for the robot the plugin was
-        # launched for
+        # the names follow the chosen robot; private params override them: ~robots/<robot>/<param> for that robot
+        # (as the Mobipick API reads them), else the unscoped ~<param> for the robot the plugin was launched for only
         ps = robot_names.pose_selector_services(self.robot_ns)
         gripper = robot_names.gripper_services(self.robot_ns)
         own = self.robot_ns == self.launch_robot
-        pose_selector_activate_srv_name = rospy.get_param(
-            '~pose_selector_activate_srv_name', ps['activate']) if own else ps['activate']
-        pose_selector_class_query_srv_name = rospy.get_param(
-            '~pose_selector_class_query_srv_name', ps['class_query']) if own else ps['class_query']
-        pose_selector_get_all_poses_srv_name = rospy.get_param(
-            '~pose_selector_get_all_poses_srv_name', ps['get_all']) if own else ps['get_all']
-        pose_selector_clear_srv_name = rospy.get_param(
-            '~pose_selector_clear_srv_name', ps['clear']) if own else ps['clear']
+
+        def override(param, default):
+            scoped = rospy.get_param(f'~robots/{robot_names.normalize(self.robot_ns)}/{param}', None)
+            if scoped is not None:
+                return scoped
+            return rospy.get_param(f'~{param}', default) if own else default
+        pose_selector_activate_srv_name = override('pose_selector_activate_srv_name', ps['activate'])
+        pose_selector_class_query_srv_name = override('pose_selector_class_query_srv_name', ps['class_query'])
+        pose_selector_get_all_poses_srv_name = override('pose_selector_get_all_poses_srv_name', ps['get_all'])
+        pose_selector_clear_srv_name = override('pose_selector_clear_srv_name', ps['clear'])
         if self.use_mobipick_api and self.api_perception is not None:
             pose_selector_activate_srv_name = self.api_perception.pose_selector_activate_srv_name
             pose_selector_class_query_srv_name = self.api_perception.pose_selector_class_query_srv_name
