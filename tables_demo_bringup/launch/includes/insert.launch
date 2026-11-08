@@ -33,6 +33,9 @@
     <param name="pick_pose_selector_class_query_srv_name" type="string" value="$(arg ps)/pick_pose_selector_node/pose_selector_class_query" />
     <param name="pick_pose_selector_get_all_poses_srv_name" type="string" value="$(arg ps)/pick_pose_selector_node/pose_selector_get_all" />
     <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/insert_params.yaml" command="load" />
+    <!-- the gripper joint of this robot (the shared config names the first robot's joint; MoveIt's pick pipeline
+         refuses a grasp posture with a joint its robot model does not know) -->
+    <rosparam param="gripper_joint_names" subst_value="true">['$(arg namespace)/gripper_finger_joint']</rosparam>
     <param name="place_same_orientation_as_picked" value="$(arg place_same_orientation_as_picked)" />
     <param name="insert_orientation" type="str" value="$(arg insert_orientation)" />
     <param name="use_mtc" type="bool" value="$(arg use_mtc)" />
