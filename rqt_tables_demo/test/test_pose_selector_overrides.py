@@ -26,7 +26,7 @@ class FakePanel:
         self._widget = mock.MagicMock()
 
 
-FakePanel._connect_services = Panel._connect_services
+FakePanel._find_services = Panel._find_services
 
 
 class PoseSelectorOverrideTest(unittest.TestCase):
@@ -42,7 +42,8 @@ class PoseSelectorOverrideTest(unittest.TestCase):
             get_param=lambda name, default=None: params.get(name, default), wait_for_service=wait_for_service,
             loginfo=lambda *a: None, logwarn=lambda *a: None, ServiceProxy=mock.Mock())
         with mock.patch.object(panel_module, 'rospy', fake_rospy):
-            FakePanel(namespace, api_perception)._connect_services()
+            panel = FakePanel(namespace, api_perception)
+            panel._find_services(namespace, panel.robot, api_perception)
         return waited[0]  # the activate service comes first; the others are not reached when it is missing
 
     def test_the_launch_files_scoped_override_reaches_its_robot_only(self):

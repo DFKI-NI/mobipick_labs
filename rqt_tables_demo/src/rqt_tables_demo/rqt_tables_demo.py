@@ -8,12 +8,13 @@ import threading
 
 from qt_gui.plugin import Plugin
 from python_qt_binding import loadUi
-from python_qt_binding.QtWidgets import QWidget, QApplication, QHBoxLayout, QLabel
+from python_qt_binding.QtWidgets import QWidget, QHBoxLayout, QLabel
 from PyQt5.QtGui import QPixmap
-from PyQt5.QtCore import Qt, QMetaObject, Q_ARG, QThread, pyqtSignal
+from PyQt5.QtCore import Qt, QMetaObject, Q_ARG, pyqtSignal
 
 from grasplan.tools.common import objectToPick
 from geometry_msgs.msg import PoseStamped
+from move_base_msgs.msg import MoveBaseAction
 from gazebo_msgs.srv import SetModelState
 from gazebo_msgs.msg import ModelState
 from std_srvs.srv import Empty, SetBool, Trigger
@@ -36,49 +37,14 @@ try:
 except ImportError:  # mobipick_api is optional; the open-set, perceive and inspect group boxes need it
     ApiPerception = None
 
-from functools import wraps
-
-
-def disable_during_execution(groupbox_attr):
-    def decorator(func):
-        @wraps(func)
-        def wrapper(self, *args, **kwargs):
-            # Access the QGroupBox from self using groupbox_attr
-            groupbox = getattr(self._widget, groupbox_attr)
-
-            # Check if the function is running in the main thread
-            in_main_thread = QThread.currentThread() == QApplication.instance().thread()
-
-            if in_main_thread:
-                # Directly disable and enable in the main thread
-                groupbox.setEnabled(False)
-                # Process events to update UI immediately
-                QApplication.processEvents()
-                try:
-                    # Execute the actual function with just `self`, ignoring other args
-                    result = func(self)
-                finally:
-                    # Re-enable the group box after function execution
-                    groupbox.setEnabled(True)
-                    # Process events again to update UI
-                    QApplication.processEvents()
-            else:
-                # If in a background thread, use invokeMethod to safely modify UI in the main thread
-                QMetaObject.invokeMethod(groupbox, "setEnabled", Qt.QueuedConnection, Q_ARG(bool, False))
-                try:
-                    result = func(self)
-                finally:
-                    QMetaObject.invokeMethod(groupbox, "setEnabled", Qt.QueuedConnection, Q_ARG(bool, True))
-
-            return result
-
-        return wrapper
-
-    return decorator
-
-
 class RqtTablesDemo(Plugin):
     robot_selected = pyqtSignal(str)  # the robot named on /selected_robot (the subscriber thread -> the Qt thread)
+    robot_built = pyqtSignal(object)  # the clients of a newly chosen robot are ready (worker thread -> Qt thread)
+    busy_changed = pyqtSignal()  # a robot command started or ended (worker thread -> Qt thread)
+
+    # the group boxes a running command blocks, for its own robot only: the other robots keep theirs
+    COMMAND_GROUPS = ('Navigation_groupBox', 'Manipulation_groupBox', 'Perception_groupBox', 'OpenSet_groupBox',
+                      'Perceive_groupBox', 'Inspect_groupBox')
 
     def __init__(self, context):
         super(RqtTablesDemo, self).__init__(context)
@@ -127,8 +93,18 @@ class RqtTablesDemo(Plugin):
         if ApiPerception is not None:
             self.api_perception = ApiPerception(robot_names.prefix(self.robot_ns) + '/', self.robot.arm, None)
         self.is_gripper_srv_available = False
-        self.action_client = None
-        self.busy_robot = None  # the robot whose pick, place or insert through the API is running
+        # every robot command runs in a worker thread, so the window never waits for a robot and the other robots
+        # stay commandable; per robot: {group box or command id: what runs}, guarded by the lock
+        self._busy = {}
+        self._busy_lock = threading.Lock()
+        self._action_clients = {}  # robot -> its pick, place or insert action client while one runs (cancel)
+        self._api_busy_robots = {}  # robot -> its API robot object while a pick, place or insert through it runs
+        self._nav_cancel_clients = {}  # robot -> a move_base client used only to cancel the panel's navigation
+        # robot_api keeps one ROS wrapper per process: the robot built last receives every later robot_api call, so a
+        # command of several robot_api calls stops when another robot is built in between
+        self._api_ns = self.robot_ns
+        self._switching_to = None  # the robot whose clients are being built after a selection
+        self._build_lock = threading.Lock()
 
         # make array of checkboxes that represent objects to ignore from planning scene when picking
         self.ignore_from_ps_chks = []
@@ -214,8 +190,11 @@ class RqtTablesDemo(Plugin):
         self.hole_objects = rospy.get_param('hole_objects', ['klt'])
 
         # ::: services
-        self._connect_services()
+        self._apply_services(self._find_services(self.robot_ns, self.robot, self.api_perception))
+        self._nav_cancel_client(self.robot_ns)
         self._add_robot_selector()
+        self.robot_built.connect(self._robot_built)
+        self.busy_changed.connect(self._update_busy_ui)
 
         # make a connection between the qt objects and this class methods
         self._widget.cmdNavigationGo.clicked.connect(self.navigation_go)
@@ -262,103 +241,100 @@ class RqtTablesDemo(Plugin):
         rospy.loginfo(f'controlling the robot in namespace /{namespace} with {api_class_path}')
         return api_class(namespace)
 
-    def _connect_services(self):
-        """pose selector and gripper service clients of the chosen robot"""
-        # pose selector service clients
+    def _find_services(self, namespace, robot, api_perception):
+        """the pose selector and gripper service clients of robot `namespace` as a dict for _apply_services; waits for
+        the services (up to a few seconds), so after startup it runs in a worker thread, never in the Qt thread"""
         # the names follow the chosen robot; private params override them: ~robots/<robot>/<param> for that robot
         # (as the Mobipick API reads them), else the unscoped ~<param> for the robot the plugin was launched for only
-        ps = robot_names.pose_selector_services(self.robot_ns)
-        gripper = robot_names.gripper_services(self.robot_ns)
-        own = self.robot_ns == self.launch_robot
+        ps = robot_names.pose_selector_services(namespace)
+        gripper = robot_names.gripper_services(namespace)
+        own = namespace == self.launch_robot
 
         def override(param, default):
-            scoped = rospy.get_param(f'~robots/{robot_names.normalize(self.robot_ns)}/{param}', None)
+            scoped = rospy.get_param(f'~robots/{robot_names.normalize(namespace)}/{param}', None)
             if scoped is not None:
                 return scoped
             return rospy.get_param(f'~{param}', default) if own else default
-        pose_selector_activate_srv_name = override('pose_selector_activate_srv_name', ps['activate'])
-        pose_selector_class_query_srv_name = override('pose_selector_class_query_srv_name', ps['class_query'])
-        pose_selector_get_all_poses_srv_name = override('pose_selector_get_all_poses_srv_name', ps['get_all'])
-        pose_selector_clear_srv_name = override('pose_selector_clear_srv_name', ps['clear'])
-        if self.use_mobipick_api and self.api_perception is not None:
-            pose_selector_activate_srv_name = self.api_perception.pose_selector_activate_srv_name
-            pose_selector_class_query_srv_name = self.api_perception.pose_selector_class_query_srv_name
-            pose_selector_get_all_poses_srv_name = self.api_perception.pose_selector_get_all_poses_srv_name
-            pose_selector_clear_srv_name = self.api_perception.pose_selector_clear_srv_name
-        rospy.loginfo(
-            f'waiting for pose selector services: {pose_selector_activate_srv_name}, '
-            '{pose_selector_class_query_srv_name}, '
-            '{pose_selector_get_all_poses_srv_name}, '
-            '{pose_selector_clear_srv_name}'
-        )
-        # if wait_for_service fails, it will throw a
-        # rospy.exceptions.ROSException, and the node will exit (as long as
-        # this happens before moveit_commander.roscpp_initialize()).
-
+        names = {key: override(param, ps[key]) for key, param in (
+            ('activate', 'pose_selector_activate_srv_name'), ('class_query', 'pose_selector_class_query_srv_name'),
+            ('get_all', 'pose_selector_get_all_poses_srv_name'), ('clear', 'pose_selector_clear_srv_name'))}
+        if self.use_mobipick_api and api_perception is not None:
+            names = {'activate': api_perception.pose_selector_activate_srv_name,
+                     'class_query': api_perception.pose_selector_class_query_srv_name,
+                     'get_all': api_perception.pose_selector_get_all_poses_srv_name,
+                     'clear': api_perception.pose_selector_clear_srv_name}
+        rospy.loginfo(f'waiting for pose selector services: {", ".join(names.values())}')
+        found = {'pose_selector': False, 'gripper_srv': False, 'gripper_via_api': False}
         try:
-            rospy.wait_for_service(pose_selector_activate_srv_name, self.wait_for_services)
-            rospy.wait_for_service(pose_selector_class_query_srv_name, 0.5)
-            rospy.wait_for_service(pose_selector_get_all_poses_srv_name, 0.5)
-            rospy.wait_for_service(pose_selector_clear_srv_name, 0.5)
-            self.activate_pose_selector_srv = rospy.ServiceProxy(pose_selector_activate_srv_name, SetBool)
-            self.pose_selector_class_query_srv = rospy.ServiceProxy(pose_selector_class_query_srv_name, ClassQuery)
-            self.pose_selector_get_all_poses_srv = rospy.ServiceProxy(pose_selector_get_all_poses_srv_name, GetPoses)
-            self.pose_selector_clear_srv = rospy.ServiceProxy(pose_selector_clear_srv_name, Trigger)
-            self.is_pose_selector_available = True
-            self._widget.groupMoveAndActivatePS.setEnabled(True)
-            self._widget.PoseSelector_groupBox.setEnabled(True)
+            rospy.wait_for_service(names['activate'], self.wait_for_services)
+            for key in ('class_query', 'get_all', 'clear'):
+                rospy.wait_for_service(names[key], 0.5)
+            found.update(pose_selector=True,
+                         activate=rospy.ServiceProxy(names['activate'], SetBool),
+                         class_query=rospy.ServiceProxy(names['class_query'], ClassQuery),
+                         get_all=rospy.ServiceProxy(names['get_all'], GetPoses),
+                         clear=rospy.ServiceProxy(names['clear'], Trigger))
             rospy.loginfo('found pose selector services')
         except Exception:
-            self.is_pose_selector_available = False
-            self._widget.groupMoveAndActivatePS.setEnabled(False)
-            self._widget.PoseSelector_groupBox.setEnabled(False)
-            rospy.logwarn('pose selector not available, this functionality will not be available')
-        if self.use_mobipick_api and self.api_perception is not None:
+            rospy.logwarn(f'pose selector of robot {namespace} not available, this functionality will not be available')
+        if self.use_mobipick_api and api_perception is not None:
             # one source of the names and the proxies: the API's perception of this robot
-            self.activate_pose_selector_srv = self.api_perception.activate_pose_selector_srv
-            self.pose_selector_class_query_srv = self.api_perception.pose_selector_class_query_srv
-            self.pose_selector_get_all_poses_srv = self.api_perception.pose_selector_get_all_poses_srv
-            self.pose_selector_clear_srv = self.api_perception.pose_selector_clear_srv
+            found.update(activate=api_perception.activate_pose_selector_srv,
+                         class_query=api_perception.pose_selector_class_query_srv,
+                         get_all=api_perception.pose_selector_get_all_poses_srv,
+                         clear=api_perception.pose_selector_clear_srv)
 
         # services to actuate (open/close) gripper
         # without them, ~gripper_via_api lets the buttons use the robot API's gripper.open() and gripper.close()
-        self.gripper_via_api = False
+        if self.use_mobipick_api and hasattr(robot, 'gripper'):
+            # the buttons use the chosen robot's API gripper: no service name of this plugin
+            found['gripper_via_api'] = True
+            return found
         open_gripper_srv_name = rospy.get_param('~open_gripper_srv_name', gripper['open']) if own else gripper['open']
         close_gripper_srv_name = rospy.get_param('~close_gripper_srv_name', gripper['close']) if own \
             else gripper['close']
-        if self.use_mobipick_api and hasattr(self.robot, 'gripper'):
-            # the buttons use the chosen robot's API gripper: no service name of this plugin
-            self.is_gripper_srv_available = False
-            self.gripper_via_api = True
-            self._widget.cmdOpenGripper.setEnabled(True)
-            self._widget.cmdCloseGripper.setEnabled(True)
-            return
         try:
             rospy.wait_for_service(open_gripper_srv_name, self.wait_for_services)
             rospy.wait_for_service(close_gripper_srv_name, 0.5)
-            self.open_gripper_srv = rospy.ServiceProxy(open_gripper_srv_name, Empty)
-            self.close_gripper_srv = rospy.ServiceProxy(close_gripper_srv_name, Empty)
-            self.is_gripper_srv_available = True
-            self._widget.cmdOpenGripper.setEnabled(True)
-            self._widget.cmdCloseGripper.setEnabled(True)
+            found.update(gripper_srv=True, open=rospy.ServiceProxy(open_gripper_srv_name, Empty),
+                         close=rospy.ServiceProxy(close_gripper_srv_name, Empty))
             rospy.loginfo('found gripper open/close services')
         except Exception:
-            self.is_gripper_srv_available = False
-            if rospy.get_param('~gripper_via_api', False) and hasattr(self.robot, 'gripper'):
-                self.gripper_via_api = True
-                self._widget.cmdOpenGripper.setEnabled(True)
-                self._widget.cmdCloseGripper.setEnabled(True)
+            if rospy.get_param('~gripper_via_api', False) and hasattr(robot, 'gripper'):
+                found['gripper_via_api'] = True
                 rospy.loginfo('no gripper open/close services, the gripper buttons use the robot API instead')
             else:
-                self._widget.cmdOpenGripper.setEnabled(False)
-                self._widget.cmdCloseGripper.setEnabled(False)
                 rospy.logwarn(
                     'Could not found service to open/close gripper, this functionality will not be available'
                 )
+        return found
+
+    def _apply_services(self, found):
+        """hand the clients _find_services found to the commands and the widgets (Qt thread)"""
+        self.is_pose_selector_available = found['pose_selector']
+        for attr, key in (('activate_pose_selector_srv', 'activate'), ('pose_selector_class_query_srv', 'class_query'),
+                          ('pose_selector_get_all_poses_srv', 'get_all'), ('pose_selector_clear_srv', 'clear')):
+            setattr(self, attr, found.get(key))
+        self._widget.groupMoveAndActivatePS.setEnabled(found['pose_selector'])
+        self._widget.PoseSelector_groupBox.setEnabled(found['pose_selector'])
+        self.is_gripper_srv_available = found['gripper_srv']
+        self.gripper_via_api = found['gripper_via_api']
+        self.open_gripper_srv, self.close_gripper_srv = found.get('open'), found.get('close')
+        gripper = found['gripper_srv'] or found['gripper_via_api']
+        self._widget.cmdOpenGripper.setEnabled(gripper)
+        self._widget.cmdCloseGripper.setEnabled(gripper)
+
+    def _nav_cancel_client(self, namespace):
+        """a move_base client of robot `namespace` used only to cancel a navigation of this panel; made when the robot
+        is chosen, so its cancel topic is connected by the time Cancel is pressed"""
+        if namespace not in self._nav_cancel_clients:
+            self._nav_cancel_clients[namespace] = actionlib.SimpleActionClient(
+                robot_names.action_server(namespace, 'move_base'), MoveBaseAction)
+        return self._nav_cancel_clients[namespace]
 
     def _add_robot_selector(self):
         """no selector of its own: the robot is the one chosen in the sim GUI's single robot selector, read from the
-        latched /selected_robot topic; this label shows which robot the commands go to"""
+        latched /selected_robot topic; this label shows which robot the commands go to and what it is busy with"""
         row = QHBoxLayout()
         row.addWidget(QLabel('Robot:'))
         self.dotRobot = QLabel()
@@ -367,39 +343,127 @@ class RqtTablesDemo(Plugin):
         self._show_robot_name()
         self.labelRobot.setToolTip('every command of this panel goes to this robot; choose it in the robot selector '
                                    'of the sim window')
-        row.addWidget(self.labelRobot, 1)
+        row.addWidget(self.labelRobot)
+        self.labelBusy = QLabel()
+        self.labelBusy.setToolTip('the commands this panel runs, per robot; the buttons of a running command are '
+                                  'blocked for its robot only')
+        row.addWidget(self.labelBusy, 1)
         self._widget.main_left_verticalLayout.insertLayout(1, row)
         self.robot_selected.connect(self._select_robot)
         self._selected_robot_sub = rospy.Subscriber(robot_names.SELECTED_ROBOT_TOPIC, String,
                                                     lambda msg: self.robot_selected.emit(msg.data))
 
-    def _show_robot_name(self):
+    def _show_robot_name(self, namespace=None, note=''):
         """the robot's colour name and dot as the sim window's selector shows them (the bare namespace without the
         mobipick_gazebo package)"""
-        name, icon = self.robot_ns, None
+        namespace = namespace or self.robot_ns
+        name, icon = namespace, None
         if robot_colours is not None:
-            name, icon = robot_colours.display_name(self.robot_ns), robot_colours.colour_icon(self.robot_ns)
-        self.labelRobot.setText(name)
+            name, icon = robot_colours.display_name(namespace), robot_colours.colour_icon(namespace)
+        self.labelRobot.setText(f'{name} ({note})' if note else name)
         self.dotRobot.setPixmap(icon.pixmap(12, 12) if icon is not None else QPixmap())
 
     def _select_robot(self, namespace):
-        """rebuild every client for the robot `namespace`"""
+        """build every client for the robot `namespace` in a worker thread; the commands keep going to the robot they
+        went to until the new one is ready, and the command buttons wait meanwhile"""
         namespace = robot_names.normalize(namespace)
-        if namespace == self.robot_ns:
+        if namespace == (self._switching_to or self.robot_ns):
             return
-        rospy.loginfo(f'commands now go to robot {namespace} (was {self.robot_ns})')
-        try:  # build the new robot first: when that fails, the commands stay with the robot they went to before
-            robot = self.make_robot(self.robot_api_class, namespace)
-            api_perception = None
-            if ApiPerception is not None:
-                api_perception = ApiPerception(robot_names.prefix(namespace) + '/', robot.arm, None)
-        except Exception as error:
-            rospy.logerr(f'cannot control robot {namespace} ({error}): commands stay with robot {self.robot_ns}')
-            return
-        self.robot_ns = namespace
+        rospy.loginfo(f'commands go to robot {namespace} once its clients are ready (now {self.robot_ns})')
+        self._switching_to = namespace
+        self._show_robot_name(namespace, 'connecting')
+        self._update_busy_ui()
+        threading.Thread(target=self._build_robot, args=(namespace,), daemon=True,
+                         name=f'select robot {namespace}').start()
+
+    def _build_robot(self, namespace):
+        """worker thread: the robot API, perception, services and navigation cancel client of robot `namespace`"""
+        with self._build_lock:  # one build at a time, and none for a choice that a newer one replaced
+            if namespace != self._switching_to:
+                return
+            try:  # when this fails, the commands stay with the robot they went to before
+                robot = self.make_robot(self.robot_api_class, namespace)
+                self._api_ns = namespace
+                api_perception = None
+                if ApiPerception is not None:
+                    api_perception = ApiPerception(robot_names.prefix(namespace) + '/', robot.arm, None)
+                found = self._find_services(namespace, robot, api_perception)
+                self._nav_cancel_client(namespace)
+            except Exception as error:
+                rospy.logerr(f'cannot control robot {namespace} ({error}): commands stay with robot {self.robot_ns}')
+                robot = api_perception = found = None
+            self.robot_built.emit((namespace, robot, api_perception, found))
+
+    def _robot_built(self, built):
+        """Qt thread: the commands go to the robot whose clients _build_robot made"""
+        namespace, robot, api_perception, found = built
+        if namespace != self._switching_to:
+            return  # a newer choice is being built
+        self._switching_to = None
+        if robot is not None:
+            rospy.loginfo(f'commands now go to robot {namespace} (was {self.robot_ns})')
+            self.robot_ns, self.robot, self.api_perception = namespace, robot, api_perception
+            self._apply_services(found)
         self._show_robot_name()
-        self.robot, self.api_perception = robot, api_perception
-        self._connect_services()
+        self._update_busy_ui()
+
+    def _run(self, group, what, task):
+        """run task(ctx) for the chosen robot in a worker thread: the window never waits for a robot. `ctx` is a
+        snapshot of the chosen robot's clients, so a later robot choice does not redirect the running command. `group`
+        (one of COMMAND_GROUPS, or None) is blocked for this robot until the task ends; the other robots keep it."""
+        if self._switching_to is not None:
+            rospy.logwarn(f'{what}: not started, the clients of robot {self._switching_to} are still being made')
+            return
+        ns = self.robot_ns
+        ctx = {'ns': ns, 'robot': self.robot, 'api_perception': self.api_perception,
+               'activate': self.activate_pose_selector_srv if self.is_pose_selector_available else None,
+               'open': self.open_gripper_srv if self.is_gripper_srv_available else None,
+               'close': self.close_gripper_srv if self.is_gripper_srv_available else None}
+        key = group or object()  # a command without a group is shown as busy but blocks nothing
+        with self._busy_lock:
+            busy = self._busy.setdefault(ns, {})
+            if group is not None and group in busy:
+                rospy.logwarn(f'{what}: not started, robot {ns} still runs {busy[group]}')
+                return
+            busy[key] = what
+        self._update_busy_ui()
+
+        def worker():
+            try:
+                task(ctx)
+            except Exception as error:  # a dead server or a bad request: say so instead of a silent thread death
+                rospy.logerr(f'{what} on robot {ns} failed: {type(error).__name__}: {error}')
+            finally:
+                with self._busy_lock:
+                    busy.pop(key, None)
+                self.busy_changed.emit()
+        threading.Thread(target=worker, daemon=True, name=f'{ns}: {what}').start()
+
+    def _is_busy(self, ns, what_prefix):
+        with self._busy_lock:
+            return any(what.startswith(what_prefix) for what in self._busy.get(ns, {}).values())
+
+    def _api_still_targets(self, ctx, what):
+        """False (and logged) when robot_api now serves another robot: the next step of a multi-step command would go
+        there (robot_api keeps one ROS wrapper per process, the robot built last owns it)"""
+        if self._api_ns == ctx['ns']:
+            return True
+        rospy.logerr(f'{what} on robot {ctx["ns"]}: stopped, robot {self._api_ns} was chosen meanwhile and the '
+                     'robot API now acts on it; choose the robot again and repeat')
+        return False
+
+    def _update_busy_ui(self):
+        """Qt thread: the command group boxes follow the chosen robot's running commands; the label lists them"""
+        with self._busy_lock:
+            busy = {ns: list(commands.items()) for ns, commands in self._busy.items() if commands}
+        mine = busy.get(self.robot_ns, [])
+        blocked = {key for key, _ in mine}
+        for name in self.COMMAND_GROUPS:
+            getattr(self._widget, name).setEnabled(self._switching_to is None and name not in blocked)
+        others = [f'{ns}: {", ".join(what for _, what in commands)}' for ns, commands in busy.items()
+                  if ns != self.robot_ns]
+        text = 'busy: ' + ', '.join(what for _, what in mine) if mine else 'idle'
+        self.labelBusy.setText(text + (f'   (other robots: {"; ".join(others)})' if others else ''))
 
     def convert_pose_dict(self, input_dict):
         '''
@@ -493,141 +557,152 @@ class RqtTablesDemo(Plugin):
         except rospy.ServiceException as e:
             print("Service call failed: %s" % e)
 
-    @disable_during_execution('Navigation_groupBox')
     def navigation_go(self):
         waypoint_as_text = self._widget.comboNavigationWaypoints.currentText()
         if self._widget.optNavigationNavigate.isChecked():
-            rospy.loginfo(f'Navigating robot to waypoint: {waypoint_as_text}')
-            # Move the robot's base using move_base.
-            angular_q = self.wp_dic[waypoint_as_text][3:7]
-            angular_rpy = list(tf.transformations.euler_from_quaternion(angular_q))
-            frame = robot_names.map_frame(self.robot_ns)
-            frame_kwargs = {} if frame == 'map' else {'frame_id': frame}  # a robot API's base.move need not take a frame
-            self.robot.base.move(self.wp_dic[waypoint_as_text][0], self.wp_dic[waypoint_as_text][1], angular_rpy[2],
-                                 **frame_kwargs)
+            self._run('Navigation_groupBox', f'navigate to {waypoint_as_text}',
+                      lambda ctx: self._navigate(ctx, waypoint_as_text))
         elif self._widget.optNavigationTeletransport.isChecked():
-            rospy.loginfo(f'Teletransporting robot to waypoint: {waypoint_as_text}')
-            pose_stamped_msg = PoseStamped()
-            pose_stamped_msg.header.frame_id = robot_names.map_frame(self.robot_ns)
-            pose_stamped_msg.pose.position.x = self.wp_dic[waypoint_as_text][0]
-            pose_stamped_msg.pose.position.y = self.wp_dic[waypoint_as_text][1]
-            pose_stamped_msg.pose.position.z = self.wp_dic[waypoint_as_text][2]
-            pose_stamped_msg.pose.orientation.x = self.wp_dic[waypoint_as_text][3]
-            pose_stamped_msg.pose.orientation.y = self.wp_dic[waypoint_as_text][4]
-            pose_stamped_msg.pose.orientation.z = self.wp_dic[waypoint_as_text][5]
-            pose_stamped_msg.pose.orientation.w = self.wp_dic[waypoint_as_text][6]
-            model = self.launch_gazebo_model_name if self.robot_ns == self.launch_robot else self.robot_ns
-            self.set_model_pose(model, pose_stamped_msg)
+            self._run('Navigation_groupBox', f'teletransport to {waypoint_as_text}',
+                      lambda ctx: self._teletransport(ctx, waypoint_as_text))
 
-    @disable_during_execution('Manipulation_groupBox')
+    def _navigate(self, ctx, waypoint_as_text):
+        rospy.loginfo(f'Navigating robot {ctx["ns"]} to waypoint: {waypoint_as_text}')
+        # Move the robot's base using move_base.
+        angular_q = self.wp_dic[waypoint_as_text][3:7]
+        angular_rpy = list(tf.transformations.euler_from_quaternion(angular_q))
+        frame = robot_names.map_frame(ctx['ns'])
+        frame_kwargs = {} if frame == 'map' else {'frame_id': frame}  # a robot API's base.move need not take a frame
+        base = ctx['robot'].base
+        state = base.move(self.wp_dic[waypoint_as_text][0], self.wp_dic[waypoint_as_text][1], angular_rpy[2],
+                          **frame_kwargs)
+        why = getattr(base, 'last_navigation_message', '') or f'goal state {state}'
+        rospy.loginfo(f'robot {ctx["ns"]} navigation to {waypoint_as_text} ended: {why}')
+
+    def _teletransport(self, ctx, waypoint_as_text):
+        rospy.loginfo(f'Teletransporting robot {ctx["ns"]} to waypoint: {waypoint_as_text}')
+        pose_stamped_msg = PoseStamped()
+        pose_stamped_msg.header.frame_id = robot_names.map_frame(ctx['ns'])
+        pose_stamped_msg.pose.position.x = self.wp_dic[waypoint_as_text][0]
+        pose_stamped_msg.pose.position.y = self.wp_dic[waypoint_as_text][1]
+        pose_stamped_msg.pose.position.z = self.wp_dic[waypoint_as_text][2]
+        pose_stamped_msg.pose.orientation.x = self.wp_dic[waypoint_as_text][3]
+        pose_stamped_msg.pose.orientation.y = self.wp_dic[waypoint_as_text][4]
+        pose_stamped_msg.pose.orientation.z = self.wp_dic[waypoint_as_text][5]
+        pose_stamped_msg.pose.orientation.w = self.wp_dic[waypoint_as_text][6]
+        model = self.launch_gazebo_model_name if ctx['ns'] == self.launch_robot else ctx['ns']
+        self.set_model_pose(model, pose_stamped_msg)
+
     def manipulation_go(self):
         arm_pose = self._widget.comboArmPoses.currentText()
-        rospy.loginfo(f'Moving arm to pose: {arm_pose}')
-        self.robot.arm.move(arm_pose)
+
+        def task(ctx):
+            rospy.loginfo(f'Moving arm of robot {ctx["ns"]} to pose: {arm_pose}')
+            ctx['robot'].arm.move(arm_pose)
+        self._run('Manipulation_groupBox', f'arm to {arm_pose}', task)
 
     def perceive_objs(self):
-        self.pick_thread = threading.Thread(target=self._perceive_objs_task)
-        self.pick_thread.start()
+        # read the widgets in the GUI thread; the task runs in the background
+        observation_list = [combo.currentText() for combo in (
+            self._widget.comboPerceptionObs1, self._widget.comboPerceptionObs2, self._widget.comboPerceptionObs3)
+            if combo.currentText() != '']
+        self._run('Perception_groupBox', 'perceive', lambda ctx: self._perceive_objs_task(ctx, observation_list))
 
-    @disable_during_execution('Perception_groupBox')
-    def _perceive_objs_task(self):
-        if not self.is_pose_selector_available:
+    def _perceive_objs_task(self, ctx, observation_list):
+        if ctx['activate'] is None:
             rospy.logerr("pose selector is not available, can't perceive")
             return
-        rospy.loginfo('perceiving objects')
-        observation_list = []
-        if self._widget.comboPerceptionObs1.currentText() != '':
-            observation_list.append(self._widget.comboPerceptionObs1.currentText())
-        if self._widget.comboPerceptionObs2.currentText() != '':
-            observation_list.append(self._widget.comboPerceptionObs2.currentText())
-        if self._widget.comboPerceptionObs3.currentText() != '':
-            observation_list.append(self._widget.comboPerceptionObs3.currentText())
+        rospy.loginfo(f'perceiving objects with robot {ctx["ns"]}')
         rospy.loginfo(f'observation_list : {observation_list}')
         # iterate over observation poses and go one at a time
         for observation_pose in observation_list:
+            if not self._api_still_targets(ctx, 'perceive'):
+                return
             rospy.loginfo(f'moving arm to {observation_pose}')
             # move arm to observation pose
-            self.robot.arm.move(observation_pose)
+            ctx['robot'].arm.move(observation_pose)
             # activate pose selector
             rospy.loginfo('activating pose selector')
-            resp = self.activate_pose_selector_srv(True)
+            resp = ctx['activate'](True)
             rospy.loginfo(f'pose selector response to activation request: {resp}')
             # wait until pose selector gets updates
             rospy.sleep(3.0)
             # deactivate pose selector detections
             rospy.loginfo('deactivating pose selector')
-            resp = self.activate_pose_selector_srv(False)
+            resp = ctx['activate'](False)
+
+    def _pose_selector_call(self, what, call):
+        """a pose selector service call of the chosen robot in a worker thread (a selector that does not answer must
+        not freeze the window)"""
+        if not self.is_pose_selector_available:
+            rospy.logerr(f"pose selector is not available, can't {what}")
+            return
+        proxies = {'activate': self.activate_pose_selector_srv, 'clear': self.pose_selector_clear_srv,
+                   'get_all': self.pose_selector_get_all_poses_srv, 'class_query': self.pose_selector_class_query_srv}
+        self._run(None, f'pose selector {what}', lambda ctx: call(proxies))
 
     def perception_ps_activate(self):
-        if not self.is_pose_selector_available:
-            rospy.logerr("pose selector is not available, can't activate")
-            return
-        rospy.loginfo('activating pose selector')
-        resp = self.activate_pose_selector_srv(True)
-        rospy.loginfo(f'response: {resp}')
+        def call(ps):
+            rospy.loginfo('activating pose selector')
+            rospy.loginfo(f'response: {ps["activate"](True)}')
+        self._pose_selector_call('activate', call)
 
     def perception_ps_deactivate(self):
-        if not self.is_pose_selector_available:
-            rospy.logerr("pose selector is not available, can't deactivate")
-            return
-        rospy.loginfo('deactivating pose selector')
-        resp = self.activate_pose_selector_srv(False)
-        rospy.loginfo(f'response: {resp}')
+        def call(ps):
+            rospy.loginfo('deactivating pose selector')
+            rospy.loginfo(f'response: {ps["activate"](False)}')
+        self._pose_selector_call('deactivate', call)
 
     def perception_ps_clear(self):
-        if not self.is_pose_selector_available:
-            rospy.logerr("pose selector is not available, can't clear")
-            return
-        rospy.loginfo('clearing pose selector')
-        resp = self.pose_selector_clear_srv()
-        rospy.loginfo(f'response: {resp}')
+        def call(ps):
+            rospy.loginfo('clearing pose selector')
+            rospy.loginfo(f'response: {ps["clear"]()}')
+        self._pose_selector_call('clear', call)
 
     def perception_ps_get_all_objs(self):
-        if not self.is_pose_selector_available:
-            rospy.logerr("pose selector is not available, can't get all objects")
-            return
-        rospy.loginfo('getting all objects from pose selector')
-        resp = self.pose_selector_get_all_poses_srv()
-        if len(resp.poses.objects) > 0:
-            for pose_selector_object in resp.poses.objects:
-                rospy.loginfo(pose_selector_object)
-        else:
-            rospy.logwarn('pose selector is empty')
+        def call(ps):
+            rospy.loginfo('getting all objects from pose selector')
+            resp = ps['get_all']()
+            if len(resp.poses.objects) > 0:
+                for pose_selector_object in resp.poses.objects:
+                    rospy.loginfo(pose_selector_object)
+            else:
+                rospy.logwarn('pose selector is empty')
+        self._pose_selector_call('get all objects', call)
 
     def perception_ps_class_query(self):
-        if not self.is_pose_selector_available:
-            rospy.logerr("pose selector is not available, can't query class")
-            return
         object_class = self._widget.comboPerceptionPSClassQuery.currentText()
-        rospy.loginfo(f'pose selector class query of object: {object_class}')
-        resp = self.pose_selector_class_query_srv(object_class)
-        if len(resp.poses) == 0:
-            rospy.logwarn(f'object of class {object_class} is not in pose selector')
-        else:
-            rospy.loginfo(f'found {len(resp.poses)} instances of class {object_class}')
-            rospy.loginfo(resp.poses)
+
+        def call(ps):
+            rospy.loginfo(f'pose selector class query of object: {object_class}')
+            resp = ps['class_query'](object_class)
+            if len(resp.poses) == 0:
+                rospy.logwarn(f'object of class {object_class} is not in pose selector')
+            else:
+                rospy.loginfo(f'found {len(resp.poses)} instances of class {object_class}')
+                rospy.loginfo(resp.poses)
+        self._pose_selector_call('query class', call)
 
     def open_set_detect(self):
         # read the widgets in the GUI thread; the task runs in the background
-        self.open_set_request = (
+        request = (
             self._widget.txtOpenSetPrompt.text().strip(),
             self._widget.chkOpenSetVLM.isChecked(),
             self._widget.spinOpenSetBoxThreshold.value(),
             self._widget.spinOpenSetAcceptThreshold.value(),
         )
-        self.pick_thread = threading.Thread(target=self._open_set_detect_task)
-        self.pick_thread.start()
+        self._run('OpenSet_groupBox', 'open-set detection', lambda ctx: self._open_set_detect_task(ctx, request))
 
     def _set_open_set_result(self, text):
         QMetaObject.invokeMethod(self._widget.lblOpenSetResult, "setText", Qt.QueuedConnection, Q_ARG(str, text))
 
-    @disable_during_execution('OpenSet_groupBox')
-    def _open_set_detect_task(self):
-        if self.api_perception is None:
+    def _open_set_detect_task(self, ctx, request):
+        api_perception = ctx['api_perception']
+        if api_perception is None:
             rospy.logerr('mobipick_api is not available, cannot run open-set detection')
             self._set_open_set_result('mobipick_api not available')
             return
-        object_name, use_vlm, box_threshold, accept_threshold = self.open_set_request
+        object_name, use_vlm, box_threshold, accept_threshold = request
         if not object_name:
             rospy.logwarn('type an object description first, e.g. "coke can"')
             self._set_open_set_result('type an object description first')
@@ -635,7 +710,7 @@ class RqtTablesDemo(Plugin):
         rospy.loginfo(f'open-set detection of {object_name!r} (VLM verifier: {use_vlm}, '
                       f'box >= {box_threshold:.2f}, accept >= {accept_threshold:.2f}; 0 = node default)')
         self._set_open_set_result(f'detecting {object_name!r}...')
-        result = self.api_perception.detect_open_set(
+        result = api_perception.detect_open_set(
             object_name, use_vlm_verifier=use_vlm, box_threshold=box_threshold, accept_threshold=accept_threshold)
         if result is None:
             self._set_open_set_result('detection action unavailable or timed out (is AnyGrasp running?)')
@@ -661,7 +736,7 @@ class RqtTablesDemo(Plugin):
 
     def perceive_targets(self):
         # read the widgets in the GUI thread; the task runs in the background
-        self.perceive_request = (
+        request = (
             self._split_list(self._widget.txtPerceiveTargets.text()),
             self._widget.comboPerceiveConfidence.currentText(),
             self._widget.chkPerceiveVLM.isChecked(),
@@ -669,23 +744,22 @@ class RqtTablesDemo(Plugin):
             self._widget.chkPerceiveDopeOnly.isChecked(),
             self._widget.chkPerceiveGdOnly.isChecked(),
         )
-        self.pick_thread = threading.Thread(target=self._perceive_targets_task)
-        self.pick_thread.start()
+        self._run('Perceive_groupBox', 'perceive targets', lambda ctx: self._perceive_targets_task(ctx, request))
 
-    @disable_during_execution('Perceive_groupBox')
-    def _perceive_targets_task(self):
+    def _perceive_targets_task(self, ctx, request):
         widget = self._widget.txtPerceiveResult
-        if self.api_perception is None:
+        api_perception = ctx['api_perception']
+        if api_perception is None:
             self._set_text(widget, 'mobipick_api not available')
             return
-        targets, confidence, use_vlm, align, dope_only, gd_only = self.perceive_request
+        targets, confidence, use_vlm, align, dope_only, gd_only = request
         if not targets:
             self._set_text(widget, 'type the targets first, e.g. table_2, multimeter, tennis ball')
             return
         self._set_text(widget, f'perceiving {targets} with {confidence} confidence...')
         try:
-            text = self.api_perception.perceive(targets, confidence=confidence, use_vlm=use_vlm, align=align,
-                                                dope_only=dope_only, gd_only=gd_only)
+            text = api_perception.perceive(targets, confidence=confidence, use_vlm=use_vlm, align=align,
+                                           dope_only=dope_only, gd_only=gd_only)
         except Exception as exc:  # invalid request or a service failure: show it instead of dying
             text = f'failed:\n{type(exc).__name__}: {exc}'
         rospy.loginfo(f'perceive result:\n{text}')
@@ -693,28 +767,27 @@ class RqtTablesDemo(Plugin):
 
     def inspect_object(self):
         # read the widgets in the GUI thread; the task runs in the background
-        self.inspect_request = (
+        request = (
             self._split_list(self._widget.txtInspectQueries.text()),
             self._widget.txtInspectTable.text().strip(),
             self._widget.chkInspectVLM.isChecked(),
             self._widget.chkInspectAlign.isChecked(),
         )
-        self.pick_thread = threading.Thread(target=self._inspect_object_task)
-        self.pick_thread.start()
+        self._run('Inspect_groupBox', 'inspect', lambda ctx: self._inspect_object_task(ctx, request))
 
-    @disable_during_execution('Inspect_groupBox')
-    def _inspect_object_task(self):
+    def _inspect_object_task(self, ctx, request):
         widget = self._widget.txtInspectResult
-        if self.api_perception is None:
+        api_perception = ctx['api_perception']
+        if api_perception is None:
             self._set_text(widget, 'mobipick_api not available')
             return
-        queries, table, use_vlm, align = self.inspect_request
+        queries, table, use_vlm, align = request
         if not queries:
             self._set_text(widget, 'type the open-set objects first, e.g. sugar box, coke')
             return
         self._set_text(widget, f'inspecting {queries}...')
         try:
-            result = self.api_perception.inspect_object(
+            result = api_perception.inspect_object(
                 queries, table=table, align=align, use_vlm=use_vlm,
                 feedback_cb=lambda fb: self._set_text(widget, f'inspecting {queries}: {fb.stage}'))
         except Exception as exc:  # e.g. mobipick_active_perception messages missing in this workspace
@@ -733,187 +806,138 @@ class RqtTablesDemo(Plugin):
         rospy.loginfo('\n'.join(lines))
         self._set_text(widget, '\n'.join(lines))
 
-    def pick_object(self):
-        self.pick_thread = threading.Thread(target=self._pick_object_task)
-        self.pick_thread.start()
+    def _timeout(self, widget):
+        try:
+            return float(widget.toPlainText())
+        except ValueError:
+            rospy.logerr('Invalid timeout value. Please enter a valid number.')
+            return None
 
-    @disable_during_execution('Manipulation_groupBox')
-    def _pick_object_task(self):
-        # Retrieve parameters from UI elements
+    def _run_action(self, ctx, action_name, action_type, goal, timeout, what):
+        """send `goal` to the chosen robot's grasplan action server and wait for it in this worker thread; the client is
+        kept per robot while it runs, so Cancel stops this robot's goal only"""
+        server_name = robot_names.action_server(ctx['ns'], action_name)
+        client = actionlib.SimpleActionClient(server_name, action_type)
+
+        # Wait for the action server to be available
+        rospy.loginfo(f'Waiting for {server_name} action server...')
+        if not client.wait_for_server(timeout=rospy.Duration.from_sec(self.wait_for_services)):
+            rospy.logerr(f'Action server {server_name} not available within the timeout period')
+            return
+        rospy.loginfo(f'Connected to {server_name} action server, sending goal: {what}')
+        self._action_clients[ctx['ns']] = client
+        try:
+            # Send the goal to the action server
+            client.send_goal(goal)
+
+            # Wait for result with specified timeout
+            rospy.loginfo(f'Waiting for result from {server_name} action server...')
+            if client.wait_for_result(rospy.Duration.from_sec(timeout)):
+                result = client.get_result()
+                rospy.loginfo(f'{server_name} completed execution with result = "{result}"')
+                if result is not None and result.success:
+                    rospy.loginfo(f'{what}: succeeded')
+                else:
+                    rospy.logerr(f'{what}: failed ({client.get_goal_status_text() or "no status text"})')
+            else:
+                # Timeout handling with goal cancellation
+                client.cancel_goal()
+                rospy.logerr(f'{what}: not done within {timeout:.0f} s, goal cancellation was sent.')
+        finally:
+            self._action_clients.pop(ctx['ns'], None)
+
+    def pick_object(self):
+        # read the widgets in the GUI thread; the task runs in the background
         manually_entered_object = self._widget.txtPickObjectName.text().strip()
         object_to_pick = manually_entered_object or self._widget.comboPickObj.currentText()
         support_surface_name = self._widget.comboPickSurfaces.currentText()
-        try:
-            timeout = float(self._widget.txtPickTimeout.toPlainText())
-        except ValueError:
-            rospy.logerr('Invalid timeout value. Please enter a valid number.')
+        ignore_list = [chk.text() for chk in self.ignore_from_ps_chks if chk.isChecked() and chk.text() != '-']
+        timeout = self._timeout(self._widget.txtPickTimeout)
+        if timeout is None:
             return
+        what = f'pick {object_to_pick}'
 
-        if self.use_mobipick_api:
-            ignore_list = [chk.text() for chk in self.ignore_from_ps_chks if chk.isChecked() and chk.text() != '-']
-            self._manipulate_via_api(f'pick {object_to_pick}', lambda robot: robot.arm.pick_object(
-                object_to_pick, support_surface_name, ignore_list, timeout=timeout))
-            return
-
-        pick_object_server_name = robot_names.action_server(self.robot_ns, 'pick_object')
-        self.action_client = actionlib.SimpleActionClient(pick_object_server_name, PickObjectAction)
-
-        # Wait for the action server to be available
-        rospy.loginfo(f'Waiting for {pick_object_server_name} action server...')
-        if self.action_client.wait_for_server(timeout=rospy.Duration.from_sec(self.wait_for_services)):
-            rospy.loginfo(f'Connected to {pick_object_server_name} action server')
-
-            # Set up the goal
+        def task(ctx):
+            if self.use_mobipick_api:
+                self._manipulate_via_api(ctx, what, lambda robot: robot.arm.pick_object(
+                    object_to_pick, support_surface_name, ignore_list, timeout=timeout))
+                return
             goal = PickObjectGoal()
             goal.object_name = object_to_pick
             goal.support_surface_name = support_surface_name
-            goal.ignore_object_list = [
-                chk.text() for chk in self.ignore_from_ps_chks if chk.isChecked() and chk.text() != '-'
-            ]
-
-            rospy.loginfo(
-                f'Sending goal: pick {object_to_pick} from {support_surface_name} to {pick_object_server_name}'
-            )
-
+            goal.ignore_object_list = ignore_list
             # Log ignored objects if any
             if goal.ignore_object_list:
                 rospy.logwarn(f'Ignoring these objects in planning: {goal.ignore_object_list}')
             else:
                 rospy.loginfo('All objects will be considered in the planning scene')
+            self._run_action(ctx, 'pick_object', PickObjectAction, goal, timeout,
+                             f'{what} from {support_surface_name}')
+        self._run('Manipulation_groupBox', what, task)
 
-            # Send the goal to the action server
-            self.action_client.send_goal(goal)
-
-            # Wait for result with specified timeout
-            rospy.loginfo(f'Waiting for result from {pick_object_server_name} action server...')
-            if self.action_client.wait_for_result(rospy.Duration.from_sec(timeout)):
-                result = self.action_client.get_result()
-                rospy.loginfo(f'{pick_object_server_name} completed execution with result = "{result}"')
-                if result.success:
-                    rospy.loginfo(f'Successfully picked {object_to_pick}')
-                else:
-                    rospy.logerr(f'Failed to pick {object_to_pick}')
-            else:
-                # Timeout handling with goal cancellation
-                self.action_client.cancel_goal()
-                rospy.logerr(f'Failed to pick {object_to_pick} within the allocated time. Goal cancellation was sent.')
-        else:
-            rospy.logerr(f'Action server {pick_object_server_name} not available within the timeout period')
-        self.action_client = None
-
-    def _manipulate_via_api(self, what, call):
-        """run a pick, place or insert of the Mobipick API for the chosen robot and log why it failed"""
-        # the robot that was chosen when the command started stays its robot: the robot selector may change self.robot
-        # while the command runs, and cancel and the failure text must still be those of the running one
-        robot = self.busy_robot = self.robot
-        rospy.loginfo(f'{what}: through the Mobipick API of robot {robot.namespace}')
+    def _manipulate_via_api(self, ctx, what, call):
+        """run a pick, place or insert of the Mobipick API for the robot of `ctx` and log why it failed"""
+        # the robot that was chosen when the command started stays its robot: Cancel and the failure text must be those
+        # of the running one, whichever robot is chosen meanwhile
+        robot = self._api_busy_robots[ctx['ns']] = ctx['robot']
+        rospy.loginfo(f'{what}: through the Mobipick API of robot {ctx["ns"]}')
         try:
             if call(robot):
                 rospy.loginfo(f'{what}: succeeded')
             else:
                 rospy.logerr(f'{what}: failed: {robot.arm.last_manipulation_message}')
         finally:
-            self.busy_robot = None
+            self._api_busy_robots.pop(ctx['ns'], None)
 
-    def _gripper_via_api(self, what, command):
-        """open or close the chosen robot's API gripper in a thread: a gripper driver that does not answer must not
-        freeze the window (the API call gives up after its timeout and says why)"""
-        gripper = self.robot.gripper
-
-        def task():
-            if command(gripper):
-                rospy.loginfo(f'{what}: done')
-            else:
-                rospy.logerr(f'{what}: failed: {gripper.last_gripper_message}')
-        threading.Thread(target=task, daemon=True).start()
+    def _gripper(self, what, service_key, command):
+        """open or close the chosen robot's gripper in a worker thread: a gripper driver that does not answer must not
+        freeze the window"""
+        if self.is_gripper_srv_available:
+            self._run(None, what, lambda ctx: ctx[service_key]())
+        elif self.gripper_via_api:
+            def task(ctx):
+                gripper = ctx['robot'].gripper
+                if command(gripper):
+                    rospy.loginfo(f'{what}: done')
+                else:
+                    rospy.logerr(f'{what}: failed: {gripper.last_gripper_message}')
+            self._run(None, what, task)
+        else:
+            rospy.logerr('gripper service was not available when node started and therefore is unavailable')
 
     def open_gripper(self):
         # rosservice call /<robot namespace>/pose_teacher/open_gripper
-        if self.is_gripper_srv_available:
-            self.open_gripper_srv()
-        elif self.gripper_via_api:
-            self._gripper_via_api('open gripper', lambda gripper: gripper.open())
-        else:
-            rospy.logerr('gripper service was not available when node started and therefore is unavailable')
+        self._gripper('open gripper', 'open', lambda gripper: gripper.open())
 
     def close_gripper(self):
         # rosservice call /<robot namespace>/pose_teacher/close_gripper
-        if self.is_gripper_srv_available:
-            self.close_gripper_srv()
-        elif self.gripper_via_api:
-            self._gripper_via_api('close gripper', lambda gripper: gripper.close())
-        else:
-            rospy.logerr('gripper service was not available when node started and therefore is unavailable')
+        self._gripper('close gripper', 'close', lambda gripper: gripper.close())
 
     def place_object(self):
-        self.pick_thread = threading.Thread(target=self._place_object_task)
-        self.pick_thread.start()
-
-    @disable_during_execution('Manipulation_groupBox')
-    def _place_object_task(self):
-        # Retrieve parameters from UI elements
+        # read the widgets in the GUI thread; the task runs in the background
         support_surface_name = self._widget.comboPlaceSurfaces.currentText()
-        try:
-            timeout = float(self._widget.txtPlaceTimeout.toPlainText())
-        except ValueError:
-            rospy.logerr('Invalid timeout value. Please enter a valid number.')
+        observe_before_place = self._widget.chkPlaceObjObserveBeforePlacing.isChecked()
+        timeout = self._timeout(self._widget.txtPlaceTimeout)
+        if timeout is None:
             return
 
-        if self.use_mobipick_api:
-            self._manipulate_via_api('place', lambda robot: robot.arm.place_object(
-                support_surface_name, self._widget.chkPlaceObjObserveBeforePlacing.isChecked(), timeout=timeout))
-            return
-
-        place_object_server_name = robot_names.action_server(self.robot_ns, 'place_object')
-        self.action_client = actionlib.SimpleActionClient(place_object_server_name, PlaceObjectAction)
-
-        # Wait for the action server to be available
-        rospy.loginfo(f'Waiting for {place_object_server_name} action server...')
-        if self.action_client.wait_for_server(timeout=rospy.Duration.from_sec(self.wait_for_services)):
-            rospy.loginfo(f'Connected to {place_object_server_name} action server')
-
-            # Set up the goal
+        def task(ctx):
+            if self.use_mobipick_api:
+                self._manipulate_via_api(ctx, 'place', lambda robot: robot.arm.place_object(
+                    support_surface_name, observe_before_place, timeout=timeout))
+                return
             goal = PlaceObjectGoal()
             goal.support_surface_name = support_surface_name
-            goal.observe_before_place = self._widget.chkPlaceObjObserveBeforePlacing.isChecked()
-
-            rospy.loginfo(f'Sending place goal to {place_object_server_name} action server')
-
-            # Send the goal to the action server
-            self.action_client.send_goal(goal)
-
-            # Wait for result with specified timeout
-            rospy.loginfo(f'Waiting for result from {place_object_server_name} action server...')
-            if self.action_client.wait_for_result(rospy.Duration.from_sec(timeout)):
-                result = self.action_client.get_result()
-                rospy.loginfo(f'{place_object_server_name} completed execution with result = "{result}"')
-                if result.success:
-                    rospy.loginfo('Successfully placed object')
-                else:
-                    rospy.logerr('Failed to place object')
-            else:
-                # Cancel the goal if timeout occurs
-                self.action_client.cancel_goal()
-                rospy.logerr('Failed to place object within the allocated time. Goal cancellation was sent.')
-        else:
-            rospy.logerr(f'Action server {place_object_server_name} not available within the timeout period')
-
-        # Indicate that the place action is no longer running
-        self.action_client = None
+            goal.observe_before_place = observe_before_place
+            self._run_action(ctx, 'place_object', PlaceObjectAction, goal, timeout, f'place on {support_surface_name}')
+        self._run('Manipulation_groupBox', 'place', task)
 
     def insert_object(self):
-        self.pick_thread = threading.Thread(target=self._insert_object_task)
-        self.pick_thread.start()
-
-    @disable_during_execution('Manipulation_groupBox')
-    def _insert_object_task(self):
-        # Retrieve parameters from UI elements
+        # read the widgets in the GUI thread; the task runs in the background
         support_surface_name = self._widget.comboInsertHole.currentText()
         observe_before_insert = self._widget.chkObserveBeforeInsert.isChecked()
-        try:
-            timeout = float(self._widget.txtInsertTimeout.toPlainText())
-        except ValueError:
-            rospy.logerr('Invalid timeout value. Please enter a valid number.')
+        timeout = self._timeout(self._widget.txtInsertTimeout)
+        if timeout is None:
             return
 
         # Check if support surface is available when observation is not selected
@@ -921,69 +945,58 @@ class RqtTablesDemo(Plugin):
             rospy.logerr('Cannot insert, container object has not been perceived.')
             return
 
-        if self.use_mobipick_api:
-            self._manipulate_via_api('insert', lambda robot: robot.arm.insert_object(
-                support_surface_name, observe_before_insert, timeout=timeout))
-            return
-
-        insert_object_server_name = robot_names.action_server(self.robot_ns, 'insert_object')
-        self.action_client = actionlib.SimpleActionClient(insert_object_server_name, InsertObjectAction)
-
-        # Wait for the action server to be available
-        rospy.loginfo(f'Waiting for {insert_object_server_name} action server...')
-        if self.action_client.wait_for_server(timeout=rospy.Duration.from_sec(self.wait_for_services)):
-            rospy.loginfo(f'Connected to {insert_object_server_name} action server')
-
-            # Set up the goal
+        def task(ctx):
+            if self.use_mobipick_api:
+                self._manipulate_via_api(ctx, 'insert', lambda robot: robot.arm.insert_object(
+                    support_surface_name, observe_before_insert, timeout=timeout))
+                return
             goal = InsertObjectGoal()
             goal.support_surface_name = support_surface_name
             goal.observe_before_insert = observe_before_insert
-            rospy.loginfo(f'Sending insert goal to {insert_object_server_name} action server')
-
-            # Send the goal to the action server
-            self.action_client.send_goal(goal)
-
-            # Wait for result with specified timeout
-            rospy.loginfo(f'Waiting for result from {insert_object_server_name} action server...')
-            if self.action_client.wait_for_result(rospy.Duration.from_sec(timeout)):
-                result = self.action_client.get_result()
-                rospy.loginfo(f'{insert_object_server_name} completed execution with result = "{result}"')
-                if result.success:
-                    rospy.loginfo('Successfully inserted object')
-                else:
-                    rospy.logerr('Failed to insert object')
-            else:
-                # Cancel the goal if timeout occurs
-                self.action_client.cancel_goal()
-                rospy.logerr('Failed to insert object within the allocated time. Goal cancellation was sent.')
-        else:
-            rospy.logerr(f'Action server {insert_object_server_name} not available within the timeout period')
-
-        # Indicate that the insert action is no longer running
-        self.action_client = None
+            self._run_action(ctx, 'insert_object', InsertObjectAction, goal, timeout,
+                             f'insert into {support_surface_name or "the observed container"}')
+        self._run('Manipulation_groupBox', 'insert', task)
 
     def hand_over_object(self):
-        self.robot.arm.move('handover')
+        self._run('Manipulation_groupBox', 'hand over', self._hand_over_task)
+
+    def _hand_over_task(self, ctx):
+        arm = ctx['robot'].arm
+        arm.move('handover')
         rospy.loginfo('waiting for user to excert force on object')
         # observe force torque sensor using a treshold and a timeout
-        if not self.robot.arm.observe_force_torque(5.0, 25.0):
+        if not self._api_still_targets(ctx, 'hand over'):
+            return False
+        if not arm.observe_force_torque(5.0, 25.0):
             rospy.logerr('Failed to handover object within 25 seconds')
-            self.robot.arm.move('transport')
+            if self._api_still_targets(ctx, 'hand over'):
+                arm.move('transport')
             return False
 
-        self.robot.arm.execute('ReleaseGripper')
+        if not self._api_still_targets(ctx, 'hand over'):
+            return False
+        arm.execute('ReleaseGripper')
         rospy.loginfo('Success at handing over object')
         return True
 
     def cancel(self):
-        # TODO: extend the code to handle move base and perception (arm movement) cancellation as well
-        if self.use_mobipick_api:
-            if not (self.busy_robot or self.robot).arm.cancel_manipulation():
-                rospy.logerr('cannot cancel goal, NOTE: cancel is implemented only for pick, place and insert')
-            return
-        if not self.action_client:
-            rospy.logerr('cannot cancel goal, NOTE: cancel is implemented only for pick, place and insert')
+        """cancel the chosen robot's navigation, pick, place or insert started from this panel; the other robots and
+        their commands go on"""
+        # TODO: extend the code to handle perception (arm movement) cancellation as well
+        ns = self.robot_ns
+        cancelled = []
+        if self._is_busy(ns, 'navigate'):
+            self._nav_cancel_client(ns).cancel_all_goals()
+            cancelled.append('navigation')
+        robot = self._api_busy_robots.get(ns)
+        if robot is not None and robot.arm.cancel_manipulation():
+            cancelled.append('the pick, place or insert through the Mobipick API')
+        client = self._action_clients.get(ns)
+        if client is not None:
+            client.cancel_goal()
+            cancelled.append(f'the {client.action_client.ns} goal')
+        if cancelled:
+            rospy.loginfo(f'robot {ns}: sent the request to cancel {" and ".join(cancelled)}')
         else:
-            action_client_name = self.action_client.action_client.ns
-            rospy.loginfo(f'sending request to cancel {action_client_name} goal.')
-            self.action_client.cancel_goal()
+            rospy.logerr(f'robot {ns}: nothing to cancel, NOTE: cancel is implemented only for navigation, pick, place '
+                         'and insert')
