@@ -102,8 +102,6 @@
     <!-- the gripper joint of this robot (the shared config names the first robot's joint; MoveIt's pick pipeline
          refuses a grasp posture with a joint its robot model does not know) -->
     <rosparam param="gripper_joint_names" subst_value="true">['$(arg namespace)/gripper_finger_joint']</rosparam>
-    <!-- the lift after the grasp: up in this robot's odom frame (the shared config names the first robot's frame) -->
-    <param name="post_grasp_retreat/frame_id" value="$(arg namespace)/odom" />
     <!-- allows to specify how much the gripper should close per object -->
     <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/object_grasps/gripper_distance_values_per_object.yaml" command="load" />
     <!-- pregrasp planner parameters -->
