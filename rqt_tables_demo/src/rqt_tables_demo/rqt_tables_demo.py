@@ -26,7 +26,7 @@ from grasplan.msg import PlaceObjectGoal, InsertObjectAction, InsertObjectGoal
 import robot_api
 from std_msgs.msg import String
 
-from rqt_tables_demo import robot_names
+from rqt_tables_demo import pick_list, robot_names
 
 try:
     from mobipick_gazebo import robot_colours  # the colour names and dots of the sim window's robot selector
@@ -588,7 +588,13 @@ class RqtTablesDemo(Plugin):
         # query pose selector, update labels and combo boxes accordingly
         detected_objects_names = []
         detected_objects = []
-        resp = self.pose_selector_get_all_poses_srv()
+        try:
+            resp = self.pose_selector_get_all_poses_srv()
+        except rospy.ServiceException as error:
+            message = pick_list.unreachable_hint(self.robot_ns, error)
+            rospy.logerr(message)
+            self._widget.chkPickEnableId.setToolTip(message)
+            return
         for obj in resp.poses.objects:
             object_to_pick = objectToPick()
             object_to_pick.set_object_class(obj.class_id)
@@ -600,8 +606,15 @@ class RqtTablesDemo(Plugin):
             ignore_chk.setText('-')
 
         if not len(detected_objects_names) > 0:
-            rospy.logwarn('Pose selector is empty')
+            # the list of another robot or an earlier update must not stay as if it were this robot's
+            message = pick_list.empty_hint(self.robot_ns)
+            rospy.logwarn(message)
+            self._widget.chkPickEnableId.setToolTip(message)
+            self._widget.comboPickObj.clear()
+            self._widget.comboPickObj.addItems(self.objects_of_interest)
+            self._widget.comboInsertHole.clear()
             return
+        self._widget.chkPickEnableId.setToolTip('')
 
         break_count = len(detected_objects_names)
         for i, ignore_chk in enumerate(self.ignore_from_ps_chks):
@@ -610,10 +623,9 @@ class RqtTablesDemo(Plugin):
                 break
 
         self._widget.comboPickObj.clear()
-        if self._widget.chkPickEnableId.isChecked():
-            self._widget.comboPickObj.addItems(detected_objects_names)
-        else:
-            self._widget.comboPickObj.addItems(self.objects_of_interest)
+        self._widget.comboPickObj.addItems(
+            pick_list.pick_items(detected_objects_names, self._widget.chkPickEnableId.isChecked(),
+                                 self.objects_of_interest))
 
         # update insert combo
         self._widget.comboInsertHole.clear()
