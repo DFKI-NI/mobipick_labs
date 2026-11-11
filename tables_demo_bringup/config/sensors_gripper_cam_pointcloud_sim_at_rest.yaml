@@ -1,0 +1,42 @@
+# The simulation variant (sensors_gripper_cam_pointcloud_sim.yaml of mobipick_moveit_config, same values) that reads the
+# cloud the octomap_cloud_gate node forwards only while the arm is at rest (launch arg octomap_update_only_at_rest of
+# robot_stack_sim.launch). Keep the values in step with the plain sim file.
+#
+# Simulation variant of sensors_gripper_cam_pointcloud.yaml.
+#
+# Gazebo renders the gripper camera at roughly one frame per second on the
+# development laptop, so everything move_group does per frame competes with
+# planning. Two differences to the robot config buy that time back without
+# changing what the octomap represents:
+#
+#   * point_subsample 2 keeps about 4 mm between samples at the 1 m working
+#     distance, still far finer than the 25 mm voxels, at a quarter of the
+#     masking and ray-casting work.
+#   * no filtered_cloud_topic: publishing a second full-size cloud was a
+#     validation aid while the octomap integration was being brought up.
+
+sensors:
+  - sensor_plugin: occupancy_map_monitor/PointCloudOctomapUpdater
+    point_cloud_topic: eef_main_cam/depth_registered/points_at_rest
+    # A voxel is only freed when a returned point BEHIND it is within max_range: the
+    # updater needs a ray that passes through the voxel and terminates on a surface.
+    # Measured from the observe100cm_right pose, the table points behind the far half
+    # of a table lie 1.05-1.20 m away, so at 1.0 m those voxels could never be cleared
+    # and objects removed there left permanent ghosts. 2.0 m covers a whole table with
+    # margin and stays well inside the camera far clip of 3.5 m.
+    max_range: 2.0
+    # 1 Hz like the real yaml (sensors_gripper_cam_pointcloud.yaml): the real camera publishes 3 Hz
+    # with data_skip 9 and its octomap takes one cloud per second, so the sim camera stays at 3 Hz and
+    # the octomap takes 1 per second (the earlier 3 Hz was for faster ghost clearing)
+    max_update_rate: 1.0
+    frame_subsample: 1
+    point_subsample: 2
+    # The mask is applied with this padding to every collision object too, including
+    # the table boxes: 0.1 cut away everything up to 10 cm above a table top, so the
+    # 3 cm gelatin box never reached the octomap and taller objects lost their lower
+    # part. The simulated depth is noise-free and the table boxes match the Gazebo
+    # tables, so 2 cm keeps the table surface and the robot out of the octomap
+    # (verified: no voxels on the free table surface or near the arm) while objects
+    # taller than 2 cm show up.
+    padding_offset: 0.02
+    padding_scale: 1.0

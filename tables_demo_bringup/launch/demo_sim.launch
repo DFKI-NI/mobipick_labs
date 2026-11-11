@@ -48,6 +48,7 @@
   <arg name="untangle_with_chain" default="false" doc="safe flag, off in code, simulation only: the sim untangle service plans from the carried carrier link chain and keeps it through the release; ignored on the real robot, where the monitor offers no untangle" />
   <arg name="reset_at_trajectory_start" default="false" doc="careful flag, off in code: the chain starts afresh when an executed trajectory starts" />
   <arg name="reset_cache_mrad" default="0.0" doc="careful flag, off in code: > 0 = start-pose cache of the settled chain, rounding step in mrad" />
+  <arg name="octomap_update_only_at_rest" default="false" doc="true: the octomap is fed only while the arm is at rest (octomap_cloud_gate between the gripper camera and MoveIt's updater), so the moving arm leaves no phantom voxels; safe feature flag, off in code" />
   <arg name="cable_carrier_sim" default="false" doc="sim only prototype, off by default: the arm cable carrier of the wrist span as a jointed chain in Gazebo (gazebo_jointed_chain plugin, PLACEHOLDER stiffness until the real carrier is measured), colliding only with the cable model's shapes; it logs strain and clamp force events and never presses the protective stop; slows the sim about 27 %" />
 
   <arg name="num_robots" default="1" doc="2 or 3 = that many identical copies of the world_config scene side by side in one Gazebo, copy_gap apart, robot 1 (mobipick) in the first as with 1, robot k (mobipickK, map frame mobipickK/map) in copy k, for parallel experiments. Sim only; needs mobipick_gazebo/launch/worlds/WORLD_CONFIG_xN_spawn_sim_objects.launch (moelk_tables so far)" />
@@ -191,6 +192,7 @@
     <arg name="untangle_with_chain" value="$(arg untangle_with_chain)" />
     <arg name="reset_at_trajectory_start" value="$(arg reset_at_trajectory_start)" />
     <arg name="reset_cache_mrad" value="$(arg reset_cache_mrad)" />
+    <arg name="octomap_update_only_at_rest" value="$(arg octomap_update_only_at_rest)" />
   </include>
   <!-- robots 2 and 3 in their scene copies (spawned by WORLD_CONFIG_xN_spawn_sim_objects.launch above) -->
   <include file="$(find tables_demo_bringup)/launch/includes/robot_stack_sim.launch" if="$(eval int(num_robots) >= 2)">
@@ -242,6 +244,7 @@
     <arg name="untangle_with_chain" value="$(arg untangle_with_chain)" />
     <arg name="reset_at_trajectory_start" value="$(arg reset_at_trajectory_start)" />
     <arg name="reset_cache_mrad" value="$(arg reset_cache_mrad)" />
+    <arg name="octomap_update_only_at_rest" value="$(arg octomap_update_only_at_rest)" />
   </include>
   <include file="$(find tables_demo_bringup)/launch/includes/robot_stack_sim.launch" if="$(eval int(num_robots) >= 3)">
     <arg name="namespace" value="mobipick3" />
@@ -292,5 +295,6 @@
     <arg name="untangle_with_chain" value="$(arg untangle_with_chain)" />
     <arg name="reset_at_trajectory_start" value="$(arg reset_at_trajectory_start)" />
     <arg name="reset_cache_mrad" value="$(arg reset_cache_mrad)" />
+    <arg name="octomap_update_only_at_rest" value="$(arg octomap_update_only_at_rest)" />
   </include>
 </launch>

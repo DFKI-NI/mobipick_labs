@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- forward the wrist camera's depth cloud to MoveIt's octomap only while the arm is at rest. Start it in the robot's
+       namespace and point the octomap updater (sensors yaml, point_cloud_topic) at the cloud_out topic. -->
+  <arg name="cloud_in" default="eef_main_cam/depth_registered/points" />
+  <arg name="cloud_out" default="eef_main_cam/depth_registered/points_at_rest" />
+  <arg name="joint_states" default="joint_states" />
+  <arg name="rest_speed" default="0.05" doc="rad/s: every arm joint slower than this counts as at rest" />
+  <arg name="rest_time" default="0.3" doc="s: the arm must have been at rest this long before the cloud was taken and now" />
+  <node pkg="octomap_cloud_gate" type="octomap_cloud_gate.py" name="octomap_cloud_gate" output="screen">
+    <param name="cloud_in" value="$(arg cloud_in)" />
+    <param name="cloud_out" value="$(arg cloud_out)" />
+    <param name="joint_states" value="$(arg joint_states)" />
+    <param name="rest_speed" value="$(arg rest_speed)" />
+    <param name="rest_time" value="$(arg rest_time)" />
+  </node>
+</launch>

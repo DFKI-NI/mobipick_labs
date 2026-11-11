@@ -8,6 +8,7 @@ from pathlib import Path
 LAUNCH = Path(__file__).resolve().parents[1] / 'launch'
 STACK = 'includes/robot_stack_sim.launch'
 PER_ROBOT = {'namespace', 'map_frame', 'map_ns', 'pose_selector_ns', 'offset_x'}
+STACK_ONLY = {'use_ur_polished_kinematics', 'octomap_update_only_at_rest'}   # used by the stack's own MoveIt include
 
 
 def declared(root):
@@ -44,7 +45,7 @@ class TestRobotStackSimArgs(unittest.TestCase):
 
     def test_the_bringup_gets_every_flag_of_the_stack(self):
         bringup = [i for i in self.stack.findall('include') if i.get('file', '').endswith('/bringup.launch')][0]
-        flags = set(declared(self.stack)) - PER_ROBOT - {'use_ur_polished_kinematics'}
+        flags = set(declared(self.stack)) - PER_ROBOT - STACK_ONLY
         self.assertLessEqual(flags, passed(bringup))
 
     def test_the_defaults_of_demo_sim_and_the_stack_agree(self):

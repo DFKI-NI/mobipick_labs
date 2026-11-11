@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>octomap_cloud_gate</name>
+  <version>0.1.0</version>
+  <description>Forwards a depth point cloud to MoveIt's octomap updater only while the arm is at rest, so a moving wrist camera cannot leave phantom voxels of the arm in the octomap.</description>
+
+  <maintainer email="oscar.lima@dfki.de">Oscar Lima</maintainer>
+  <license>BSD</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <exec_depend>rospy</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+</package>

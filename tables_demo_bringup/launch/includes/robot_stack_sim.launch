@@ -55,6 +55,7 @@
   <arg name="untangle_with_chain" default="false" />
   <arg name="reset_at_trajectory_start" default="false" />
   <arg name="reset_cache_mrad" default="0.0" />
+  <arg name="octomap_update_only_at_rest" default="false" />
 
   <!-- one RViz for all robots: robot k's map frame sits at its copy's offset in the global map frame -->
   <node if="$(eval float(arg('offset_x')) != 0.0)" pkg="tf2_ros" type="static_transform_publisher"
@@ -83,9 +84,16 @@
     <arg name="use_pointcloud" value="true"/>
     <!-- Gazebo delivers about one gripper-camera frame per second here, so the octomap
          is fed from a cheaper variant of the robot config: see the file for why. -->
-    <arg name="pointcloud_sensor_config"
+    <arg name="pointcloud_sensor_config" unless="$(arg octomap_update_only_at_rest)"
          value="$(find mobipick_moveit_config)/config/sensors_gripper_cam_pointcloud_sim.yaml"/>
+    <!-- the same values, reading the cloud the gate below forwards only while the arm is at rest -->
+    <arg name="pointcloud_sensor_config" if="$(arg octomap_update_only_at_rest)"
+         value="$(find tables_demo_bringup)/config/sensors_gripper_cam_pointcloud_sim_at_rest.yaml"/>
   </include>
+  <!-- the gate between the camera and the octomap updater (reads the plain camera topic, publishes points_at_rest) -->
+  <group ns="$(arg namespace)" if="$(arg octomap_update_only_at_rest)">
+    <include file="$(find octomap_cloud_gate)/launch/octomap_cloud_gate.launch" />
+  </group>
 
   <!-- the camera frustum as a visualisation marker (robot 1: the global name it always had) -->
   <node pkg="mobipick_pick_n_place" type="camera_marker_publisher" name="camera_marker_publisher"

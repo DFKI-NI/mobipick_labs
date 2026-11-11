@@ -22,6 +22,7 @@
   <exec_depend>mobipick_gazebo</exec_depend>
   <exec_depend>mobipick_moveit_config</exec_depend>
   <exec_depend>mobipick_pick_n_place</exec_depend>
+  <exec_depend>octomap_cloud_gate</exec_depend>
   <exec_depend>pbr_gazebo</exec_depend>
   <exec_depend>pbr_maps</exec_depend>
   <exec_depend>pbr_objects</exec_depend>
