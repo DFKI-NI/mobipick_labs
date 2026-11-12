@@ -39,6 +39,21 @@ except ImportError:  # mobipick_api is optional; the open-set, perceive and insp
     ApiPerception = None
 
 
+class RobotApiOwner:
+    """robot_api keeps one ROS wrapper per process and every robot built re-points it, also a robot built by another
+    panel of the same process (rqt loads its plugins into one process): who uses the wrapper now and which robot it
+    serves. Building a robot sets the wrapper to that robot before the build can still fail (e.g. a missing semantic
+    description), so a failed build leaves it on an unknown robot."""
+
+    def __init__(self):
+        self.lock = threading.Lock()  # held by a robot build and by every command that calls the robot API
+        self.ns = None  # the robot the wrapper serves; None: unknown (nothing built yet, or a build failed part-way)
+        self.holder = ''  # what holds the lock, for the hint of a command or switch that waits
+
+
+ROBOT_API = RobotApiOwner()  # the one of this process, shared by every panel in it
+
+
 def service_name(proxy):
     """the ROS name a service client calls, for the log: which robot's pose selector a call really reached"""
     return getattr(proxy, 'resolved_name', None) or '(none)'
@@ -89,7 +104,9 @@ class RqtTablesDemo(Plugin):
         self.use_mobipick_api = rospy.get_param('~use_mobipick_api', False)
         self.robot_api_class = rospy.get_param('~robot_api_class', '') or (
             'mobipick_api.Robot' if self.use_mobipick_api else 'robot_api.Robot')
-        self.robot = self.make_robot(self.robot_api_class, self.robot_ns)
+        self._robot_api = ROBOT_API
+        with self._robot_api.lock:
+            self.robot = self._point_robot_api(self.robot_ns)
         if self.use_mobipick_api and not hasattr(self.robot.arm, 'pick_object'):
             rospy.logwarn(f'{self.robot_api_class} has no pick_object: ~use_mobipick_api is ignored')
             self.use_mobipick_api = False
@@ -111,11 +128,9 @@ class RqtTablesDemo(Plugin):
         self._api_busy_robots = {}  # robot -> its API robot object while a pick, place or insert through it runs
         self._nav_clients = {}  # robot -> the panel's own move_base client: navigate and cancel
         # robot_api keeps one ROS wrapper per process: the robot built last receives every later robot_api call. A
-        # command that calls the robot API holds _api_lock for its whole run and a robot switch builds the next robot
-        # only in between, so no call goes to a robot built meanwhile; navigation does not use the robot API
-        self._api_ns = self.robot_ns
-        self._api_lock = threading.Lock()
-        self._api_holder = ''  # what holds _api_lock, for the switch's hint
+        # command that calls the robot API holds the lock of self._robot_api (ROBOT_API, shared by every panel of this
+        # process) for its whole run and points the wrapper back to its robot first when needed; a robot switch builds
+        # the next robot only in between, so no call goes to a robot built meanwhile; navigation does not use it
         self._switching_to = None  # the robot whose clients are being built after a selection
         self._build_lock = threading.Lock()
 
@@ -492,23 +507,23 @@ class RqtTablesDemo(Plugin):
         with self._build_lock:  # one build at a time, and none for a choice that a newer one replaced
             if namespace != self._switching_to:
                 return
-            if not self._api_lock.acquire(blocking=False):
-                holder = self._api_holder or 'a robot API command'
+            owner = self._robot_api
+            if not owner.lock.acquire(blocking=False):
+                holder = owner.holder or 'a robot API command'
                 rospy.loginfo(f'robot {namespace}: the switch waits until {holder} ends (the robot API serves one robot '
                               'at a time)')
                 self.build_waiting.emit(namespace, f'waiting: {holder}')
-                self._api_lock.acquire()
+                owner.lock.acquire()
             try:  # when this fails, the commands stay with the robot they went to before
                 try:
                     if namespace != self._switching_to:
                         return
-                    robot = self.make_robot(self.robot_api_class, namespace)
-                    self._api_ns = namespace
+                    robot = self._point_robot_api(namespace)
                     api_perception = None
                     if ApiPerception is not None:
                         api_perception = ApiPerception(robot_names.prefix(namespace) + '/', robot.arm, None)
                 finally:
-                    self._api_lock.release()
+                    owner.lock.release()
                 found = self._find_services(namespace, robot, api_perception)
                 self._nav_client(namespace)
             except Exception as error:
@@ -575,23 +590,39 @@ class RqtTablesDemo(Plugin):
         with self._busy_lock:
             return any(what.startswith(what_prefix) for what in self._busy.get(ns, {}).values())
 
+    def _point_robot_api(self, namespace):
+        """the caller holds self._robot_api.lock: build robot `namespace`, which points the process's one robot_api
+        wrapper to it. The wrapper counts as unknown until the build has succeeded: a build that fails part-way has
+        already re-pointed it, so the robot it served before must not trust it either"""
+        self._robot_api.ns = None
+        robot = self.make_robot(self.robot_api_class, namespace)
+        self._robot_api.ns = namespace
+        return robot
+
     def _with_robot_api(self, ctx, what, task):
         """worker thread: task() for robot ctx['ns'] while holding the robot API (one robot per process: the robot built
-        last receives every robot_api call). A robot switch waits until it ends; None when the robot API meanwhile
-        serves another robot (built while this command waited for its turn)"""
-        if not self._api_lock.acquire(blocking=False):
-            rospy.loginfo(f'robot {ctx["ns"]}: {what} waits until {self._api_holder or "a robot switch"} ends')
-            self._api_lock.acquire()
+        last receives every robot_api call). A robot switch waits until it ends. When the wrapper serves another robot
+        meanwhile (a switch of this or another panel of the process, or a failed build), the command first builds its
+        own robot again, which points the wrapper back, and runs on that; None when that build fails"""
+        owner = self._robot_api
+        if not owner.lock.acquire(blocking=False):
+            rospy.loginfo(f'robot {ctx["ns"]}: {what} waits until {owner.holder or "a robot switch"} ends')
+            owner.lock.acquire()
         try:
-            if self._api_ns != ctx['ns']:
-                rospy.logerr(f'{what} on robot {ctx["ns"]}: not started, robot {self._api_ns} was chosen meanwhile '
-                             'and the robot API now acts on it; choose the robot again and repeat')
-                return None
-            self._api_holder = f'robot {ctx["ns"]}: {what}'
+            if owner.ns != ctx['ns']:
+                serves = f'robot {owner.ns}' if owner.ns else 'an unknown robot (a robot build failed part-way)'
+                rospy.loginfo(f'robot {ctx["ns"]}: the robot API serves {serves}: {what} points it back first')
+                try:
+                    ctx['robot'] = self._point_robot_api(ctx['ns'])
+                except Exception as error:
+                    rospy.logerr(f'{what} on robot {ctx["ns"]}: not started, the robot API cannot be pointed back to '
+                                 f'this robot ({type(error).__name__}: {error}); the next robot API command tries again')
+                    return None
+            owner.holder = f'robot {ctx["ns"]}: {what}'
             return task()
         finally:
-            self._api_holder = ''
-            self._api_lock.release()
+            owner.holder = ''
+            owner.lock.release()
 
     def _update_busy_ui(self):
         """Qt thread: the command group boxes follow the chosen robot's running commands; the label lists them"""
@@ -795,7 +826,7 @@ class RqtTablesDemo(Plugin):
         # iterate over observation poses and go one at a time
         for observation_pose in observation_list:
             # the robot API serves the robot built last in this process: say which one (it must be this robot)
-            rospy.loginfo(f'robot {ns}: moving arm to {observation_pose} (robot API serves {self._api_ns})')
+            rospy.loginfo(f'robot {ns}: moving arm to {observation_pose} (robot API serves {self._robot_api.ns})')
             # move arm to observation pose
             ctx['robot'].arm.move(observation_pose)
             # activate pose selector

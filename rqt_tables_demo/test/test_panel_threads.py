@@ -103,9 +103,10 @@ class FakePanel:
         self._action_clients = {}
         self._api_busy_robots = {}
         self._nav_clients = {ns: NavClient(gates[ns]) for ns in robots}
-        self._api_ns = 'mobipick'
-        self._api_lock = threading.Lock()
-        self._api_holder = ''
+        self.robot_api_class = 'robot_api.Robot'
+        self.built = []  # robots built again by a command whose robot the robot API no longer served
+        self._robot_api = panel_module.RobotApiOwner()
+        self._robot_api.ns = 'mobipick'
         self._switching_to = None
         self._build_lock = threading.Lock()
         self.wp_dic = {'table_1': [12.21, 2.1, 0.0, 0.0, 0.0, 0.707, 0.707]}
@@ -116,11 +117,16 @@ class FakePanel:
 
     def choose(self, namespace):
         """what _robot_built does once a robot's clients are ready"""
-        self.robot_ns, self.robot, self._api_ns = namespace, self.robots[namespace], namespace
+        self.robot_ns, self.robot, self._robot_api.ns = namespace, self.robots[namespace], namespace
         self._update_busy_ui()
 
+    def make_robot(self, api_class_path, namespace):
+        self.built.append(namespace)
+        return self.robots[namespace]
 
-for _name in ('_run', '_is_busy', '_with_robot_api', '_update_busy_ui', 'navigation_go', '_navigate', '_map_frame', 'cancel',
+
+for _name in ('_run', '_is_busy', '_with_robot_api', '_point_robot_api', '_update_busy_ui', 'navigation_go', '_navigate', '_map_frame',
+              'cancel',
               '_nav_client', '_robot_built', '_perceive_objs_task', 'manipulation_go', 'perceive_objs'):
     setattr(FakePanel, _name, getattr(Panel, _name))
 
@@ -208,27 +214,30 @@ class PanelThreadsTest(unittest.TestCase):
         self.assertEqual(self.panel.robot_ns, 'mobipick')
         self.assertEqual(self.panel._switching_to, 'mobipick')
 
-    def test_a_robot_api_command_does_not_start_when_the_robot_api_moved_to_another_robot(self):
+    def test_a_robot_api_command_points_the_robot_api_back_when_it_moved_to_another_robot(self):
         ctx = {'ns': 'mobipick', 'robot': self.panel.robots['mobipick'], 'activate': lambda on: None}
-        self.panel._api_ns = 'mobipick2'  # robot 2 was built while this command waited for its turn
+        self.panel._robot_api.ns = 'mobipick2'  # robot 2 was built while this command waited for its turn
         self.panel._with_robot_api(ctx, 'perceive', lambda: self.panel._perceive_objs_task(ctx, ['observe100cm_right']))
-        self.assertEqual(self.panel.robots['mobipick'].arm.moves, [])
-        self.assertFalse(self.panel._api_lock.locked())
+        self.assertEqual(self.panel.built, ['mobipick'])
+        self.assertEqual(self.panel._robot_api.ns, 'mobipick')
+        self.assertEqual(self.panel.robots['mobipick'].arm.moves, ['observe100cm_right'])
+        self.assertEqual(self.panel.robots['mobipick2'].arm.moves, [])
+        self.assertFalse(self.panel._robot_api.lock.locked())
 
     def test_a_robot_api_command_holds_the_robot_api_until_it_ends(self):
         release = threading.Event()
         self.panel.robots['mobipick'].arm.move = lambda pose: release.wait(5)
         self.panel._widget.comboArmPoses = Box('home')
         self.panel.manipulation_go()
-        self.assertTrue(wait_until(lambda: self.panel._api_lock.locked()))
-        self.assertEqual(self.panel._api_holder, 'robot mobipick: arm to home')
+        self.assertTrue(wait_until(lambda: self.panel._robot_api.lock.locked()))
+        self.assertEqual(self.panel._robot_api.holder, 'robot mobipick: arm to home')
         release.set()
-        self.assertTrue(wait_until(lambda: not self.panel._api_lock.locked()))
+        self.assertTrue(wait_until(lambda: not self.panel._robot_api.lock.locked()))
 
     def test_navigation_does_not_hold_the_robot_api(self):
         self.panel.navigation_go()
         self.assertTrue(wait_until(lambda: self.goals('mobipick')))
-        self.assertFalse(self.panel._api_lock.locked(), 'a drive would block every robot switch')
+        self.assertFalse(self.panel._robot_api.lock.locked(), 'a drive would block every robot switch')
 
     def test_a_failing_command_frees_its_robot(self):
         def boom(ctx):

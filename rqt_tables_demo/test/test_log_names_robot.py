@@ -26,7 +26,7 @@ class Proxy:
 class FakePanel:
     def __init__(self):
         self.robot_ns = 'mobipick2'
-        self._api_ns = 'mobipick'  # robot 1 was built after robot 2's command started
+        self._robot_api = types.SimpleNamespace(ns='mobipick')  # robot 1 was built after robot 2's command started
         self.is_pose_selector_available = True
         empty = types.SimpleNamespace(poses=types.SimpleNamespace(objects=[]))
         self.activate_pose_selector_srv = Proxy(SELECTOR + '/pose_selector_activate', 'success: True')
