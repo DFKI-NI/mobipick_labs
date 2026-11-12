@@ -546,6 +546,32 @@ def test_one_video_per_robot_with_the_robot_first_in_its_title(recorder_module, 
     assert joints == ["/mobipick/joint_states", "/mobipick2/joint_states"]
 
 
+def test_with_robot_colours_each_video_is_named_by_its_robot_colour(recorder_module, monkeypatch, tmp_path):
+    colours = _stub("mobipick_gazebo.robot_colours",
+                    title_slug=lambda ns: {"mobipick": "blue-mobipick", "mobipick2": "orange-mobipick"}[ns])
+    monkeypatch.setitem(sys.modules, "mobipick_gazebo", _stub("mobipick_gazebo", robot_colours=colours))
+    monkeypatch.setitem(sys.modules, "mobipick_gazebo.robot_colours", colours)
+    cmd_vel, _ = _subscribed_motion_topics(recorder_module, monkeypatch, tmp_path,
+                                           dict(TWO_CAMERAS, **{"~robot_colours": True}))
+    calls = recorder_module.TopicRecorder.call_args_list
+    assert [call.args[10] for call in calls] == ["blue-mobipick-g382-run-1", "orange-mobipick-g382-run-1"]
+    assert cmd_vel == ["/mobipick/cmd_vel", "/mobipick2/cmd_vel"]       # the motion still follows the namespaces
+
+
+def test_without_the_colour_table_the_namespace_names_the_video(recorder_module, monkeypatch, tmp_path):
+    monkeypatch.setitem(sys.modules, "mobipick_gazebo.robot_colours", None)   # import fails
+    _subscribed_motion_topics(recorder_module, monkeypatch, tmp_path, dict(TWO_CAMERAS, **{"~robot_colours": True}))
+    calls = recorder_module.TopicRecorder.call_args_list
+    assert [call.args[10] for call in calls] == ["mobipick-g382-run-1", "mobipick2-g382-run-1"]
+    recorder_module.rospy.logwarn.assert_called()
+
+
+def test_the_real_colour_table_names_robot_2_orange():
+    """with mobipick_gazebo on the Python path (a sourced workspace), skipped without it"""
+    colours = pytest.importorskip("mobipick_gazebo.robot_colours")
+    assert [colours.title_slug(ns) for ns in ("mobipick", "mobipick2")] == ["blue-mobipick", "orange-mobipick"]
+
+
 def test_topic_robots_must_name_one_robot_per_camera(recorder_module, monkeypatch, tmp_path):
     with pytest.raises(ValueError, match="2 image topics"):
         _subscribed_motion_topics(recorder_module, monkeypatch, tmp_path, dict(TWO_CAMERAS, **{"~topic_robots": "x"}))

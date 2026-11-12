@@ -17,7 +17,8 @@ thinking are cut automatically; the first ``~lead_in_s`` seconds and the ``~lead
 are written also while the robot stands still, so a run in which the robot never moves (a refused plan) still gives a
 short video with the command and the robot at rest instead of none. The ``~pause`` / ``~resume`` services override that
 by hand. With ``~topic_robots`` (one robot namespace per image topic, e.g. the overview camera of each robot of a
-multi-robot sim) each video's title starts with its robot and it is written while that robot moves. ``~snapshot`` (std_msgs/String label) saves the latest frame of every
+multi-robot sim) each video's title starts with its robot (its colour name such as ``orange-mobipick`` with
+``~robot_colours``) and it is written while that robot moves. ``~snapshot`` (std_msgs/String label) saves the latest frame of every
 topic as JPEG, ``~stop`` closes the videos. ``~status`` (std_srvs/Trigger) reports
 the state as JSON; ``events.jsonl`` in the output directory records pauses,
 resumes and snapshots with ROS and wall time, and ``<id>_<name>_frames.jsonl`` maps every
@@ -70,6 +71,18 @@ def motion_list(value):
     if isinstance(value, str):
         return [item for item in re.split(r"[,\s]+", value) if item]
     return [str(item) for item in value]
+
+
+def robot_title(namespace, colours=False):
+    """The robot's part of a video title: its colour name ('orange-mobipick' for mobipick2, from mobipick_gazebo's
+    robot colours) with ``colours``, else the namespace itself; the namespace also when the colours cannot be read."""
+    if colours:
+        try:
+            from mobipick_gazebo.robot_colours import title_slug
+            return title_slug(namespace) or namespace
+        except Exception as error:  # no mobipick_gazebo or no colour table: the namespace still names the robot
+            rospy.logwarn("robot colours unavailable (%s): video titles carry the namespace %s", error, namespace)
+    return namespace
 
 
 def split_forbidden(topics, pattern):
@@ -463,7 +476,9 @@ class VideoRecorder:
             ids.add(video_id(started))
         ids_path = os.path.join(os.path.dirname(self.output_dir), "video_ids.tsv")
         if self.topic_robots:                         # the file name says which robot the video shows
-            titles = ["-".join(part for part in (robot, title) if part) for robot in self.topic_robots]
+            colours = bool(rospy.get_param("~robot_colours", False))  # 'orange-mobipick' instead of 'mobipick2'
+            titles = ["-".join(part for part in (robot_title(robot, colours), title) if part)
+                      for robot in self.topic_robots]
         else:
             titles = [title] * len(topics)
         title_only = len(topics) == 1 or bool(self.topic_robots)
