@@ -38,6 +38,7 @@
   <arg name="open_set_align_jaw_to_box" default="false" />
   <arg name="open_set_align_jaw_narrowest_side" default="false" />
   <arg name="skip_pre_open_when_open" default="false" />
+  <arg name="plan_cache_named_moves" default="false" />
   <arg name="grasp_standing_tilt_band" default="false" />
   <arg name="grasp_pinch_retry_next" default="false" />
   <arg name="grasp_regrasp_on_overclose" default="false" />
@@ -137,6 +138,7 @@
     <arg name="open_set_align_jaw_to_box" value="$(arg open_set_align_jaw_to_box)" />
     <arg name="open_set_align_jaw_narrowest_side" value="$(arg open_set_align_jaw_narrowest_side)" />
     <arg name="skip_pre_open_when_open" value="$(arg skip_pre_open_when_open)" />
+    <arg name="plan_cache_named_moves" value="$(arg plan_cache_named_moves)" />
     <arg name="grasp_standing_tilt_band" value="$(arg grasp_standing_tilt_band)" />
     <arg name="grasp_pinch_retry_next" value="$(arg grasp_pinch_retry_next)" />
     <arg name="grasp_regrasp_on_overclose" value="$(arg grasp_regrasp_on_overclose)" />
