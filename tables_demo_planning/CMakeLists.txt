@@ -35,7 +35,6 @@ catkin_package(
 catkin_install_python(PROGRAMS
   nodes/pick_n_place_demo_node.py
   nodes/tables_demo_node.py
-  nodes/uplexmo_pick_n_place_demo_node.py
   nodes/uplexmo_tables_demo_node.py
   nodes/hierarchical_demo_node.py
   nodes/task_server_node.py
