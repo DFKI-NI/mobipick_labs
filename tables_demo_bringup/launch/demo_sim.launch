@@ -43,6 +43,7 @@
   <arg name="place_same_orientation_as_picked" default="true" doc="false: small objects (e.g. balls, fruit) are inserted with the gripper pointing straight down and the wrist turned as little as possible, instead of in the orientation they were grasped in (avoids winding up the arm cable)" />
   <arg name="insert_orientation" default="free_yaw" doc="free_yaw (default: keep the picked roll and pitch, choose the yaw for the least wrist rotation), as_picked or gripper_down; empty: place_same_orientation_as_picked decides (true: as_picked, false: gripper_down)" />
   <arg name="cable_monitor" default="false" doc="true: start the observe-only arm cable monitor (mobipick_cable_entanglement): in the sim it presses the simulated UR protective stop when its model predicts an entangled cable; on the real robot it never commands anything and logs every tick and every protective stop for calibration" />
+  <arg name="cable_wrist_anchor" default="carrier_tip" doc="carrier_tip or support: support lets the cable model judge the wrist span from the forearm support instead of the tip of the guide tube; careful flag, carrier_tip (the real-robot value) in the code; the simulation is started with support" />
   <arg name="geometric_check" default="true" doc="the carrier link chain alone decides when false; monitor and MTC guard replay (cable_entanglement_monitor.launch)" />
   <arg name="release_after_rest_s" default="0.0" doc="careful flag, off in code: > 0 = the carrier link chain starts afresh when the arm moves again after resting that many seconds" />
   <arg name="release_during_rest" default="false" doc="careful flag, off in code: with release_after_rest_s > 0 the chain starts afresh once the arm has rested that long" />
@@ -188,6 +189,7 @@
     <arg name="place_same_orientation_as_picked" value="$(arg place_same_orientation_as_picked)" />
     <arg name="insert_orientation" value="$(arg insert_orientation)" />
     <arg name="cable_monitor" value="$(arg cable_monitor)" />
+    <arg name="cable_wrist_anchor" value="$(arg cable_wrist_anchor)" />
     <arg name="geometric_check" value="$(arg geometric_check)" />
     <arg name="release_after_rest_s" value="$(arg release_after_rest_s)" />
     <arg name="release_during_rest" value="$(arg release_during_rest)" />
@@ -241,6 +243,7 @@
     <arg name="place_same_orientation_as_picked" value="$(arg place_same_orientation_as_picked)" />
     <arg name="insert_orientation" value="$(arg insert_orientation)" />
     <arg name="cable_monitor" value="$(arg cable_monitor)" />
+    <arg name="cable_wrist_anchor" value="$(arg cable_wrist_anchor)" />
     <arg name="geometric_check" value="$(arg geometric_check)" />
     <arg name="release_after_rest_s" value="$(arg release_after_rest_s)" />
     <arg name="release_during_rest" value="$(arg release_during_rest)" />
@@ -293,6 +296,7 @@
     <arg name="place_same_orientation_as_picked" value="$(arg place_same_orientation_as_picked)" />
     <arg name="insert_orientation" value="$(arg insert_orientation)" />
     <arg name="cable_monitor" value="$(arg cable_monitor)" />
+    <arg name="cable_wrist_anchor" value="$(arg cable_wrist_anchor)" />
     <arg name="geometric_check" value="$(arg geometric_check)" />
     <arg name="release_after_rest_s" value="$(arg release_after_rest_s)" />
     <arg name="release_during_rest" value="$(arg release_during_rest)" />

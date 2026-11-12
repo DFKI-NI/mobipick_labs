@@ -50,6 +50,7 @@
   <arg name="place_same_orientation_as_picked" default="true" />
   <arg name="insert_orientation" default="free_yaw" />
   <arg name="cable_monitor" default="false" />
+  <arg name="cable_wrist_anchor" default="carrier_tip" />
   <arg name="geometric_check" default="true" />
   <arg name="release_after_rest_s" default="0.0" />
   <arg name="release_during_rest" default="false" />
@@ -150,6 +151,7 @@
     <arg name="place_same_orientation_as_picked" value="$(arg place_same_orientation_as_picked)" />
     <arg name="insert_orientation" value="$(arg insert_orientation)" />
     <arg name="cable_monitor" value="$(arg cable_monitor)" />
+    <arg name="cable_wrist_anchor" value="$(arg cable_wrist_anchor)" />
     <arg name="geometric_check" value="$(arg geometric_check)" />
     <arg name="release_after_rest_s" value="$(arg release_after_rest_s)" />
     <arg name="release_during_rest" value="$(arg release_during_rest)" />
