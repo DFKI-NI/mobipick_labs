@@ -1,6 +1,7 @@
 '''Every robot of the sim runs the same robot_stack_sim.launch, so a flag added to demo_sim.launch reaches robot 1 and
 robots 2 and 3 alike: the include declares and passes on every bringup argument demo_sim has, and each of the three
 includes in demo_sim passes the same set. No ROS needed (XML only).'''
+
 import unittest
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -39,7 +40,7 @@ class TestRobotStackSimArgs(unittest.TestCase):
         # a flag added to demo_sim.launch and to the bringup but not passed on would silently stay at its default
         bringup = ET.parse(LAUNCH / 'bringup.launch').getroot()
         shared = set(declared(self.demo)) & set(declared(bringup))
-        shared -= {'mtc_cable_constraints'}   # reaches the stack as mtc_cable_plan_check
+        shared -= {'mtc_cable_constraints'}  # reaches the stack as mtc_cable_plan_check
         self.assertEqual(shared - passed(self.includes[0]), set())
 
     def test_the_bringup_gets_every_flag_of_the_stack(self):
@@ -50,7 +51,9 @@ class TestRobotStackSimArgs(unittest.TestCase):
     def test_the_defaults_of_demo_sim_and_the_stack_agree(self):
         demo, stack = declared(self.demo), declared(self.stack)
         for name in passed(self.includes[0]) - PER_ROBOT:
-            if name == 'mtc_cable_plan_check':   # demo_sim defaults it to mtc_cable_constraints, the stack gets it passed
+            if (
+                name == 'mtc_cable_plan_check'
+            ):  # demo_sim defaults it to mtc_cable_constraints, the stack gets it passed
                 continue
             self.assertEqual(demo.get(name), stack.get(name), name)
 

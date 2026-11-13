@@ -297,7 +297,7 @@ side by side:
 roslaunch tables_demo_bringup demo_sim.launch num_robots:=2   # or 3; the default 1 is the usual single robot
 ```
 
-```
+```text
  x = 0                     x = 16.9 m                x = 33.8 m
  +----------------+  gap   +----------------+  gap   +----------------+
  | scene copy 1   |  1 m   | scene copy 2   |  1 m   | scene copy 3   |

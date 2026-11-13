@@ -56,7 +56,9 @@ def launch_file_code(poses):
     """Generate configured_camera.launch with one camera include per world."""
     blocks = []
     for world, pose in poses.items():
-        blocks.append("""  <include if=\"$(eval world_config == '{world}')\" file=\"$(find experiment_camera_recorder)/launch/camera.launch\">
+        blocks.append(
+            """  <include if=\"$(eval world_config == '{world}')\" """
+            """file=\"$(find experiment_camera_recorder)/launch/camera.launch\">
     <arg name=\"x\" value=\"{x:.3f}\" />
     <arg name=\"y\" value=\"{y:.3f}\" />
     <arg name=\"z\" value=\"{z:.3f}\" />
@@ -69,9 +71,13 @@ def launch_file_code(poses):
     <arg name=\"camera_name\" value=\"$(arg camera_name)\" />
     <arg name=\"offset_x\" value=\"$(arg offset_x)\" />
   </include>
-""".format(world=world, **pose))
+""".format(
+                world=world, **pose
+            )
+        )
     worlds = ", ".join("'{}'".format(world) for world in poses)
-    return """<?xml version=\"1.0\"?>
+    return (
+        """<?xml version=\"1.0\"?>
 <!-- One camera pose per world. pose_tuner.py rewrites the pose of the world it tunes when its OK button is clicked. -->
 <launch>
   <arg name=\"world_config\" default=\"moelk_tables\" />
@@ -84,7 +90,8 @@ def launch_file_code(poses):
 
 {blocks}
   <!-- worlds without a tuned pose get the camera.launch default pose -->
-  <include unless=\"$(eval world_config in [{worlds}])\" file=\"$(find experiment_camera_recorder)/launch/camera.launch\">
+  <include unless=\"$(eval world_config in [{worlds}])\" """
+        """file=\"$(find experiment_camera_recorder)/launch/camera.launch\">
     <arg name=\"record\" value=\"$(arg record)\" />
     <arg name=\"record_frequency\" value=\"$(arg record_frequency)\" />
     <arg name=\"output_dir\" value=\"$(arg output_dir)\" />
@@ -92,7 +99,8 @@ def launch_file_code(poses):
     <arg name=\"offset_x\" value=\"$(arg offset_x)\" />
   </include>
 </launch>
-""".format(blocks="\n".join(blocks), worlds=worlds)
+"""
+    ).format(blocks="\n".join(blocks), worlds=worlds)
 
 
 class PoseTuner(QDialog):
@@ -114,9 +122,7 @@ class PoseTuner(QDialog):
         self.resize(900, 760)
         self._bridge = CvBridge()
         self._model_name = rospy.get_param("~model_name", "experiment_camera")
-        self._output_file = os.path.abspath(os.path.expanduser(
-            rospy.get_param("~output_file")
-        ))
+        self._output_file = os.path.abspath(os.path.expanduser(rospy.get_param("~output_file")))
         self._set_model_state = rospy.ServiceProxy("/gazebo/set_model_state", SetModelState)
         self._sliders = {}
         self._spin_boxes = {}
@@ -163,23 +169,30 @@ class PoseTuner(QDialog):
     def _load_current_pose(self):
         try:
             from gazebo_msgs.srv import GetModelState
+
             get_state = rospy.ServiceProxy("/gazebo/get_model_state", GetModelState)
             response = get_state(self._model_name, "world")
             if not response.success:
                 raise RuntimeError(response.status_message)
             orientation = response.pose.orientation
-            self._set_values(dict(zip(
-                AXES,
-                (response.pose.position.x, response.pose.position.y, response.pose.position.z)
-                + euler_from_quaternion((orientation.x, orientation.y, orientation.z, orientation.w)),
-            )))
+            self._set_values(
+                dict(
+                    zip(
+                        AXES,
+                        (response.pose.position.x, response.pose.position.y, response.pose.position.z)
+                        + euler_from_quaternion((orientation.x, orientation.y, orientation.z, orientation.w)),
+                    )
+                )
+            )
         except (rospy.ServiceException, RuntimeError) as error:
             QMessageBox.warning(self, "Gazebo model unavailable", str(error))
 
     def _load_saved_pose(self):
         pose = read_world_poses(self._output_file).get(self._world)
         if pose is None:
-            QMessageBox.information(self, "No saved pose", "{} has no pose for {}".format(self._output_file, self._world))
+            QMessageBox.information(
+                self, "No saved pose", "{} has no pose for {}".format(self._output_file, self._world)
+            )
             return
         self._set_values(pose)
 
@@ -216,7 +229,9 @@ class PoseTuner(QDialog):
         state.pose.position.x = values["x"]
         state.pose.position.y = values["y"]
         state.pose.position.z = values["z"]
-        state.pose.orientation.x, state.pose.orientation.y, state.pose.orientation.z, state.pose.orientation.w = quaternion
+        state.pose.orientation.x, state.pose.orientation.y, state.pose.orientation.z, state.pose.orientation.w = (
+            quaternion
+        )
         try:
             response = self._set_model_state(state)
             if not response.success:
@@ -235,9 +250,9 @@ class PoseTuner(QDialog):
 
     def _show_image(self, image):
         pixmap = QPixmap.fromImage(image)
-        self._image_label.setPixmap(pixmap.scaled(
-            self._image_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation
-        ))
+        self._image_label.setPixmap(
+            pixmap.scaled(self._image_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        )
 
     def _write_launch_file(self):
         poses = read_world_poses(self._output_file)
@@ -252,7 +267,9 @@ class PoseTuner(QDialog):
         except OSError as error:
             QMessageBox.critical(self, "Could not write launch file", str(error))
             return
-        QMessageBox.information(self, "Camera pose saved", "Saved the {} pose in {}".format(self._world, self._output_file))
+        QMessageBox.information(
+            self, "Camera pose saved", "Saved the {} pose in {}".format(self._world, self._output_file)
+        )
         self.accept()
 
 

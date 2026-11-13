@@ -51,18 +51,20 @@ roslaunch experiment_camera_recorder video_recorder.launch name:=insert_sugar \
 
 Video rules (2026-10-04): the experiment camera only, gripper / robot camera videos are forbidden (topics matching
 `forbidden_topic_pattern`, default `gripper|eef|wrist|hand_cam|arm_cam`, are refused with a warning); no sped-up copy
-(viewers such as the Agent Workbench play a video at 4x); every frame shows the video id and what was run: `command` (the shell command
-that runs the experiment, as `$ <command>`) and the last goal that arrived on `command_topic` (default
-`/recognized_speech`, where the GUI's speech input and `agent_experiment.py` send the GPT demo's goal to the LLM) as
-`goal (model <profile>): <text>`; the model profile is the first parameter named `*/<model_label_param>` (default
-`experiment_model_label`, set by `gpt_robot_demo.launch` from its `model_profile`). Each is wrapped to at most four
-lines that use the frame width (measured as drawn), in small text (font scale 0.62 in a 1280 pixel wide frame). The text is never drawn over the camera picture: every frame grows in height by a black strip on top of the
-picture and the text stands there in lime, first line the video id with the topic, time and `REC` state
-(`overlay:=false` leaves the id only), then the command and the goal. The strip height fits the text of the moment the video
-opens (the first written frame; the frame height stays even for the encoder) and is fixed for that video; while a goal
-can still arrive two rows stay free for it, and later text that needs more rows is cut with `...`. Until either is known the frames say `NO COMMAND YET: waiting for the goal on <topic>`, `summary.json` gets
-`"command_missing": true` and the recorder logs an error at stop; with `command` and `command_topic` both empty it
-refuses to start. A GPT demo run therefore needs no `command`: the goal is taken from the run itself.
+(viewers such as the Agent Workbench play a video at 4x); every frame shows the video id and what was run: `command`
+(the shell command that runs the experiment, as `$ <command>`) and the last goal that arrived on `command_topic`
+(default `/recognized_speech`, where the GUI's speech input and `agent_experiment.py` send the GPT demo's goal to the
+LLM) as `goal (model <profile>): <text>`; the model profile is the first parameter named `*/<model_label_param>`
+(default `experiment_model_label`, set by `gpt_robot_demo.launch` from its `model_profile`). Each is wrapped to at most
+four lines that use the frame width (measured as drawn), in small text (font scale 0.62 in a 1280 pixel wide frame). The
+text is never drawn over the camera picture: every frame grows in height by a black strip on top of the picture and the
+text stands there in lime, first line the video id with the topic, time and `REC` state (`overlay:=false` leaves the id
+only), then the command and the goal. The strip height fits the text of the moment the video opens (the first written
+frame; the frame height stays even for the encoder) and is fixed for that video; while a goal can still arrive two rows
+stay free for it, and later text that needs more rows is cut with `...`. Until either is known the frames say
+`NO COMMAND YET: waiting for the goal on <topic>`, `summary.json` gets `"command_missing": true` and the recorder logs
+an error at stop; with `command` and `command_topic` both empty it refuses to start. A GPT demo run therefore needs no
+`command`: the goal is taken from the run itself.
 
 Videos go to `output_dir` (default `/data/experiment_recordings`, a host folder the
 GUI mounts into its containers at the same path).
@@ -98,13 +100,16 @@ at 40 characters; empty (default) keeps `<id>_<topic>.mp4`. The `video_ids.tsv` 
 together with `command:=`, e.g. `title:="Baseline run 1: drill pick, sim"` (the link text shown to the user says the
 same in plain words). Existing videos keep their names. With
 `auto_pause:=true` (default) frames are written only while `/mobipick/cmd_vel`
-is non-zero or an arm joint (`joint_pattern`, default `ur5`; the simulated gripper finger is noisy at rest) moves faster than
-`joint_velocity_threshold`, kept for `motion_hold_s` after the last motion, so
-idle phases (an agent thinking, perception) are cut. The first `lead_in_s` seconds (default 3) and the `lead_in_s`
-seconds after each goal on `command_topic` are written also while the robot stands still, so a run in which the robot
-never moves (e.g. a refused plan) still gives a short video with the command and the robot at rest. For a test video keep
-`auto_pause` on and stop the recorder as soon as the command returns, in the same shell line
-(`<command>; rosservice call /experiment_video_recorder/stop`), so the video ends with the task's result;
+is non-zero or an arm joint (`joint_pattern`, default `ur5`; the simulated
+gripper finger is noisy at rest) moves faster than `joint_velocity_threshold`,
+kept for `motion_hold_s` after the last motion, so idle phases (an agent
+thinking, perception) are cut. The first `lead_in_s` seconds (default 3) and the
+`lead_in_s` seconds after each goal on `command_topic` are written also while
+the robot stands still, so a run in which the robot never moves (e.g. a refused
+plan) still gives a short video with the command and the robot at rest. For a
+test video keep `auto_pause` on and stop the recorder as soon as the command
+returns, in the same shell line (`<command>; rosservice call
+/experiment_video_recorder/stop`), so the video ends with the task's result;
 `auto_pause:=false` writes every idle second until the stop. Manual control:
 
 ```bash

@@ -20,7 +20,7 @@ from pose_selector.srv import ClassQuery, GetPoses
 from grasplan.msg import PickObjectAction, PickObjectGoal, PlaceObjectAction
 from grasplan.msg import PlaceObjectGoal, InsertObjectAction, InsertObjectGoal
 
-import robot_api
+import robot_api  # noqa: F401 - imported for the default robot_api.Robot class path
 
 try:
     from mobipick_api.perception import Perception as ApiPerception
@@ -256,9 +256,7 @@ class RqtTablesDemo(Plugin):
             else:
                 self._widget.cmdOpenGripper.setEnabled(False)
                 self._widget.cmdCloseGripper.setEnabled(False)
-                rospy.logwarn(
-                    'Could not found service to open/close gripper, this functionality will not be available'
-                )
+                rospy.logwarn('Could not found service to open/close gripper, this functionality will not be available')
 
         # make a connection between the qt objects and this class methods
         self._widget.cmdNavigationGo.clicked.connect(self.navigation_go)
@@ -532,11 +530,14 @@ class RqtTablesDemo(Plugin):
             rospy.logwarn('type an object description first, e.g. "coke can"')
             self._set_open_set_result('type an object description first')
             return
-        rospy.loginfo(f'open-set detection of {object_name!r} (VLM verifier: {use_vlm}, '
-                      f'box >= {box_threshold:.2f}, accept >= {accept_threshold:.2f}; 0 = node default)')
+        rospy.loginfo(
+            f'open-set detection of {object_name!r} (VLM verifier: {use_vlm}, '
+            f'box >= {box_threshold:.2f}, accept >= {accept_threshold:.2f}; 0 = node default)'
+        )
         self._set_open_set_result(f'detecting {object_name!r}...')
         result = self.api_perception.detect_open_set(
-            object_name, use_vlm_verifier=use_vlm, box_threshold=box_threshold, accept_threshold=accept_threshold)
+            object_name, use_vlm_verifier=use_vlm, box_threshold=box_threshold, accept_threshold=accept_threshold
+        )
         if result is None:
             self._set_open_set_result('detection action unavailable or timed out (is AnyGrasp running?)')
             return
@@ -584,8 +585,9 @@ class RqtTablesDemo(Plugin):
             return
         self._set_text(widget, f'perceiving {targets} with {confidence} confidence...')
         try:
-            text = self.api_perception.perceive(targets, confidence=confidence, use_vlm=use_vlm, align=align,
-                                                dope_only=dope_only, gd_only=gd_only)
+            text = self.api_perception.perceive(
+                targets, confidence=confidence, use_vlm=use_vlm, align=align, dope_only=dope_only, gd_only=gd_only
+            )
         except Exception as exc:  # invalid request or a service failure: show it instead of dying
             text = f'failed:\n{type(exc).__name__}: {exc}'
         rospy.loginfo(f'perceive result:\n{text}')
@@ -615,8 +617,12 @@ class RqtTablesDemo(Plugin):
         self._set_text(widget, f'inspecting {queries}...')
         try:
             result = self.api_perception.inspect_object(
-                queries, table=table, align=align, use_vlm=use_vlm,
-                feedback_cb=lambda fb: self._set_text(widget, f'inspecting {queries}: {fb.stage}'))
+                queries,
+                table=table,
+                align=align,
+                use_vlm=use_vlm,
+                feedback_cb=lambda fb: self._set_text(widget, f'inspecting {queries}: {fb.stage}'),
+            )
         except Exception as exc:  # e.g. mobipick_active_perception messages missing in this workspace
             self._set_text(widget, f'{type(exc).__name__}: {exc}')
             return

@@ -60,6 +60,7 @@ def parse_urdf(xml):
     is the bounding box of the collision primitives, None if there are none.
     """
     from urdf_parser_py.urdf import URDF, Box, Cylinder, Sphere
+
     robot = URDF.from_xml_string(xml)
     materials = {m.name: m for m in robot.materials}
     children = {}
@@ -132,8 +133,7 @@ class GroundTruthViz:
             self.latest = msg
 
     def tick(self, _event):
-        want = {"boxes": self.box_pub.get_num_connections() > 0,
-                "meshes": self.mesh_pub.get_num_connections() > 0}
+        want = {"boxes": self.box_pub.get_num_connections() > 0, "meshes": self.mesh_pub.get_num_connections() > 0}
         for topic, wanted in want.items():
             if not wanted:
                 self.sent[topic] = None  # a new viewer gets a fresh message
@@ -143,22 +143,28 @@ class GroundTruthViz:
                 self.sub = None
             return
         if self.sub is None:
-            self.sub = rospy.Subscriber("/gazebo/model_states", ModelStates, self.on_states,
-                                        queue_size=1, buff_size=2 ** 20)
+            self.sub = rospy.Subscriber(
+                "/gazebo/model_states", ModelStates, self.on_states, queue_size=1, buff_size=2**20
+            )
         with self.lock:
             msg = self.latest
         if msg is None:
             return
         poses = {n: (p.position.x, p.position.y, p.position.z) for n, p in zip(msg.name, msg.pose)}
-        for topic, pub, build in (("boxes", self.box_pub, self.box_markers),
-                                  ("meshes", self.mesh_pub, self.mesh_markers)):
+        for topic, pub, build in (
+            ("boxes", self.box_pub, self.box_markers),
+            ("meshes", self.mesh_pub, self.mesh_markers),
+        ):
             if want[topic] and not self.unchanged(poses, self.sent[topic]):
                 pub.publish(build(msg))
                 self.sent[topic] = poses
 
     def unchanged(self, poses, sent):
-        return sent is not None and set(poses) == set(sent) and all(
-            max(abs(a - b) for a, b in zip(poses[n], sent[n])) < self.min_motion for n in poses)
+        return (
+            sent is not None
+            and set(poses) == set(sent)
+            and all(max(abs(a - b) for a, b in zip(poses[n], sent[n])) < self.min_motion for n in poses)
+        )
 
     # ------------------------------------------------------------------ models
 
@@ -250,10 +256,11 @@ class GroundTruthViz:
 
     def mesh_markers(self, msg):
         from urdf_parser_py.urdf import Box, Cylinder, Mesh, Sphere
+
         out = self.cleared()
         mid = 0
         for _i, _name, model_tf, parsed in self.drawn(msg):
-            for local_tf, geom, rgba in (parsed[0] if parsed else []):
+            for local_tf, geom, rgba in parsed[0] if parsed else []:
                 if isinstance(geom, Mesh):
                     m = self.marker("meshes", mid, Marker.MESH_RESOURCE)
                     m.mesh_resource = geom.filename
