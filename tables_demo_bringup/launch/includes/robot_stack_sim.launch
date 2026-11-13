@@ -20,6 +20,7 @@
   <arg name="mtc_single_plan_pick" default="false" />
   <arg name="pick_start_move_carrier_stops" default="false" />
   <arg name="plan_pick_during_start_move" default="false" />
+  <arg name="plan_transport_during_pick" default="false" />
   <arg name="mtc_cable_path_shaping" default="false" />
   <arg name="mtc_cable_support_margin" default="false" />
   <arg name="external_grasp_ik_timeout" default="0.1" />
@@ -121,6 +122,7 @@
     <arg name="mtc_single_plan_pick" value="$(arg mtc_single_plan_pick)" />
     <arg name="pick_start_move_carrier_stops" value="$(arg pick_start_move_carrier_stops)" />
     <arg name="plan_pick_during_start_move" value="$(arg plan_pick_during_start_move)" />
+    <arg name="plan_transport_during_pick" value="$(arg plan_transport_during_pick)" />
     <arg name="mtc_cable_path_shaping" value="$(arg mtc_cable_path_shaping)" />
     <arg name="mtc_cable_support_margin" value="$(arg mtc_cable_support_margin)" />
     <arg name="external_grasp_ik_timeout" value="$(arg external_grasp_ik_timeout)" />

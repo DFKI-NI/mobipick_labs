@@ -12,6 +12,7 @@
   <arg name="mtc_single_plan_pick" default="false" doc="true (with use_mtc): a closed-set pick plans its untangle poses, the grasp and the move to transport as one MTC task and runs it as one plan; the old way (the poses one by one, then the pick) when no grasp plans like that and the arm has not moved; skipped where the cable monitor does not start its chain afresh at each trajectory (the real robot default); careful feature flag, off in code" />
   <arg name="pick_start_move_carrier_stops" default="false" doc="true (with use_mtc and the MTC cable guard): the open-set pick's start move from the grasp view to transport refuses a plan the cable chain replay predicts the monitor to stop, replans, then detours via the observation pose; refused there too, the pick stops without moving; careful feature flag, off in code" />
   <arg name="plan_pick_during_start_move" default="false" doc="true (with use_mtc): a closed-set pick plans and cable-checks its untangle arm poses up front, sends them as one motion and plans the pick with MTC while the arm moves; the plan is used only when the arm arrives where it starts, else it is planned again; careful feature flag, off in code" />
+  <arg name="plan_transport_during_pick" default="false" doc="true (with use_mtc): a closed-set pick plans its move to the transport pose from where its MTC solution ends (object attached) while the pick executes, checked by the cable guard like a named move, and moves there right after the pick (planned again from the real state when the arm stands elsewhere); a successful pick then always ends at the transport pose; careful feature flag, off in code" />
   <arg name="mtc_cable_path_shaping" default="false" doc="true (with use_mtc and mtc_cable_plan_check): the arm cable model shapes the path before planning: the IK branch with the most cable slack, model-chosen joint waypoints and a wrist corridor; the cable guard stays the final check; careful feature flag, off in code" />
   <arg name="mtc_cable_support_margin" default="false" doc="true (with mtc_cable_plan_check): with the support wrist anchor (the sim) the MTC cable guard plans with a -0.07 geometric stretch margin instead of -0.115, so fewer arm paths are rejected as entangling; careful feature flag, off in code" />
   <arg name="external_grasp_ik_timeout" default="0.1" doc="seconds per compute_ik call of the open-set IK pre-filter; the sim profile passes 0.01 (each call spends its whole timeout)" />
@@ -121,6 +122,7 @@
     <arg name="mtc_single_plan_pick" value="$(arg mtc_single_plan_pick)" />
     <arg name="pick_start_move_carrier_stops" value="$(arg pick_start_move_carrier_stops)" />
     <arg name="plan_pick_during_start_move" value="$(arg plan_pick_during_start_move)" />
+    <arg name="plan_transport_during_pick" value="$(arg plan_transport_during_pick)" />
     <arg name="mtc_cable_path_shaping" value="$(arg mtc_cable_path_shaping)" />
     <arg name="mtc_cable_support_margin" value="$(arg mtc_cable_support_margin)" />
     <arg name="external_grasp_ik_timeout" value="$(arg external_grasp_ik_timeout)" />
