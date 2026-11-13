@@ -12,9 +12,12 @@
   <author email="martin.guenther@dfki.de">Martin Günther</author>
 
   <buildtool_depend>catkin</buildtool_depend>
+  <exec_depend>actionlib_msgs</exec_depend>
+  <exec_depend>dwb_msgs</exec_depend>
   <exec_depend>espeak_ros</exec_depend>
   <exec_depend>experiment_camera_recorder</exec_depend>
   <exec_depend>gazebo_marker_visuals</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
   <exec_depend>sim_ground_truth_viz</exec_depend>
   <exec_depend>grasplan</exec_depend>
   <exec_depend>mir_gazebo</exec_depend>
@@ -24,15 +27,25 @@
   <exec_depend>mobipick_gazebo</exec_depend>
   <exec_depend>mobipick_moveit_config</exec_depend>
   <exec_depend>mobipick_pick_n_place</exec_depend>
+  <exec_depend>move_base_msgs</exec_depend>
+  <exec_depend>nav_msgs</exec_depend>
   <exec_depend>pbr_gazebo</exec_depend>
   <exec_depend>pbr_maps</exec_depend>
   <exec_depend>pbr_objects</exec_depend>
   <exec_depend>pose_selector</exec_depend>
   <exec_depend>robot_api</exec_depend>
   <exec_depend>mobipick_api</exec_depend>
+  <exec_depend>rospy</exec_depend>
   <exec_depend>rqt_gui</exec_depend>
   <exec_depend>rqt_robot_steering</exec_depend>
   <exec_depend>rviz</exec_depend>
   <exec_depend>tf2_ros</exec_depend>
 
+  <test_depend>actionlib_msgs</test_depend>
+  <test_depend>dwb_msgs</test_depend>
+  <test_depend>geometry_msgs</test_depend>
+  <test_depend>move_base_msgs</test_depend>
+  <test_depend>nav_msgs</test_depend>
+  <test_depend>rospy</test_depend>
+  <test_depend>tf2_ros</test_depend>
 </package>
