@@ -30,8 +30,10 @@
 # Authors: Alexander Sung, Oscar Lima, Marc Vinci
 
 """
-The Tables Demo domain and environment specify concrete instances of the scenario for planning
- and include methods valid for both simulation and reality. It does not handle execution yet.
+The Tables Demo domain and environment specify concrete instances of the scenario for planning.
+
+It includes methods valid for both simulation and reality.
+It does not handle execution yet.
 """
 
 
@@ -128,6 +130,7 @@ class TablesDemoDomain(Domain):
     def initialize_tables_demo_problem(self) -> Problem:
         """
         Create UP Problem including all fluents and actions needed by the overall Tables Demo.
+
         Note: Initial states and goals are not defined yet.
         """
         problem = self.define_problem(
@@ -157,6 +160,7 @@ class TablesDemoDomain(Domain):
     def initialize_item_search_problem(self) -> Problem:
         """
         Create UP Problem including all fluents and actions needed by the item search subproblem.
+
         Note: Initial states and goals are not defined yet.
         """
         problem = self.define_problem(
@@ -343,9 +347,7 @@ class EnvironmentRepresentation:
         return True
 
     def pick_item(self, robot: Robot, pose: Pose, location: Location, item: Item) -> bool:
-        """
-        At pose, let robot look for item at location, pick it up, then move its arm to transport pose.
-        """
+        """At pose, let robot look for item at location, pick it up, then move its arm to transport pose."""
         print(f"Successfully picked up {item.name}.")
         self.robot_items[robot] = item
         self.believed_item_locations[item] = Location.get("on_robot")

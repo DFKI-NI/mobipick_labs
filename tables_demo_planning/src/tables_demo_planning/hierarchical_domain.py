@@ -883,7 +883,7 @@ class HierarchicalDomain:
         return parameterized_task
 
     def create_plan(self, task_name: str, parameters: List[str]):
-        """Create a plan that can be used in the task server"""
+        """Create a plan that can be used in the task server."""
         self.clear_tasks(self.problem)
         task = self.create_task_from_string(task_name, parameters)
         if task:
@@ -894,7 +894,7 @@ class HierarchicalDomain:
 
     @staticmethod
     def get_actions_from_plan(plan) -> Optional[List]:
-        """For a given plan extract the list of actions and check plan kind"""
+        """For a given plan extract the list of actions and check plan kind."""
         if plan.action_plan.kind == PlanKind.SEQUENTIAL_PLAN:
             return plan.action_plan.actions
         elif plan.action_plan.kind == PlanKind.TIME_TRIGGERED_PLAN:

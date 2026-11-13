@@ -198,6 +198,7 @@ class Simulation:
     def run(self, target_location: Optional[Location] = None) -> None:
         """
         Run planning and execution loop.
+
         Note: Set the goals for self.problem before using planning.
         """
         retries_before_abortion = self.RETRIES_BEFORE_ABORTION

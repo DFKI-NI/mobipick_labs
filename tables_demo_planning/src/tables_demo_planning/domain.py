@@ -29,9 +29,7 @@
 #
 # Authors: Alexander Sung, DFKI
 
-"""
-The Mobipick domain, providing methods to connect its applications to its planning representations
-"""
+"""The Mobipick domain, providing methods to connect its applications to its planning representations."""
 
 
 from typing import Callable, Dict, List, Type
@@ -51,6 +49,7 @@ class Domain(Bridge):
     def _get_fluent(self, name: str, **kwargs: type) -> Fluent:
         """
         Return fluent with name if it exists, else create a new one using kwargs.
+
         Note: Use set_fluent_functions() to provide a callable which calculates the fluent's values.
         """
         return self._fluents[name] if name in self._fluents.keys() else self.create_fluent(name, **kwargs)
@@ -130,7 +129,8 @@ class Domain(Bridge):
     def get_table_objects(self, table_names: List[str] = []) -> List[Object]:
         """
         Return UP Objects representing table locations with given name in the Mobipick domain.
-         Leaving names empty returns all table locations.
+
+        Leaving names empty returns all table locations.
         """
         if table_names:
             return [obj for name, obj in self.get_objects_for_type(Location).items() if name in table_names]
@@ -139,8 +139,9 @@ class Domain(Bridge):
 
     def create_move_base_action(self, _callable: Callable[[Robot, Pose, Pose], object]) -> InstantaneousAction:
         """
-        Create plannable action using _callable with which the Robot moves to the second Pose
-         while holding 'nothing' and its arm being in 'home' pose.
+        Create plannable action using _callable with which the Robot moves to the second Pose.
+
+        While holding 'nothing' and its arm being in 'home' pose.
         """
         assert _callable.__name__ == "move_base"
         move_base, (robot, x, y) = self.create_action_from_function(_callable)
@@ -156,8 +157,9 @@ class Domain(Bridge):
         self, _callable: Callable[[Robot, Item, Pose, Pose], object]
     ) -> InstantaneousAction:
         """
-        Create plannable action using _callable with which the Robot moves to the second Pose
-         while holding an Item other than 'nothing' and its arm being in 'transport' pose.
+        Create plannable action using _callable with which the Robot moves to the second Pose.
+
+        While holding an Item other than 'nothing' and its arm being in 'transport' pose.
         """
         assert _callable.__name__ == "move_base_with_item"
         move_base_with_item, (robot, item, x, y) = self.create_action_from_function(_callable)
@@ -171,10 +173,7 @@ class Domain(Bridge):
         return move_base_with_item
 
     def create_move_arm_action(self, _callable: Callable[[Robot, ArmPose, ArmPose], object]) -> InstantaneousAction:
-        """
-        Create plannable action using _callable with which the Robot moves its arm
-         to the second ArmPose.
-        """
+        """Create plannable action using _callable with which the Robot moves its arm to the second ArmPose."""
         assert _callable.__name__ == "move_arm"
         move_arm, (robot, x, y) = self.create_action_from_function(_callable)
         move_arm.add_precondition(self.robot_arm_at(robot, x))
@@ -187,8 +186,9 @@ class Domain(Bridge):
         self, _callable: Callable[[Robot, Pose, Location, Item], object]
     ) -> InstantaneousAction:
         """
-        Create plannable action using _callable with which the Robot picks up Item from Location
-         while being at Pose and holding 'nothing'.
+        Create plannable action using _callable with which the Robot picks up Item from Location.
+
+        While being at Pose and holding 'nothing'.
         """
         assert _callable.__name__ == "pick_item"
         pick_item, (robot, pose, location, item) = self.create_action_from_function(_callable)
@@ -223,9 +223,10 @@ class Domain(Bridge):
         self, _callable: Callable[[Robot, Pose, Location, Item], object]
     ) -> InstantaneousAction:
         """
-        Create plannable action using _callable with which the Robot places Item down at Location
-         while being at Pose, the Item being 'on_robot' and Location other than 'anywhere'.
-         Afterwards, Robot will hold 'nothing' and its arm be in 'home' pose.
+        Create plannable action using _callable with which the Robot places Item down at Location.
+
+        While being at Pose, the Item being 'on_robot' and Location other than 'anywhere'.
+        Afterwards, Robot will hold 'nothing' and its arm be in 'home' pose.
         """
         assert _callable.__name__ == "place_item"
         place_item, (robot, pose, location, item) = self.create_action_from_function(_callable)
@@ -246,10 +247,10 @@ class Domain(Bridge):
         self, _callable: Callable[[Robot, Pose, Location, Item, Item], object]
     ) -> InstantaneousAction:
         """
-        Create plannable action using _callable with which the Robot stores the first Item
-         into the second Item at Location while being at Pose, the first Item being 'on_robot',
-         and Location other than 'anywhere'.
-         Afterwards, Robot will hold 'nothing', its arm be in 'home' pose, and Item 'in_klt'.
+        Create plannable action using _callable with which the Robot stores the first Item into the second Item.
+
+        At Location while being at Pose, the first Item being 'on_robot', and Location other than 'anywhere'.
+        Afterwards, Robot will hold 'nothing', its arm be in 'home' pose, and Item 'in_klt'.
         """
         assert _callable.__name__ == "store_item"
         store_item, (robot, pose, location, item1, item2) = self.create_action_from_function(_callable)
@@ -276,7 +277,8 @@ class Domain(Bridge):
     def create_hand_over_item_action(self, _callable: Callable[[Robot, Item], object]) -> InstantaneousAction:
         """
         Create plannable action using _callable with which Robot hands over Item from being 'on_robot'.
-         Afterwards, Robot will hold 'nothing', its arm be in 'handover' pose, and Item 'anywhere'.
+
+        Afterwards, Robot will hold 'nothing', its arm be in 'handover' pose, and Item 'anywhere'.
         """
         assert _callable.__name__ == "hand_over_item"
         hand_over_item, (robot, item) = self.create_action_from_function(_callable)
@@ -300,10 +302,11 @@ class Domain(Bridge):
         allow_search_same_table: bool,
     ) -> InstantaneousAction:
         """
-        Create plannable action using _callable with which Robot searches Location
-         while being at Pose and its arm pose being one of arm_pose_names.
-         Location's name must start with 'table_'.
-         Afterwards, Robot's arm will be in 'observe' pose.
+        Create plannable action using _callable with which Robot searches Location.
+
+        While being at Pose and its arm pose being one of arm_pose_names.
+        Location's name must start with 'table_'.
+        Afterwards, Robot's arm will be in 'observe' pose.
         """
         assert _callable.__name__ == "search_at"
         search_at, (robot, pose, location) = self.create_action_from_function(_callable)
@@ -321,9 +324,10 @@ class Domain(Bridge):
 
     def create_search_tool_action(self, _callable: Callable[[Robot, Item], object]) -> InstantaneousAction:
         """
-        Create plannable action using _callable with which Robot searches for tool Item
-         while holding 'nothing' and Item being 'anywhere'.
-         Afterwards, Robot will be at 'tool_search_pose' and Item at 'tool_search_location'.
+        Create plannable action using _callable with which Robot searches for tool Item.
+
+        While holding 'nothing' and Item being 'anywhere'.
+        Afterwards, Robot will be at 'tool_search_pose' and Item at 'tool_search_location'.
         """
         assert _callable.__name__ == "search_tool"
         search_tool, (robot, item) = self.create_action_from_function(_callable)
@@ -339,9 +343,10 @@ class Domain(Bridge):
 
     def create_search_klt_action(self, _callable: Callable[[Robot, Item], object]) -> InstantaneousAction:
         """
-        Create plannable action using _callable with which Robot searches for KLT Item
-         while it being 'anywhere'.
-         Afterwards, Robot will be at 'klt_search_pose' and Item at 'klt_search_location'.
+        Create plannable action using _callable with which Robot searches for KLT Item.
+
+        While it being 'anywhere'.
+        Afterwards, Robot will be at 'klt_search_pose' and Item at 'klt_search_location'.
         """
         assert _callable.__name__ == "search_klt"
         search_klt, (robot, item) = self.create_action_from_function(_callable)
@@ -360,8 +365,9 @@ class Domain(Bridge):
         self, _callable: Callable[[Item], object], tables_to_search_at: List[str]
     ) -> InstantaneousAction:
         """
-        Create plannable action using _callable which concludes the search for tool Item
-         while it being 'anywhere'. Afterwards, it is at 'tool_search_location'.
+        Create plannable action using _callable which concludes the search for tool Item.
+
+        While it being 'anywhere'. Afterwards, it is at 'tool_search_location'.
         """
         assert _callable.__name__ == "conclude_tool_search"
         conclude_tool_search, (item,) = self.create_action_from_function(_callable)
@@ -377,8 +383,9 @@ class Domain(Bridge):
         self, _callable: Callable[[Item], object], tables_to_search_at: List[str]
     ) -> InstantaneousAction:
         """
-        Create plannable action using _callable which concludes the search for KLT Item
-         while it being 'anywhere'. Afterwards, it is at 'klt_search_location'.
+        Create plannable action using _callable which concludes the search for KLT Item.
+
+        While it being 'anywhere'. Afterwards, it is at 'klt_search_location'.
         """
         assert _callable.__name__ == "conclude_klt_search"
         conclude_klt_search, (item,) = self.create_action_from_function(_callable)

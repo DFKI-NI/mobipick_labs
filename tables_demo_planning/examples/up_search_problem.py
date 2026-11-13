@@ -28,6 +28,7 @@
 
 """
 Standalone planning example using replanning with interim goal on failed action.
+
 This script was used during development but it not part of the demo.
 """
 

@@ -28,7 +28,8 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-"""Record ROS image topics into videos that only contain the moments the robot moves.
+r"""
+Record ROS image topics into videos that only contain the moments the robot moves.
 
 Every image topic in ``~image_topics`` is written to ``<output_dir>/<id>_<name>.mp4`` (with ``~title``,
 ``<id>_<title>.mp4``, see ``sanitize_title``); ``<id>`` is a unique video id ``v<YYYYMMDD>-<HHMMSS>-<4 hex>`` for easy

@@ -169,6 +169,7 @@ class TablesDemoAPI:
     def run(self, target_location: Optional[Location] = None) -> None:
         """
         Run planning and execution loop.
+
         Note: Set the goals for self.problem before using planning.
         """
         retries_before_abortion = self.RETRIES_BEFORE_ABORTION
@@ -343,7 +344,6 @@ class TablesDemoAPI:
 
     def pick_item(self, robot: Robot, pose: Pose, location: Location, item: Item) -> bool:
         """At pose, look for item at location, pick it up, then move arm to transport pose."""
-
         location = self.env.resolve_search_location(location)
         perceived_item_locations = self.perceive(robot, location)
         if item not in perceived_item_locations.keys():
@@ -369,7 +369,6 @@ class TablesDemoAPI:
 
     def place_item(self, robot: Robot, pose: Pose, location: Location, item: Item) -> bool:
         """At pose, place item at location, then move arm to home pose."""
-
         observe_before_place = not bool(self.env.believed_klt_contents.get(item, []))
 
         place_result = self.mobipick_api.arm.place_object(location.name, observe_before_place)
@@ -384,7 +383,6 @@ class TablesDemoAPI:
 
     def store_item(self, robot: Robot, pose: Pose, location: Location, tool: Item, klt: Item) -> bool:
         """At pose, store item into box at location, the move arm to home pose."""
-
         insert_result = self.mobipick_api.arm.insert_object(klt.name, True)
 
         if not insert_result:
@@ -397,8 +395,9 @@ class TablesDemoAPI:
 
     def hand_over_item(self, robot: Robot, item: Item) -> bool:
         """
-        At pose, hand over item to person, observe force torque feedback
-        until item is taken by person, then move arm to home pose.
+        At pose, hand over item to person, observe force torque feedback.
+
+        Until item is taken by person, then move arm to home pose.
         """
         self.mobipick_api.arm.move("handover")
         # observe force torque sensor using treshold 5.0 and a timeout of 25.0 seconds
@@ -411,7 +410,6 @@ class TablesDemoAPI:
 
     def perceive(self, robot: Robot, location: Location) -> Dict[Item, Location]:
         """Move arm into observation pose and return all perceived items with their locations."""
-
         rospy.loginfo(f"Clear facts for {location.name}.")
         for believed_item, believed_location in self.env.believed_item_locations.items():
             if believed_location == location:

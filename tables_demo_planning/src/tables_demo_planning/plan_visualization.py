@@ -30,8 +30,9 @@
 # Authors: Alexander Sung - DFKI, Marc Vinci - DFKI
 
 """
-Helper component which maintains the dot graph of a simple sequential plan,
-visualized by the dot_graph_visualization repository.
+Helper component which maintains the dot graph of a simple sequential plan.
+
+Visualized by the dot_graph_visualization repository.
 """
 
 

@@ -27,7 +27,8 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-"""Gazebo ground truth of the tables and objects for RViz (simulation only).
+"""
+Gazebo ground truth of the tables and objects for RViz (simulation only).
 
 Publishes, for every Gazebo model with a URDF on the parameter server:
 
@@ -81,7 +82,8 @@ def origin_matrix(origin):
 
 
 def parse_urdf(xml):
-    """Visuals (transform, geometry, rgba) and collision box (lo, hi) of a URDF.
+    """
+    Visuals (transform, geometry, rgba) and collision box (lo, hi) of a URDF.
 
     Transforms are in the root link frame, which is the Gazebo model frame.
     Joints are taken at zero (the sim models only have fixed joints). The box

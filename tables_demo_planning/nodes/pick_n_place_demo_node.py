@@ -43,7 +43,6 @@ from tables_demo_planning.tables_demo_api import TablesDemoAPI
 
 def run_demo():
     """Run the handover demo."""
-
     api = TablesDemoAPI()
     # Define handover goal.
     api.problem.add_goal(api.domain.robot_at(api.domain.robot, api.domain.get(Pose, "base_home_pose")))

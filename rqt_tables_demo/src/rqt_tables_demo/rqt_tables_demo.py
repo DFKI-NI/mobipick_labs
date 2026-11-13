@@ -320,7 +320,7 @@ class RqtTablesDemo(Plugin):
 
     @staticmethod
     def make_robot(api_class_path, namespace):
-        '''instantiate the robot API class given as "module.Class" (e.g. robot_api.Robot) for the namespace'''
+        """Instantiate the robot API class given as "module.Class" (e.g. robot_api.Robot) for the namespace."""
         module_name, _, class_name = api_class_path.rpartition('.')
         if not module_name:
             raise ValueError(f'~robot_api_class must be "module.Class", got "{api_class_path}"')
@@ -332,10 +332,7 @@ class RqtTablesDemo(Plugin):
         return api_class(namespace)
 
     def convert_pose_dict(self, input_dict):
-        '''
-        this function converts a base pose dictionary from the format used in the
-        planning yaml file to the format used by the rqt tables demo
-        '''
+        """Convert a base pose dictionary from the planning yaml file format to the rqt tables demo format."""
         output_dict = {}
         for key, value in input_dict['poses'].items():
             if 'table' in key:
