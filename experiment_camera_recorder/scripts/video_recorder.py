@@ -164,6 +164,8 @@ def command_lines(text, max_width, scale):
 
 
 CRASH_SAFE_CODECS = ("h264", "vp8")    # tried in this order; VLC and most players cannot play VP8 in an MP4
+SLOW_WRITE_S = 2.0       # a frame write slower than this is reported once (the video lags behind the camera)
+STALL_AFTER_S = 5.0      # images arriving this long with no frame written: the video stalled (reported, see stalled())
 
 
 def crash_safe_pipeline(path, fps, bitrate_kbps, codec="h264"):
@@ -252,6 +254,13 @@ class TopicRecorder:
         self.rows = 0             # text rows of the strip
         self.frames = 0
         self.last_written_stamp = None
+        # images that arrived, and when the last frame was written: an empty or stopped video then says whether the
+        # camera sent nothing or the writer stopped taking frames (stalled())
+        self.received = 0
+        self.first_received_wall = None
+        self.received_at_last_frame = 0
+        self.last_frame_wall = None
+        self.slow_write_reported = False
         # the file name after the id: the title (alone when it is the only topic, else with the topic name), or the
         # topic name when there is no title
         self.title = sanitize_title(title)
@@ -267,6 +276,9 @@ class TopicRecorder:
     def _callback(self, message):
         with self.lock:
             self.latest = message
+            self.received += 1
+            if self.first_received_wall is None:
+                self.first_received_wall = time.time()
 
     def _convert(self, message):
         try:
@@ -355,10 +367,36 @@ class TopicRecorder:
         if self.overlay:
             stamp = message.header.stamp if not message.header.stamp.is_zero() else rospy.Time.now()
             status = "%s  t=%.1fs  %s" % (self.name, stamp.to_sec(), label)
+        started = time.time()
         self.writer.write(self._with_strip(image, status))
+        took = time.time() - started
+        if took > SLOW_WRITE_S and not self.slow_write_reported:
+            self.slow_write_reported = True
+            rospy.logwarn("%s: writing frame %d took %.1f s (%s): the video lags behind the camera", self.topic,
+                          self.frames, took, self.writer_name())
         self._record_frame_time(self.frames, message.header.stamp, label)
         self.frames += 1
+        with self.lock:
+            self.received_at_last_frame = self.received
+        self.last_frame_wall = time.time()
         return True
+
+    def writer_name(self):
+        return "crash-safe GStreamer writer" if self.crash_safe else "OpenCV %s writer" % self.codec
+
+    def stalled(self, now, after_s):
+        """A sentence when images kept arriving for ``after_s`` seconds but none of them reached the video (the writer
+        hangs, or the frames cannot be converted), else None. Only meaningful while frames should be written."""
+        with self.lock:
+            received, since_frame, first = self.received, self.received - self.received_at_last_frame, self.first_received_wall
+        last = self.last_frame_wall if self.last_frame_wall is not None else first
+        if last is None or since_frame < 2 or now - last < after_s:
+            return None
+        if self.frames == 0:
+            return ("%s: %d images arrived in %.0f s but not one was written to the video (%s): the video is empty"
+                    % (self.topic, received, now - last, self.writer_name()))
+        return ("%s: %d images arrived in the last %.0f s but none was written after frame %d (%s): the video stalled"
+                % (self.topic, since_frame, now - last, self.frames - 1, self.writer_name()))
 
     def _record_frame_time(self, index, stamp, label):
         """Append the acquisition and recording times of output frame ``index`` to the frames sidecar."""
@@ -395,7 +433,8 @@ class TopicRecorder:
         return self.summary()
 
     def summary(self):
-        return {"topic": self.topic, "id": self.id, "frames": self.frames, "seconds": round(self.frames / self.fps, 1),
+        return {"topic": self.topic, "id": self.id, "frames": self.frames, "images_received": self.received,
+                "seconds": round(self.frames / self.fps, 1),
                 "video": self.video_path if self.frames else None,
                 "frames_index": self.frames_index_path if self.frames else None}
 
@@ -501,6 +540,10 @@ class VideoRecorder:
         rospy.Service("~status", Trigger, self._status_service)
         self.status_pub = rospy.Publisher("~status", String, queue_size=1, latch=True)
         self.timer = rospy.Timer(rospy.Duration(1.0 / self.fps), self._tick)
+        # on the wall clock and without the lock: it still reports when a write hangs inside _tick (holding the lock)
+        # or when the simulated clock stops
+        self.stall_reported = set()
+        threading.Thread(target=self._watch_stalls, name="stall_watch", daemon=True).start()
         self._log_event("start", topics=topics, ids=[r.id for r in self.recorders], command=self.command,
                         command_topic=self.command_topic, refused=refused, auto_pause=self.auto_pause, fps=self.fps)
         rospy.loginfo("recording %s into %s as %s (auto_pause=%s)", topics, self.output_dir,
@@ -564,6 +607,28 @@ class VideoRecorder:
         return bool(times) and now - max(times) <= self.motion_hold_s
 
     # --- recording loop -----------------------------------------------------
+
+    def _watch_stalls(self):
+        while not self.stopped and not rospy.is_shutdown():
+            time.sleep(1.0)
+            for reason in self.stall_reasons(time.time()):
+                rospy.logerr("%s; if it stays, restart the recorder with crash_safe:=false", reason)
+
+    def stall_reasons(self, now):
+        """The stall sentences not reported yet, for recorders that should be writing every frame now (recording,
+        and not a robot-only video waiting for its robot to move)."""
+        if self.stopped or not self.recording:
+            return []
+        robots = getattr(self, "topic_robots", None) or [None] * len(self.recorders)
+        reasons = []
+        for recorder, robot in zip(self.recorders, robots):
+            if robot is not None and self.auto_pause:
+                continue
+            reason = recorder.stalled(now, STALL_AFTER_S)
+            if reason and recorder.topic not in self.stall_reported:
+                self.stall_reported.add(recorder.topic)
+                reasons.append(reason)
+        return reasons
 
     def _tick(self, _event):
         with self.lock:

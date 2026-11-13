@@ -35,7 +35,8 @@ def _stub(name, **attributes):
 def recorder_module(monkeypatch):
     """scripts/video_recorder.py loaded with cv2, rospy and the ROS messages replaced by small stubs"""
     clock = {"ros": 100.0}
-    rospy = _stub("rospy", Subscriber=Mock(), loginfo=Mock(), logerr_throttle=Mock(), logerr=Mock(), logwarn=Mock())
+    rospy = _stub("rospy", Subscriber=Mock(), loginfo=Mock(), logerr_throttle=Mock(), logerr=Mock(), logwarn=Mock(),
+                  is_shutdown=Mock(return_value=True))
     rospy.Time = _stub("Time", now=lambda: Stamp(clock["ros"]))
     def with_border(image, top, bottom, left, right, border_type, value=None):
         grown = FakeImage()
@@ -600,3 +601,85 @@ def test_in_the_lead_in_every_robot_video_is_written(recorder_module, monkeypatc
     node.topic_robots, node.robot_motion = ["mobipick", "mobipick2"], {}
     node._tick(None)
     assert [r.write_latest.call_args.args for r in node.recorders] == [("REC idle",), ("REC idle",)]
+
+
+# --- an empty or stopped video says why: images that arrived vs frames written ---------------------------------------
+
+def _arrive(recorder, seconds, now):
+    recorder._callback(Message(seconds))
+    if recorder.received == 1:
+        recorder.first_received_wall = now
+
+
+def test_the_summary_counts_the_images_that_arrived(recorder_module, tmp_path):
+    recorder = _make(recorder_module, tmp_path)
+    for seconds in (10.0, 10.1, 10.2):
+        recorder._callback(Message(seconds))
+    assert recorder.write_latest("REC")
+    assert recorder.summary()["images_received"] == 3 and recorder.summary()["frames"] == 1
+
+
+def test_images_without_a_written_frame_make_an_empty_video_sentence(recorder_module, tmp_path):
+    recorder = _make(recorder_module, tmp_path)
+    for seconds in (10.0, 10.1, 10.2):
+        _arrive(recorder, seconds, now=100.0)
+    assert recorder.stalled(104.0, 5.0) is None                   # not yet 5 s
+    reason = recorder.stalled(106.0, 5.0)
+    assert "3 images arrived in 6 s but not one was written" in reason
+    assert "crash-safe GStreamer writer" in reason and "/experiment_camera/image_raw" in reason
+
+
+def test_images_after_the_last_written_frame_make_a_stalled_sentence(recorder_module, tmp_path):
+    recorder = _make(recorder_module, tmp_path)
+    recorder._callback(Message(10.0))
+    assert recorder.write_latest("REC")
+    wrote = recorder.last_frame_wall
+    for seconds in (10.1, 10.2, 10.3):
+        recorder._callback(Message(seconds))
+    assert recorder.stalled(wrote + 1.0, 5.0) is None
+    reason = recorder.stalled(wrote + 7.0, 5.0)
+    assert "3 images arrived in the last 7 s but none was written after frame 0" in reason
+    recorder.write_latest("REC")                                   # the writer takes frames again: no stall
+    assert recorder.stalled(recorder.last_frame_wall + 7.0, 5.0) is None
+
+
+def test_no_images_is_no_stall(recorder_module, tmp_path):
+    recorder = _make(recorder_module, tmp_path)
+    assert recorder.stalled(1e12, 5.0) is None
+
+
+def test_a_slow_write_is_reported_once(recorder_module, tmp_path, monkeypatch):
+    monkeypatch.setattr(recorder_module, "SLOW_WRITE_S", -1.0)    # every write counts as slow
+    recorder = _make(recorder_module, tmp_path)
+    for seconds in (10.0, 10.1):
+        recorder.latest = Message(seconds)
+        assert recorder.write_latest("REC")
+    warnings = [c for c in recorder_module.rospy.logwarn.call_args_list if "took" in c.args[0]]
+    assert len(warnings) == 1 and "the video lags behind the camera" in warnings[0].args[0]
+
+
+def _stall_node(module, recorder, recording=True, auto_pause=True, robots=None):
+    node = module.VideoRecorder.__new__(module.VideoRecorder)
+    node.stopped, node.recording, node.auto_pause = False, recording, auto_pause
+    node.recorders, node.topic_robots, node.stall_reported = [recorder], robots or [], set()
+    return node
+
+
+def test_the_node_reports_a_stall_once_and_only_while_recording(recorder_module, tmp_path):
+    recorder = _make(recorder_module, tmp_path)
+    recorder._callback(Message(10.0))
+    recorder._callback(Message(10.1))
+    later = recorder.first_received_wall + 10.0
+    assert _stall_node(recorder_module, recorder, recording=False).stall_reasons(later) == []   # paused: no stall
+    node = _stall_node(recorder_module, recorder)
+    assert len(node.stall_reasons(later)) == 1
+    assert node.stall_reasons(later + 5.0) == []                   # reported once
+
+
+def test_a_robot_video_waiting_for_its_robot_is_no_stall(recorder_module, tmp_path):
+    recorder = _make(recorder_module, tmp_path)
+    recorder._callback(Message(10.0))
+    recorder._callback(Message(10.1))
+    later = recorder.first_received_wall + 10.0
+    assert _stall_node(recorder_module, recorder, robots=["mobipick2"]).stall_reasons(later) == []
+    assert len(_stall_node(recorder_module, recorder, auto_pause=False, robots=["mobipick2"]).stall_reasons(later)) == 1
