@@ -23,6 +23,7 @@
   <arg name="plan_transport_during_pick" default="false" />
   <arg name="lift_sunk_target_to_support" default="false" />
   <arg name="drop_unknown_copy_of_target" default="false" />
+  <arg name="extra_grasp_sets" default="false" />
   <arg name="mtc_cable_path_shaping" default="false" />
   <arg name="mtc_cable_support_margin" default="false" />
   <arg name="external_grasp_ik_timeout" default="0.1" />
@@ -127,6 +128,7 @@
     <arg name="plan_transport_during_pick" value="$(arg plan_transport_during_pick)" />
     <arg name="lift_sunk_target_to_support" value="$(arg lift_sunk_target_to_support)" />
     <arg name="drop_unknown_copy_of_target" value="$(arg drop_unknown_copy_of_target)" />
+    <arg name="extra_grasp_sets" value="$(arg extra_grasp_sets)" />
     <arg name="mtc_cable_path_shaping" value="$(arg mtc_cable_path_shaping)" />
     <arg name="mtc_cable_support_margin" value="$(arg mtc_cable_support_margin)" />
     <arg name="external_grasp_ik_timeout" value="$(arg external_grasp_ik_timeout)" />
