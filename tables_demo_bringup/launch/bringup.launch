@@ -21,7 +21,6 @@
   <arg name="mtc_cable_support_margin" default="false" doc="true (with mtc_cable_plan_check): with the support wrist anchor (the sim) the MTC cable guard plans with a -0.07 geometric stretch margin instead of -0.115, so fewer arm paths are rejected as entangling; careful feature flag, off in code" />
   <arg name="external_grasp_ik_timeout" default="0.1" doc="seconds per compute_ik call of the open-set IK pre-filter; the sim profile passes 0.01 (each call spends its whole timeout)" />
   <arg name="open_set_pick_from_current_state" default="false" doc="plan the open-set pick from the arm pose it is at and move to transport only to retry; safe feature flag, off in code, on in the sim" />
-  <arg name="open_set_prefer_less_backoff" default="false" doc="true (safe): open-set picks: the grasps moved back along their approach to keep the fingertips clear of the table are ordered by how far they were moved back, in 5 mm steps, smallest first (the grasp finder's order stays inside a step), before the reachability check and the cable ranking, which stays the first key; same maximum back-off; the offer limit cuts after this order, so which grasps are offered can change; a heuristic, no guarantee of a firmer grasp; safe feature flag, off in code" />
   <arg name="drop_floating_boxes_at_target" default="0.0" doc="metres a detector box may float above its support before it is left out of the pick scene (0 = off); safe feature flag, the sim profile passes 0.03" />
   <arg name="place_sample_within_reach" default="false" doc="sample place poses within the arm reach disk first; safe feature flag, off in code, on in the sim" />
   <arg name="place_free_footprints_first" default="false" doc="try place poses with a free footprint first; safe feature flag, off in code, on in the sim" />
@@ -136,7 +135,6 @@
     <arg name="mtc_cable_support_margin" value="$(arg mtc_cable_support_margin)" />
     <arg name="external_grasp_ik_timeout" value="$(arg external_grasp_ik_timeout)" />
     <arg name="open_set_pick_from_current_state" value="$(arg open_set_pick_from_current_state)" />
-    <arg name="open_set_prefer_less_backoff" value="$(arg open_set_prefer_less_backoff)" />
     <arg name="drop_floating_boxes_at_target" value="$(arg drop_floating_boxes_at_target)" />
     <arg name="mtc_cable_guard_named_moves" value="$(arg mtc_cable_guard_named_moves)" />
     <arg name="mtc_place_reject_octomap_occupied" value="$(arg mtc_place_reject_octomap_occupied)" />
