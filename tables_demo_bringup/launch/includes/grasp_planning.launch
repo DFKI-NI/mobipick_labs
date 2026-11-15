@@ -12,6 +12,7 @@
   <arg name="lift_sunk_target_to_support" default="false" doc="true (needs clamp_object_boxes_to_support): a closed-set pick target whose box bottom reaches into its support is raised whole until it stands 1 mm above the support top (at most 3 cm), so its grasps start from where it stands; careful feature flag, off in code, on in the sim" />
   <arg name="drop_unknown_copy_of_target" default="false" doc="true: a closed-set pick leaves out of its planning scene an entry without stored grasps that may be the target itself, stored a second time by the search for unknown objects (each centre inside the other box, half of the smaller volume shared, volumes within a factor two), so it does not block the lift; it stays out until the next goal builds the scene, the pose selector keeps it; careful feature flag, off in code, on in the sim" />
   <arg name="known_pick_open_set_fallback" default="false" doc="true (careful): a known object whose stored grasps were all refused in planning, before any stage of a pick solution ran, gets one second try in the same pick with the grasp finder for unknown objects (grasp view, the known pose selector entry as target, the measured box, picked only when all 8 corners of the measured box lie inside that entry&apos;s box grown by 3 cm per side); careful feature flag, off in code" />
+  <arg name="extra_grasp_sets" default="false" doc="true: the pick node appends the extra grasps of a known class (handcoded_grasp_planner_extra_transforms, for now the soup can: the radial ring turned so the fingers close on the two flat ends of a can lying on its side) after its stored grasps; the stored ones are tried first; careful feature flag, off in code, on in the sim" />
   <arg name="mtc_cable_path_shaping" default="false" doc="true (with use_mtc and mtc_cable_plan_check): the arm cable model shapes the path before planning: the IK branch with the most cable slack, model-chosen joint waypoints and a wrist corridor; the cable guard stays the final check; careful feature flag, off in code" />
   <arg name="mtc_cable_support_margin" default="false" doc="true (with mtc_cable_plan_check): with the support wrist anchor (the sim) the MTC cable guard plans with a -0.07 geometric stretch margin instead of -0.115, so fewer arm paths are rejected as entangling; careful feature flag, off in code" />
   <arg name="external_grasp_ik_timeout" default="0.1" doc="seconds per compute_ik call of the open-set IK pre-filter; the sim profile passes 0.01 (each call spends its whole timeout)" />
@@ -82,6 +83,7 @@
     <param name="lift_sunk_target_to_support" type="bool" value="$(arg lift_sunk_target_to_support)" />
     <param name="drop_unknown_copy_of_target" type="bool" value="$(arg drop_unknown_copy_of_target)" />
     <param name="known_pick_open_set_fallback" type="bool" value="$(arg known_pick_open_set_fallback)" />
+    <param name="extra_grasp_sets" type="bool" value="$(arg extra_grasp_sets)" />
     <param name="mtc_cable_path_shaping" type="bool" value="$(arg mtc_cable_path_shaping)" />
     <param name="mtc_cable_support_margin" type="bool" value="$(arg mtc_cable_support_margin)" />
     <param name="external_grasp_ik_timeout" type="double" value="$(arg external_grasp_ik_timeout)" />
@@ -131,6 +133,9 @@
               command="load" ns="handcoded_grasp_planner_transforms" />
     <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/object_grasps/handcoded_grasp_planner_soup.yaml"
               command="load" ns="handcoded_grasp_planner_transforms" />
+    <!-- extra grasps per class, appended after the stored ones only with extra_grasp_sets -->
+    <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/object_grasps/handcoded_grasp_planner_soup_extra.yaml"
+              command="load" ns="handcoded_grasp_planner_extra_transforms" />
     <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/object_grasps/handcoded_grasp_planner_bleach.yaml"
               command="load" ns="handcoded_grasp_planner_transforms" />
     <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/object_grasps/handcoded_grasp_planner_mustard.yaml"
