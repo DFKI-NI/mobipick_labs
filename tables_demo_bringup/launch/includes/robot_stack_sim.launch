@@ -29,6 +29,7 @@
   <arg name="mtc_cable_support_margin" default="false" />
   <arg name="external_grasp_ik_timeout" default="0.1" />
   <arg name="open_set_pick_from_current_state" default="false" />
+  <arg name="open_set_prefer_less_backoff" default="false" doc="true (safe): open-set picks: the grasps moved back along their approach to keep the fingertips clear of the table are ordered by how far they were moved back, in 5 mm steps, smallest first (the grasp finder's order stays inside a step), before the reachability check and the cable ranking, which stays the first key; same maximum back-off; the offer limit cuts after this order, so which grasps are offered can change; a heuristic, no guarantee of a firmer grasp; safe feature flag, off in code" />
   <arg name="drop_floating_boxes_at_target" default="0.0" />
   <arg name="place_sample_within_reach" default="false" />
   <arg name="place_free_footprints_first" default="false" />
@@ -135,6 +136,7 @@
     <arg name="mtc_cable_support_margin" value="$(arg mtc_cable_support_margin)" />
     <arg name="external_grasp_ik_timeout" value="$(arg external_grasp_ik_timeout)" />
     <arg name="open_set_pick_from_current_state" value="$(arg open_set_pick_from_current_state)" />
+    <arg name="open_set_prefer_less_backoff" value="$(arg open_set_prefer_less_backoff)" />
     <arg name="drop_floating_boxes_at_target" value="$(arg drop_floating_boxes_at_target)" />
     <arg name="place_sample_within_reach" value="$(arg place_sample_within_reach)" />
     <arg name="place_free_footprints_first" value="$(arg place_free_footprints_first)" />
