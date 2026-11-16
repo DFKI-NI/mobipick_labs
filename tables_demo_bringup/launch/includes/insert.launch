@@ -24,6 +24,7 @@
   <arg name="insert_cable_gate" default="false" doc="true: rank insert poses by predicted cable stretch and offer likely safe ones first; safe feature flag, off in code" />
   <arg name="cable_detour_mode" default="hack" doc="hack: the closed-set objects visit the fixed untangle poses before a pick, place and insert, as always; cable_aware: no untangle pose at all (also no cable replay detour), the MTC cable guard is the protection and a refused motion fails with a clear text; careful flag, hack in the code" />
   <arg name="use_mesh_object_heights" default="false" doc="true: insert pose heights of the closed-set table classes come from the recognised mesh box instead of the hand-typed table (the release pose of the glue gun, meat and mustard moves down by up to 2.2 cm); careful feature flag, off in code" />
+  <arg name="plan_cache_named_moves" default="false" doc="true: a named arm move of the pick, place and insert (the untangle poses, transport, the planned start move of the pick) that starts within 5 mrad of a plan the cable guard passed before, under the same guard settings, runs that plan again with its verdict once its path is collision free in the current planning scene, instead of planning and replaying the cable chain again; careful feature flag, off in code" />
 
   <node pkg="grasplan" type="insert.py" name="insert_object_node" output="screen" ns="$(arg namespace)" required="true">
     <param name="global_reference_frame" type="string" value="$(arg map_frame)" />
@@ -52,6 +53,7 @@
     <param name="insert_cable_gate" type="bool" value="$(arg insert_cable_gate)" />
     <param name="cable_detour_mode" type="string" value="$(arg cable_detour_mode)" />
     <param name="use_mesh_object_heights" type="bool" value="$(arg use_mesh_object_heights)" />
+    <param name="plan_cache_named_moves" type="bool" value="$(arg plan_cache_named_moves)" />
   </node>
 
 </launch>

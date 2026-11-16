@@ -24,6 +24,7 @@
   <arg name="map_frame" default="map" />
   <arg name="ps" value="$(eval '/' + arg('pose_selector_ns').strip('/') if arg('pose_selector_ns').strip('/') else '')" />
   <arg name="cable_detour_mode" default="hack" doc="hack: the closed-set objects visit the fixed untangle poses before a pick, place and insert, as always; cable_aware: no untangle pose at all (also no cable replay detour), the MTC cable guard is the protection and a refused motion fails with a clear text; careful flag, hack in the code" />
+  <arg name="plan_cache_named_moves" default="false" doc="true: a named arm move of the pick, place and insert (the untangle poses, transport, the planned start move of the pick) that starts within 5 mrad of a plan the cable guard passed before, under the same guard settings, runs that plan again with its verdict once its path is collision free in the current planning scene, instead of planning and replaying the cable chain again; careful feature flag, off in code" />
 
   <!--place object wrapper node-->
   <node pkg="grasplan" type="place.py" name="place_object_node" output="screen" ns="$(arg namespace)" required="true">
@@ -49,6 +50,7 @@
     <param name="mtc_grasp_check_squeeze" type="bool" value="$(arg mtc_grasp_check_squeeze)" />
     <param name="mtc_cable_replay_live_state" type="bool" value="$(arg mtc_cable_replay_live_state)" />
     <param name="cable_detour_mode" type="string" value="$(arg cable_detour_mode)" />
+    <param name="plan_cache_named_moves" type="bool" value="$(arg plan_cache_named_moves)" />
   </node>
 
   <!-- a second pose selector for storing place poses -->
