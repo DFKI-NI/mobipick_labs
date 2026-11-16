@@ -51,6 +51,7 @@
   <arg name="grasp_shape_features" default="false" />
   <arg name="open_set_strip_reported_padding" default="false" />
   <arg name="mtc_lift_tolerate_touching_neighbours" default="false" />
+  <arg name="clear_target_octomap_cells" default="false" />
   <arg name="insert_cable_gate" default="false" />
   <arg name="use_mesh_object_heights" default="false" />
   <arg name="place_same_orientation_as_picked" default="true" />
@@ -158,6 +159,7 @@
     <arg name="grasp_shape_features" value="$(arg grasp_shape_features)" />
     <arg name="open_set_strip_reported_padding" value="$(arg open_set_strip_reported_padding)" />
     <arg name="mtc_lift_tolerate_touching_neighbours" value="$(arg mtc_lift_tolerate_touching_neighbours)" />
+    <arg name="clear_target_octomap_cells" value="$(arg clear_target_octomap_cells)" />
     <arg name="insert_cable_gate" value="$(arg insert_cable_gate)" />
     <arg name="use_mesh_object_heights" value="$(arg use_mesh_object_heights)" />
     <arg name="place_same_orientation_as_picked" value="$(arg place_same_orientation_as_picked)" />
