@@ -37,6 +37,7 @@
   <arg name="grasp_regrasp_on_overclose" default="false" doc="true: after the close the finger angle is compared with the one flat pads show on the perceived object width; closed 20 mm or more past it (a fingertip pinch) the gripper opens, goes deeper by the excess (at most 3 cm, never into the table, never on a backed-off grasp) and closes again before the lift; careful feature flag, off in code" />
   <arg name="grasp_shape_features" default="false" doc="true: the open-set pick decides top-only versus side grasps from the shape features measured on the point cloud of the detection (height, outline, footprint) instead of the box alone; no shape message = the box rule; careful feature flag, off in code" />
   <arg name="open_set_strip_reported_padding" default="false" doc="take off the padding the open-set detection reports for its box (box_padding of the detected object) instead of open_set_box_padding, which stays the fallback for a detection without it; careful flag, off by default" />
+  <arg name="mtc_local_kinematics" default="false" doc="true: the MTC planning of the pick, place and insert nodes (the C++ side of each node, named node_cpp) loads this checkout&apos;s mobipick_moveit_config kinematics.yaml (IK solver, timeout, solve type) into its private namespace, which MoveIt reads before the master&apos;s robot_description_kinematics; false removes that copy. A robot whose own MoveIt config holds a longer IK timeout then plans with this checkout&apos;s settings; safe feature flag, off in code" />
   <!-- GripperCommand.max_effort used for AnyGrasp grasps of unknown objects; the Robotiq action server
        accepts 30..100, the simulated gripper maps it to a real torque limit. -1 keeps gripper_joint_efforts. -->
   <arg name="anygrasp_gripper_max_effort" default="50.0" />
@@ -65,6 +66,15 @@
     <rosparam file="$(find mobipick_pick_n_place)/config/grasplan/gripper_open_transformations.yaml" command="load" ns="gripper_transformations"/>
     <remap from="pose_array" to="/$(arg namespace)/pick_object_node/grasp_poses"/>
   </node>
+  <!-- MTC plans in the C++ side of the node (pick_object_node_cpp), which reads its IK settings from its private namespace
+       before the master's robot_description_kinematics. The arm entry is cleared first, so a copy left on the master by
+       an earlier launch with the option on does not stay in force. kinematics.yaml uses arg prefix (the tf prefix). -->
+  <arg name="prefix" value="$(arg namespace)/" />
+  <group ns="$(arg namespace)/pick_object_node_cpp">
+    <group ns="arm" clear_params="true" />
+    <rosparam if="$(arg mtc_local_kinematics)" command="load" file="$(find mobipick_moveit_config)/config/kinematics.yaml" subst_value="true" />
+  </group>
+
   <!-- pick object script using handcoded grasp planner
        (grasps  defined manually using grasp editor or recorded via gazebo zero gravity environment) -->
   <node pkg="grasplan" type="pick.py" name="pick_object_node" output="screen" ns="$(arg namespace)" required="true">

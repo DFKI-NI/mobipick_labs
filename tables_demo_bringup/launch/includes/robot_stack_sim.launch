@@ -57,6 +57,7 @@
   <arg name="clear_target_octomap_cells" default="false" />
   <arg name="insert_cable_gate" default="false" />
   <arg name="insert_order_ik_timeout" default="0.05" />
+  <arg name="mtc_local_kinematics" default="false" />
   <arg name="use_mesh_object_heights" default="false" />
   <arg name="place_same_orientation_as_picked" default="true" />
   <arg name="insert_orientation" default="free_yaw" />
@@ -169,6 +170,7 @@
     <arg name="clear_target_octomap_cells" value="$(arg clear_target_octomap_cells)" />
     <arg name="insert_cable_gate" value="$(arg insert_cable_gate)" />
     <arg name="insert_order_ik_timeout" value="$(arg insert_order_ik_timeout)" />
+    <arg name="mtc_local_kinematics" value="$(arg mtc_local_kinematics)" />
     <arg name="use_mesh_object_heights" value="$(arg use_mesh_object_heights)" />
     <arg name="place_same_orientation_as_picked" value="$(arg place_same_orientation_as_picked)" />
     <arg name="insert_orientation" value="$(arg insert_orientation)" />

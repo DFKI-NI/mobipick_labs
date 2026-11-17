@@ -49,6 +49,7 @@
   <arg name="object_seed" default="0" doc="sim only: seed of object_spawn:=random; the same seed gives the same scene" />
   <arg name="insert_cable_gate" default="false" doc="true: rank insert poses by predicted cable stretch and offer likely safe ones first; safe feature flag, off in code" />
   <arg name="insert_order_ik_timeout" default="0.05" doc="seconds per compute_ik call when the insert orders its candidate poses (each call spends its whole timeout, found or not); 0.05 keeps today's order time; 0.01 is the safe feature flag value (off in code)" />
+  <arg name="mtc_local_kinematics" default="false" doc="true: the MTC planning of the pick, place and insert nodes (the C++ side of each node, named node_cpp) loads this checkout&apos;s mobipick_moveit_config kinematics.yaml (IK solver, timeout, solve type) into its private namespace, which MoveIt reads before the master&apos;s robot_description_kinematics; false removes that copy. A robot whose own MoveIt config holds a longer IK timeout then plans with this checkout&apos;s settings; safe feature flag, off in code" />
   <arg name="cable_detour_mode" default="hack" doc="hack: the closed-set objects visit the fixed untangle poses before a pick, place and insert, as always; cable_aware: no untangle pose at all (also no cable replay detour), the MTC cable guard is the protection and a refused motion fails with a clear text; careful flag, hack in the code" />
   <arg name="use_mesh_object_heights" default="false" doc="true: insert pose heights of the closed-set table classes come from the recognised mesh box instead of the hand-typed table (the release pose of the glue gun, meat and mustard moves down by up to 2.2 cm); careful feature flag, off in code" />
   <arg name="place_same_orientation_as_picked" default="true" doc="false: small objects (e.g. balls, fruit) are inserted with the gripper pointing straight down and the wrist turned as little as possible, instead of in the orientation they were grasped in (avoids winding up the arm cable)" />
@@ -207,6 +208,7 @@
     <arg name="clear_target_octomap_cells" value="$(arg clear_target_octomap_cells)" />
     <arg name="insert_cable_gate" value="$(arg insert_cable_gate)" />
     <arg name="insert_order_ik_timeout" value="$(arg insert_order_ik_timeout)" />
+    <arg name="mtc_local_kinematics" value="$(arg mtc_local_kinematics)" />
     <arg name="use_mesh_object_heights" value="$(arg use_mesh_object_heights)" />
     <arg name="place_same_orientation_as_picked" value="$(arg place_same_orientation_as_picked)" />
     <arg name="insert_orientation" value="$(arg insert_orientation)" />
@@ -272,6 +274,7 @@
     <arg name="clear_target_octomap_cells" value="$(arg clear_target_octomap_cells)" />
     <arg name="insert_cable_gate" value="$(arg insert_cable_gate)" />
     <arg name="insert_order_ik_timeout" value="$(arg insert_order_ik_timeout)" />
+    <arg name="mtc_local_kinematics" value="$(arg mtc_local_kinematics)" />
     <arg name="use_mesh_object_heights" value="$(arg use_mesh_object_heights)" />
     <arg name="place_same_orientation_as_picked" value="$(arg place_same_orientation_as_picked)" />
     <arg name="insert_orientation" value="$(arg insert_orientation)" />
@@ -336,6 +339,7 @@
     <arg name="clear_target_octomap_cells" value="$(arg clear_target_octomap_cells)" />
     <arg name="insert_cable_gate" value="$(arg insert_cable_gate)" />
     <arg name="insert_order_ik_timeout" value="$(arg insert_order_ik_timeout)" />
+    <arg name="mtc_local_kinematics" value="$(arg mtc_local_kinematics)" />
     <arg name="use_mesh_object_heights" value="$(arg use_mesh_object_heights)" />
     <arg name="place_same_orientation_as_picked" value="$(arg place_same_orientation_as_picked)" />
     <arg name="insert_orientation" value="$(arg insert_orientation)" />

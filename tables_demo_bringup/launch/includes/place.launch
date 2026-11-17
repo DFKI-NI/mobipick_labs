@@ -26,6 +26,16 @@
   <arg name="ps" value="$(eval '/' + arg('pose_selector_ns').strip('/') if arg('pose_selector_ns').strip('/') else '')" />
   <arg name="cable_detour_mode" default="hack" doc="hack: the closed-set objects visit the fixed untangle poses before a pick, place and insert, as always; cable_aware: no untangle pose at all (also no cable replay detour), the MTC cable guard is the protection and a refused motion fails with a clear text; careful flag, hack in the code" />
   <arg name="plan_cache_named_moves" default="false" doc="true: a named arm move of the pick, place and insert (the untangle poses, transport, the planned start move of the pick) that starts within 5 mrad of a plan the cable guard passed before, under the same guard settings, runs that plan again with its verdict once its path is collision free in the current planning scene, instead of planning and replaying the cable chain again; careful feature flag, off in code" />
+  <arg name="mtc_local_kinematics" default="false" doc="true: the MTC planning of the pick, place and insert nodes (the C++ side of each node, named node_cpp) loads this checkout&apos;s mobipick_moveit_config kinematics.yaml (IK solver, timeout, solve type) into its private namespace, which MoveIt reads before the master&apos;s robot_description_kinematics; false removes that copy. A robot whose own MoveIt config holds a longer IK timeout then plans with this checkout&apos;s settings; safe feature flag, off in code" />
+
+  <!-- MTC plans in the C++ side of the node (place_object_node_cpp), which reads its IK settings from its private namespace
+       before the master's robot_description_kinematics. The arm entry is cleared first, so a copy left on the master by
+       an earlier launch with the option on does not stay in force. kinematics.yaml uses arg prefix (the tf prefix). -->
+  <arg name="prefix" value="$(arg namespace)/" />
+  <group ns="$(arg namespace)/place_object_node_cpp">
+    <group ns="arm" clear_params="true" />
+    <rosparam if="$(arg mtc_local_kinematics)" command="load" file="$(find mobipick_moveit_config)/config/kinematics.yaml" subst_value="true" />
+  </group>
 
   <!--place object wrapper node-->
   <node pkg="grasplan" type="place.py" name="place_object_node" output="screen" ns="$(arg namespace)" required="true">
