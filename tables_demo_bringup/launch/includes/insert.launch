@@ -22,6 +22,7 @@
   <arg name="place_drop_implausible_boxes" default="false" doc="leave implausible detector boxes out of the place scene; safe feature flag, off in code, on in the sim" />
   <arg name="mtc_cable_replay_live_state" default="false" doc="true (with mtc_cable_plan_check): the cable guard's replay of a planned path through the carrier link chain goes on from the cable monitor's live chain (its chain_state service) and the path must also pass a replay from a fresh chain (both must pass), so the guard sees what the motions before the path did; the fresh chain is also what is used where the monitor resets its chain at every trajectory start; careful feature flag, off in code" />
   <arg name="insert_cable_gate" default="false" doc="true: rank insert poses by predicted cable stretch and offer likely safe ones first; safe feature flag, off in code" />
+  <arg name="insert_order_ik_timeout" default="0.05" doc="seconds per compute_ik call when the insert orders its candidate poses (each call spends its whole timeout, found or not); 0.05 keeps today's order time; 0.01 is the safe feature flag value (off in code)" />
   <arg name="cable_detour_mode" default="hack" doc="hack: the closed-set objects visit the fixed untangle poses before a pick, place and insert, as always; cable_aware: no untangle pose at all (also no cable replay detour), the MTC cable guard is the protection and a refused motion fails with a clear text; careful flag, hack in the code" />
   <arg name="use_mesh_object_heights" default="false" doc="true: insert pose heights of the closed-set table classes come from the recognised mesh box instead of the hand-typed table (the release pose of the glue gun, meat and mustard moves down by up to 2.2 cm); careful feature flag, off in code" />
   <arg name="plan_cache_named_moves" default="false" doc="true: a named arm move of the pick, place and insert (the untangle poses, transport, the planned start move of the pick) that starts within 5 mrad of a plan the cable guard passed before, under the same guard settings, runs that plan again with its verdict once its path is collision free in the current planning scene, instead of planning and replaying the cable chain again; careful feature flag, off in code" />
@@ -51,6 +52,7 @@
     <param name="place_drop_implausible_boxes" type="bool" value="$(arg place_drop_implausible_boxes)" />
     <param name="mtc_cable_replay_live_state" type="bool" value="$(arg mtc_cable_replay_live_state)" />
     <param name="insert_cable_gate" type="bool" value="$(arg insert_cable_gate)" />
+    <param name="insert_order_ik_timeout" type="double" value="$(arg insert_order_ik_timeout)" />
     <param name="cable_detour_mode" type="string" value="$(arg cable_detour_mode)" />
     <param name="use_mesh_object_heights" type="bool" value="$(arg use_mesh_object_heights)" />
     <param name="plan_cache_named_moves" type="bool" value="$(arg plan_cache_named_moves)" />
