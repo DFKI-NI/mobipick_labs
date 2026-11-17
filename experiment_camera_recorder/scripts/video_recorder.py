@@ -1,34 +1,61 @@
 #!/usr/bin/env python3
 
-"""Record ROS image topics into videos that only contain the moments the robot moves.
+# Copyright (c) 2026, DFKI GmbH and contributors
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+#    * Redistributions of source code must retain the above copyright
+#      notice, this list of conditions and the following disclaimer.
+#
+#    * Redistributions in binary form must reproduce the above copyright
+#      notice, this list of conditions and the following disclaimer in the
+#      documentation and/or other materials provided with the distribution.
+#
+#    * Neither the name of the copyright holder nor the names of its
+#      contributors may be used to endorse or promote products derived from
+#      this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
 
-Every image topic in ``~image_topics`` is written to ``<output_dir>/<id>_<name>.mp4`` (with ``~title``, ``<id>_<title>.mp4``, see ``sanitize_title``); ``<id>`` is a unique video
-id ``v<YYYYMMDD>-<HHMMSS>-<4 hex>`` for easy reference, and every frame shows that id and what was run as lime
-text in a black strip added on top of the camera picture (the frames grow in height, the picture stays untouched):
-``~command`` (the shell command of the experiment) and the last goal that arrived on ``~command_topic`` (default
-``/recognized_speech``, where the GUI's speech input and ``agent_experiment.py`` send the GPT demo's goal to the LLM)
-with the model profile (the ``~model_label_param`` parameter of the running agent); without either the frames say
-so in capitals, and with neither ``~command`` nor ``~command_topic`` the recorder refuses to start; ``video_ids.tsv`` beside the recording folders gets one ``<id>\t<absolute path>`` line per
-new video (append-only). There is no sped-up copy (the viewer plays at 4x), and topics that match
-``~forbidden_topic_pattern`` (gripper / robot cameras, forbidden since 2026-10-04) are not recorded. With
-``~auto_pause`` frames are only written while the robot moves (base command
-velocity, arm or gripper joint velocities), so idle phases such as an agent
-thinking are cut automatically; the first ``~lead_in_s`` seconds and the ``~lead_in_s`` seconds after each goal
-are written also while the robot stands still, so a run in which the robot never moves (a refused plan) still gives a
-short video with the command and the robot at rest instead of none. The ``~pause`` / ``~resume`` services override that
-by hand. With ``~topic_robots`` (one robot namespace per image topic, e.g. the overview camera of each robot of a
-multi-robot sim) each video's title starts with its robot (its colour name such as ``orange-mobipick`` with
-``~robot_colours``) and it is written while that robot moves. ``~snapshot`` (std_msgs/String label) saves the latest frame of every
-topic as JPEG, ``~stop`` closes the videos. ``~status`` (std_srvs/Trigger) reports
-the state as JSON; ``events.jsonl`` in the output directory records pauses,
-resumes and snapshots with ROS and wall time, and ``<id>_<name>_frames.jsonl`` maps every
-frame of a topic's video to its source image stamp and the recorder's wall and ROS
-time, so videos of different topics can be aligned exactly.
+r"""
+Record ROS image topics into videos that only contain the moments the robot moves.
 
-A recorder can be killed without warning (it dies with the shell or container that started it), so with
-``~crash_safe`` (default) the videos are fragmented MP4 files (H.264 through GStreamer, a fragment per second) that
-stay playable up to the last fragment, and ``summary.json`` is kept current while recording (``"stopped": false``
-until a clean stop).
+Every image topic in ``~image_topics`` is written to ``<output_dir>/<id>_<name>.mp4`` (with ``~title``,
+``<id>_<title>.mp4``, see ``sanitize_title``); ``<id>`` is a unique video id ``v<YYYYMMDD>-<HHMMSS>-<4 hex>`` for easy
+reference, and every frame shows that id and what was run as lime text in a black strip added on top of the camera
+picture (the frames grow in height, the picture stays untouched): ``~command`` (the shell command of the experiment) and
+the last goal that arrived on ``~command_topic`` (default ``/recognized_speech``, where the GUI's speech input and
+``agent_experiment.py`` send the GPT demo's goal to the LLM) with the model profile (the ``~model_label_param``
+parameter of the running agent); without either the frames say so in capitals, and with neither ``~command`` nor
+``~command_topic`` the recorder refuses to start; ``video_ids.tsv`` beside the recording folders gets one
+``<id>\t<absolute path>`` line per new video (append-only). There is no sped-up copy (the viewer plays at 4x), and
+topics that match ``~forbidden_topic_pattern`` (gripper / robot cameras, forbidden since 2026-10-04) are not recorded.
+With ``~auto_pause`` frames are only written while the robot moves (base command velocity, arm or gripper joint
+velocities), so idle phases such as an agent thinking are cut automatically; the first ``~lead_in_s`` seconds and the
+``~lead_in_s`` seconds after each goal are written also while the robot stands still, so a run in which the robot never
+moves (a refused plan) still gives a short video with the command and the robot at rest instead of none. The ``~pause``
+/ ``~resume`` services override that by hand. With ``~topic_robots`` (one robot namespace per image topic, e.g. the
+overview camera of each robot of a multi-robot sim) each video's title starts with its robot (its colour name such as ``orange-mobipick`` with
+``~robot_colours``) and it is written while that robot moves. ``~snapshot`` (std_msgs/String label) saves the latest frame of every topic as JPEG, ``~stop`` closes
+the videos. ``~status`` (std_srvs/Trigger) reports the state as JSON; ``events.jsonl`` in the output directory records
+pauses, resumes and snapshots with ROS and wall time, and ``<id>_<name>_frames.jsonl`` maps every frame of a topic's
+video to its source image stamp and the recorder's wall and ROS time, so videos of different topics can be aligned
+exactly.
+
+A recorder can be killed without warning (it dies with the shell or container that started it), so with ``~crash_safe``
+(default) the videos are fragmented MP4 files (H.264 through GStreamer, a fragment per second) that stay playable up to
+the last fragment, and ``summary.json`` is kept current while recording (``"stopped": false`` until a clean stop).
 """
 
 import json
@@ -54,15 +81,18 @@ def _safe_name(text):
 
 
 def sanitize_title(text, max_length=40):
-    """The short readable title of a video for its file name: lower case, only ``[a-z0-9-]`` (every other run of
-    characters becomes one ``-``), no leading or trailing ``-``, at most ``max_length`` characters; "" stays ""
-    (the old file name)."""
+    """
+    Return the short readable title of a video for its file name.
+
+    Lower case, only ``[a-z0-9-]`` (every other run of characters becomes one ``-``), no leading or trailing
+    ``-``, at most ``max_length`` characters; "" stays "" (the old file name).
+    """
     title = re.sub(r"[^a-z0-9]+", "-", str(text or "").lower()).strip("-")
     return title[:max_length].rstrip("-")
 
 
 def video_id(started, token=None):
-    """The unique video id ``v<YYYYMMDD>-<HHMMSS>-<4 hex>`` of a video started at datetime ``started``."""
+    """Return the unique video id ``v<YYYYMMDD>-<HHMMSS>-<4 hex>`` of a video started at datetime ``started``."""
     return "v%s-%s" % (started.strftime("%Y%m%d-%H%M%S"), token or secrets.token_hex(2))
 
 
@@ -86,8 +116,12 @@ def robot_title(namespace, colours=False):
 
 
 def split_forbidden(topics, pattern):
-    """(allowed, refused) image topics: a topic matching regex ``pattern`` (case-insensitive) is a gripper / robot
-    camera, whose videos are forbidden; an empty pattern refuses nothing."""
+    """
+    Return (allowed, refused) image topics.
+
+    A topic matching regex ``pattern`` (case-insensitive) is a gripper / robot camera, whose videos are
+    forbidden; an empty pattern refuses nothing.
+    """
     refused = [t for t in topics if pattern and re.search(pattern, t, re.I)]
     return [t for t in topics if t not in refused], refused
 
@@ -96,8 +130,12 @@ COMMAND_MAX_LINES = 4
 
 
 def overlay_parts(command, goal="", model="", goal_topic=""):
-    """What the frames show about what was run: ``$ <shell command>`` and ``goal (model <m>): <goal text>``; when
-    neither is known a capital NO COMMAND line that says what is missing (never a silent placeholder)."""
+    """
+    Return what the frames show about what was run.
+
+    ``$ <shell command>`` and ``goal (model <m>): <goal text>``; when neither is known a capital NO COMMAND line
+    that says what is missing (never a silent placeholder).
+    """
     command, goal, model = (" ".join(str(t or "").split()) for t in (command, goal, model))
     parts = []
     if command:
@@ -105,14 +143,21 @@ def overlay_parts(command, goal="", model="", goal_topic=""):
     if goal:
         parts.append("goal%s: %s" % (" (model %s)" % model if model else "", goal))
     if not parts:
-        parts.append("NO COMMAND YET: waiting for the goal on %s" % goal_topic if goal_topic
-                     else "NO COMMAND GIVEN (pass command:=...)")
+        parts.append(
+            "NO COMMAND YET: waiting for the goal on %s" % goal_topic
+            if goal_topic
+            else "NO COMMAND GIVEN (pass command:=...)"
+        )
     return parts
 
 
 def find_model_label(param_names, get_param, suffix):
-    """The value of the first parameter whose name ends with ``/<suffix>`` (e.g. the GPT demo runner's
-    ``experiment_model_label``, its model profile), or "" when there is none or ``suffix`` is empty."""
+    """
+    Return the value of the first parameter whose name ends with ``/<suffix>``.
+
+    For example the GPT demo runner's ``experiment_model_label``, its model profile; "" when there is none or
+    ``suffix`` is empty.
+    """
     if not suffix:
         return ""
     for name in sorted(param_names):
@@ -139,8 +184,12 @@ def cut_to_width(line, max_width, scale):
 
 
 def command_lines(text, max_width, scale):
-    """``text`` wrapped at spaces to lines of at most ``max_width`` pixels (measured as drawn, so the lines use the
-    frame width; a word wider than a line is split), at most COMMAND_MAX_LINES lines (the last one cut with "...")."""
+    """
+    Return ``text`` wrapped at spaces to lines of at most ``max_width`` pixels.
+
+    Measured as drawn, so the lines use the frame width; a word wider than a line is split, at most
+    COMMAND_MAX_LINES lines (the last one cut with "...").
+    """
     lines, line = [], ""
     for word in text.split():
         candidate = (line + " " + word) if line else word
@@ -159,7 +208,7 @@ def command_lines(text, max_width, scale):
     if line:
         lines.append(line)
     if len(lines) > COMMAND_MAX_LINES:
-        lines = lines[:COMMAND_MAX_LINES - 1] + [cut_to_width(lines[COMMAND_MAX_LINES - 1], max_width, scale)]
+        lines = lines[: COMMAND_MAX_LINES - 1] + [cut_to_width(lines[COMMAND_MAX_LINES - 1], max_width, scale)]
     return lines
 
 
@@ -169,43 +218,56 @@ STALL_AFTER_S = 5.0      # images arriving this long with no frame written: the 
 
 
 def crash_safe_pipeline(path, fps, bitrate_kbps, codec="h264"):
-    """GStreamer pipeline for OpenCV's VideoWriter that writes ``path`` as a fragmented MP4 (one key frame and one
-    fragment per second): every finished fragment is playable, also when the recorder is killed (SIGKILL) and never
-    closes the file, while a plain MP4 writes its index only when it is closed. ``codec`` "h264" (x264enc of
-    gstreamer1.0-plugins-ugly, 4:2:0 main profile, which every player decodes) or "vp8" (vp8enc)."""
+    """
+    Open a crash-safe GStreamer pipeline for OpenCV's VideoWriter that writes ``path`` as a fragmented MP4.
+
+    One key frame and one fragment per second: every finished fragment is playable, also when the recorder is
+    killed (SIGKILL) and never closes the file, while a plain MP4 writes its index only when it is closed.
+    ``codec`` "h264" (x264enc of gstreamer1.0-plugins-ugly, 4:2:0 main profile, which every player decodes) or
+    "vp8" (vp8enc).
+    """
     location = path.replace("\\", "\\\\").replace('"', '\\"')
     key_frame_distance = max(int(round(fps)), 1)
     if codec == "vp8":
-        encoder = ('vp8enc deadline=1 cpu-used=4 threads=2 target-bitrate=%d keyframe-max-dist=%d'
-                   % (int(bitrate_kbps * 1000), key_frame_distance))
+        encoder = 'vp8enc deadline=1 cpu-used=4 threads=2 target-bitrate=%d keyframe-max-dist=%d' % (
+            int(bitrate_kbps * 1000),
+            key_frame_distance,
+        )
     else:
-        encoder = ('video/x-raw,format=I420 ! x264enc speed-preset=veryfast tune=zerolatency threads=2 bitrate=%d '
-                   'key-int-max=%d ! video/x-h264,profile=main' % (max(int(round(bitrate_kbps)), 1), key_frame_distance))
-    return ('appsrc ! videoconvert ! %s ! qtmux fragment-duration=1000 streamable=true ! filesink location="%s"'
-            % (encoder, location))
+        encoder = (
+            'video/x-raw,format=I420 ! x264enc speed-preset=veryfast tune=zerolatency threads=2 bitrate=%d '
+            'key-int-max=%d ! video/x-h264,profile=main' % (max(int(round(bitrate_kbps)), 1), key_frame_distance)
+        )
+    return 'appsrc ! videoconvert ! %s ! qtmux fragment-duration=1000 streamable=true ! filesink location="%s"' % (
+        encoder,
+        location,
+    )
 
 
 def write_json_atomically(path, data):
-    """``data`` as JSON into ``path`` through a temporary file, so a reader (or a kill) never sees half a file."""
+    """Write ``data`` as JSON into ``path`` through a temporary file, so a reader (or a kill) never sees half a file."""
     temporary = path + ".tmp"
     with open(temporary, "w") as handle:
         json.dump(data, handle, indent=2)
     os.replace(temporary, path)
 
 
-TEXT_COLOR = (0, 255, 0)      # BGR: pure lime green, on the black strip above the picture
+TEXT_COLOR = (0, 255, 0)  # BGR: pure lime green, on the black strip above the picture
 STRIP_COLOR = (0, 0, 0)
-STRIP_MARGIN = 8              # pixels around the text in the strip
-GOAL_SPARE_ROWS = 2           # rows kept free in the strip for a goal that arrives after the video started
+STRIP_MARGIN = 8  # pixels around the text in the strip
+GOAL_SPARE_ROWS = 2  # rows kept free in the strip for a goal that arrives after the video started
 
 
-TEXT_SCALE = 0.62             # font scale of the strip text in a 1280 pixel wide frame (smaller frames: smaller text)
-TEXT_SCALE_MIN = 0.4          # below this the text is not readable any more
+TEXT_SCALE = 0.62  # font scale of the strip text in a 1280 pixel wide frame (smaller frames: smaller text)
+TEXT_SCALE_MIN = 0.4  # below this the text is not readable any more
 
 
 def strip_layout(width, picture_height, rows):
-    """(scale, row step, text width in pixels, strip height) of the text strip above a ``width`` pixel wide picture:
-    the strip holds ``rows`` text lines and the whole frame (strip + picture) gets an even height for the encoder."""
+    """
+    (scale, row step, text width in pixels, strip height) of the text strip above a ``width`` pixel wide picture.
+
+    The strip holds ``rows`` text lines and the whole frame (strip + picture) gets an even height for the encoder.
+    """
     scale = max(TEXT_SCALE_MIN, min(TEXT_SCALE, TEXT_SCALE * width / 1280.0))
     (_, char_h), baseline = cv2.getTextSize("Mg", cv2.FONT_HERSHEY_SIMPLEX, scale, 1)
     step = int(char_h * 1.6) + 2
@@ -219,7 +281,7 @@ def fit_rows(lines, rows, max_width, scale):
     """``lines`` cut to ``rows`` lines; a cut shows as "..." at the end of the last line."""
     if len(lines) <= rows:
         return list(lines)
-    kept = list(lines[:max(rows, 1)])
+    kept = list(lines[: max(rows, 1)])
     kept[-1] = cut_to_width(kept[-1], max_width, scale)
     return kept
 
@@ -227,8 +289,21 @@ def fit_rows(lines, rows, max_width, scale):
 class TopicRecorder:
     """Videos and snapshots of one image topic."""
 
-    def __init__(self, topic, output_dir, fps, codec, overlay, video_id, command="", ids_path=None, crash_safe=True,
-                 bitrate_kbps=2000, title="", title_only=False):
+    def __init__(
+        self,
+        topic,
+        output_dir,
+        fps,
+        codec,
+        overlay,
+        video_id,
+        command="",
+        ids_path=None,
+        crash_safe=True,
+        bitrate_kbps=2000,
+        title="",
+        title_only=False,
+    ):
         self.topic = topic
         self.name = _safe_name(topic)
         self.id = video_id
@@ -248,10 +323,10 @@ class TopicRecorder:
         self.latest = None
         self.latest_image = None
         self.writer = None
-        self.size = None          # (width, height) of the video: the camera picture plus the text strip on top
+        self.size = None  # (width, height) of the video: the camera picture plus the text strip on top
         self.picture_size = None  # (width, height) of the camera picture
-        self.layout = None        # strip_layout() of the video, fixed when the video opens
-        self.rows = 0             # text rows of the strip
+        self.layout = None  # strip_layout() of the video, fixed when the video opens
+        self.rows = 0  # text rows of the strip
         self.frames = 0
         self.last_written_stamp = None
         # images that arrived, and when the last frame was written: an empty or stopped video then says whether the
@@ -271,7 +346,7 @@ class TopicRecorder:
         # shows as a jump in the times, never as missing indices
         self.frames_index_path = os.path.join(output_dir, "%s_%s_frames.jsonl" % (video_id, label))
         self._frames_index = None
-        self.subscriber = rospy.Subscriber(topic, Image, self._callback, queue_size=1, buff_size=2 ** 24)
+        self.subscriber = rospy.Subscriber(topic, Image, self._callback, queue_size=1, buff_size=2**24)
 
     def _callback(self, message):
         with self.lock:
@@ -299,7 +374,7 @@ class TopicRecorder:
         self.size = (width, height + self.layout[3])
         self.writer = self._open_writer()
         rospy.loginfo("%s -> %s (%.3g fps)", self.topic, self.video_path, self.fps)
-        if self.ids_path:                              # append-only "<id>\t<absolute path>" index of all videos
+        if self.ids_path:  # append-only "<id>\t<absolute path>" index of all videos
             try:
                 with open(self.ids_path, "a") as handle:
                     handle.write("%s\t%s\n" % (self.id, os.path.abspath(self.video_path)))
@@ -307,46 +382,78 @@ class TopicRecorder:
                 rospy.logerr("could not add %s to %s: %s", self.id, self.ids_path, error)
 
     def _open_writer(self):
-        """The crash-safe writer (crash_safe_pipeline), else OpenCV's FFMPEG writer with ``codec``, whose MP4 is
-        unplayable when the recorder is killed before the stop."""
+        """
+        Return the crash-safe writer (crash_safe_pipeline), else OpenCV's FFMPEG writer with ``codec``.
+
+        Its MP4 is unplayable when the recorder is killed before the stop.
+        """
         if self.crash_safe:
             for codec in CRASH_SAFE_CODECS:
-                writer = cv2.VideoWriter(crash_safe_pipeline(self.video_path, self.fps, self.bitrate_kbps, codec),
-                                         cv2.CAP_GSTREAMER, 0, self.fps, self.size, True)
+                writer = cv2.VideoWriter(
+                    crash_safe_pipeline(self.video_path, self.fps, self.bitrate_kbps, codec),
+                    cv2.CAP_GSTREAMER,
+                    0,
+                    self.fps,
+                    self.size,
+                    True,
+                )
                 if writer.isOpened():
                     if codec != CRASH_SAFE_CODECS[0]:
-                        rospy.logwarn("%s: no GStreamer x264enc (package gstreamer1.0-plugins-ugly), writing VP8: "
-                                      "VLC cannot play it, transcode it with ffmpeg -i <video> -c:v libx264 -pix_fmt "
-                                      "yuv420p <copy>.mp4 before showing it", self.topic)
+                        rospy.logwarn(
+                            "%s: no GStreamer x264enc (package gstreamer1.0-plugins-ugly), writing VP8: "
+                            "VLC cannot play it, transcode it with ffmpeg -i <video> -c:v libx264 -pix_fmt "
+                            "yuv420p <copy>.mp4 before showing it",
+                            self.topic,
+                        )
                     return writer
-            rospy.logwarn("%s: no GStreamer H.264 / VP8 qtmux writer, falling back to %s: the video is unplayable if "
-                          "the recorder is killed before it is stopped", self.topic, self.codec)
+            rospy.logwarn(
+                "%s: no GStreamer H.264 / VP8 qtmux writer, falling back to %s: the video is unplayable if "
+                "the recorder is killed before it is stopped",
+                self.topic,
+                self.codec,
+            )
         writer = cv2.VideoWriter(self.video_path, cv2.VideoWriter_fourcc(*self.codec), self.fps, self.size)
         if not writer.isOpened():
             raise RuntimeError("could not open the video writer for %s in %s" % (self.topic, self.output_dir))
         return writer
 
     def set_overlay(self, parts, spare_rows=0):
-        """Show ``parts`` (see overlay_parts) from the next frame on; ``spare_rows`` text rows stay free in the
-        strip of a video that opens now, for text that arrives later (a goal)."""
+        """
+        Show ``parts`` (see overlay_parts) from the next frame on.
+
+        ``spare_rows`` text rows stay free in the strip of a video that opens now, for text that arrives later
+        (a goal).
+        """
         with self.lock:
             self.parts = list(parts)
             self.spare_rows = max(int(spare_rows), 0)
             self._header = None
 
     def _with_strip(self, image, status=""):
-        """``image`` with the black text strip on top: the video id (and ``status``) in the first line, then what was
-        run, in lime; the camera picture itself is not drawn on."""
+        """
+        ``image`` with the black text strip on top.
+
+        The video id (and ``status``) in the first line, then what was run, in lime; the camera picture itself is
+        not drawn on.
+        """
         scale, step, max_width, strip = self.layout
-        with self.lock:                                 # set_overlay may swap the parts from the goal callback
+        with self.lock:  # set_overlay may swap the parts from the goal callback
             if self._header is None:
                 lines = [line for part in self.parts for line in command_lines(part, max_width, scale)]
                 self._header = fit_rows(lines, self.rows - 1, max_width, scale)
             lines = [("%s   %s" % (self.id, status)).rstrip()] + self._header
         frame = cv2.copyMakeBorder(image, strip, 0, 0, 0, cv2.BORDER_CONSTANT, value=STRIP_COLOR)
         for row, line in enumerate(lines):
-            cv2.putText(frame, line, (STRIP_MARGIN, STRIP_MARGIN + step * (row + 1) - 4), cv2.FONT_HERSHEY_SIMPLEX,
-                        scale, TEXT_COLOR, 1, cv2.LINE_AA)
+            cv2.putText(
+                frame,
+                line,
+                (STRIP_MARGIN, STRIP_MARGIN + step * (row + 1) - 4),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                scale,
+                TEXT_COLOR,
+                1,
+                cv2.LINE_AA,
+            )
         return frame
 
     def write_latest(self, label):
@@ -402,8 +509,13 @@ class TopicRecorder:
         """Append the acquisition and recording times of output frame ``index`` to the frames sidecar."""
         if self._frames_index is None:
             self._frames_index = open(self.frames_index_path, "a")
-        entry = {"frame": index, "source_stamp": stamp.to_sec(), "wall_time": time.time(),
-                 "ros_time": rospy.Time.now().to_sec(), "label": label}
+        entry = {
+            "frame": index,
+            "source_stamp": stamp.to_sec(),
+            "wall_time": time.time(),
+            "ros_time": rospy.Time.now().to_sec(),
+            "label": label,
+        }
         self._frames_index.write(json.dumps(entry) + "\n")
         self._frames_index.flush()
 
@@ -447,19 +559,27 @@ class VideoRecorder:
         forbidden = str(rospy.get_param("~forbidden_topic_pattern", r"gripper|eef|wrist|hand_cam|arm_cam"))
         topics, refused = split_forbidden(topics, forbidden)
         if refused:
-            rospy.logwarn("not recording %s: gripper / robot camera videos are forbidden (~forbidden_topic_pattern %r)",
-                          refused, forbidden)
+            rospy.logwarn(
+                "not recording %s: gripper / robot camera videos are forbidden (~forbidden_topic_pattern %r)",
+                refused,
+                forbidden,
+            )
         if not topics:
             raise ValueError("no image topic left to record (refused: %s)" % refused)
         self.command = str(rospy.get_param("~command", "")).strip()
         self.command_topic = str(rospy.get_param("~command_topic", "/recognized_speech")).strip()
         self.model_label_param = str(rospy.get_param("~model_label_param", "experiment_model_label")).strip()
         if not self.command and not self.command_topic:
-            raise ValueError("nothing tells what is run: pass command:=\"<the command>\" or command_topic:=<the goal "
-                             "topic> (a video must show what was run)")
+            raise ValueError(
+                "nothing tells what is run: pass command:=\"<the command>\" or command_topic:=<the goal "
+                "topic> (a video must show what was run)"
+            )
         if not self.command:
-            rospy.logwarn("~command is empty: the videos show the goal that arrives on %s (with the model profile) "
-                          "and 'NO COMMAND YET' until then", self.command_topic)
+            rospy.logwarn(
+                "~command is empty: the videos show the goal that arrives on %s (with the model profile) "
+                "and 'NO COMMAND YET' until then",
+                self.command_topic,
+            )
         self.goals = []
         self.fps = float(rospy.get_param("~fps", 10.0))
         codec = str(rospy.get_param("~codec", "avc1"))
@@ -477,24 +597,35 @@ class VideoRecorder:
         # robot of a multi-robot sim: its video's title starts with the robot and it pauses on that robot's motion
         self.topic_robots = [ns.strip("/") for ns in motion_list(rospy.get_param("~topic_robots", []))]
         if self.topic_robots and len(self.topic_robots) != len(topics):
-            raise ValueError("~topic_robots names %d robots for %d image topics %s"
-                             % (len(self.topic_robots), len(topics), topics))
+            raise ValueError(
+                "~topic_robots names %d robots for %d image topics %s" % (len(self.topic_robots), len(topics), topics)
+            )
         # the robots whose motion counts: ~robot_namespaces, else those of ~topic_robots, else mobipick; explicit
         # ~cmd_vel_topic / ~joint_states_topic (lists or one topic) override their topics and count for every video
-        namespaces = ([ns.strip("/") for ns in motion_list(rospy.get_param("~robot_namespaces", ""))]
-                      or list(dict.fromkeys(self.topic_robots)) or ["mobipick"])
+        namespaces = (
+            [ns.strip("/") for ns in motion_list(rospy.get_param("~robot_namespaces", ""))]
+            or list(dict.fromkeys(self.topic_robots))
+            or ["mobipick"]
+        )
         cmd_vel_topic = rospy.get_param("~cmd_vel_topic", None)
         joint_states_topic = rospy.get_param("~joint_states_topic", None)
-        cmd_vel_topics = ([(t, None) for t in motion_list(cmd_vel_topic)] if cmd_vel_topic is not None
-                          else [("/%s/cmd_vel" % ns, ns) for ns in namespaces])
-        joint_states_topics = ([(t, None) for t in motion_list(joint_states_topic)] if joint_states_topic is not None
-                               else [("/%s/joint_states" % ns, ns) for ns in namespaces])
+        cmd_vel_topics = (
+            [(t, None) for t in motion_list(cmd_vel_topic)]
+            if cmd_vel_topic is not None
+            else [("/%s/cmd_vel" % ns, ns) for ns in namespaces]
+        )
+        joint_states_topics = (
+            [(t, None) for t in motion_list(joint_states_topic)]
+            if joint_states_topic is not None
+            else [("/%s/joint_states" % ns, ns) for ns in namespaces]
+        )
         if self.fps <= 0:
             raise ValueError("~fps must be positive")
 
         started = datetime.now()
-        self.output_dir = self._resolve_output_dir(rospy.get_param("~output_dir", ""), rospy.get_param("~name", ""),
-                                                   started)
+        self.output_dir = self._resolve_output_dir(
+            rospy.get_param("~output_dir", ""), rospy.get_param("~name", ""), started
+        )
         os.makedirs(self.output_dir, exist_ok=True)
         self.events_path = os.path.join(self.output_dir, "events.jsonl")
         self.summary_path = os.path.join(self.output_dir, "summary.json")
@@ -502,7 +633,7 @@ class VideoRecorder:
         self.lock = threading.Lock()
         self.manual_paused = bool(rospy.get_param("~start_paused", False))
         self.last_motion = None
-        self.robot_motion = {}    # robot namespace (None: a topic of no robot) -> time of its last motion
+        self.robot_motion = {}  # robot namespace (None: a topic of no robot) -> time of its last motion
         self.moving = False
         self.recording = False
         self.stopped = False
@@ -511,7 +642,7 @@ class VideoRecorder:
         self.lead_in_until = self.started_wall + self.lead_in_s
         title = rospy.get_param("~title", "")
         ids = set()
-        while len(ids) < len(topics):                 # one id per video, unique also within this recording
+        while len(ids) < len(topics):  # one id per video, unique also within this recording
             ids.add(video_id(started))
         ids_path = os.path.join(os.path.dirname(self.output_dir), "video_ids.tsv")
         if self.topic_robots:                         # the file name says which robot the video shows
@@ -521,9 +652,23 @@ class VideoRecorder:
         else:
             titles = [title] * len(topics)
         title_only = len(topics) == 1 or bool(self.topic_robots)
-        self.recorders = [TopicRecorder(t, self.output_dir, self.fps, codec, overlay, i, self.command, ids_path,
-                                        crash_safe, bitrate_kbps, video_title, title_only)
-                          for t, i, video_title in zip(topics, sorted(ids), titles)]
+        self.recorders = [
+            TopicRecorder(
+                t,
+                self.output_dir,
+                self.fps,
+                codec,
+                overlay,
+                i,
+                self.command,
+                ids_path,
+                crash_safe,
+                bitrate_kbps,
+                video_title,
+                title_only,
+            )
+            for t, i, video_title in zip(topics, sorted(ids), titles)
+        ]
         self._set_overlays()
         self._write_summary()
 
@@ -560,7 +705,7 @@ class VideoRecorder:
             recorder.set_overlay(self._overlay_parts(), spare_rows)
 
     def _goal_callback(self, message):
-        """A goal for the agent (the GPT demo's LLM): shown in every following frame with the model profile."""
+        """Show the goal for the agent (the GPT demo's LLM) in every following frame with the model profile."""
         text = " ".join(str(message.data or "").split())
         if not text:
             return
@@ -602,7 +747,7 @@ class VideoRecorder:
                 return
 
     def _robot_moving(self, robot, now):
-        """whether the robot of a ~topic_robots video moved within ~motion_hold_s (a topic of no robot counts too)"""
+        """Whether the robot of a ~topic_robots video moved within ~motion_hold_s (a topic of no robot counts too)."""
         times = [t for t in (self.robot_motion.get(robot), self.robot_motion.get(None)) if t is not None]
         return bool(times) and now - max(times) <= self.motion_hold_s
 
@@ -669,21 +814,40 @@ class VideoRecorder:
             "elapsed_s": round(time.time() - self.started_wall, 1),
             "command": self.command,
             "goals": self.goals,
-            "topics": [{"topic": r.topic, "id": r.id, "frames": r.frames, "recorded_s": round(r.frames / self.fps, 1),
-                        "video": r.video_path, "frames_index": r.frames_index_path} for r in self.recorders],
+            "topics": [
+                {
+                    "topic": r.topic,
+                    "id": r.id,
+                    "frames": r.frames,
+                    "recorded_s": round(r.frames / self.fps, 1),
+                    "video": r.video_path,
+                    "frames_index": r.frames_index_path,
+                }
+                for r in self.recorders
+            ],
         }
 
     def _publish_status(self):
         self.status_pub.publish(String(data=json.dumps(self._status())))
 
     def _summary(self, topics=None):
-        return {"output_dir": self.output_dir, "stopped": self.stopped, "command": self.command, "goals": self.goals,
-                "command_missing": not self.command and not self.goals, "snapshots": self.snapshots,
-                "topics": topics if topics is not None else [r.summary() for r in self.recorders]}
+        return {
+            "output_dir": self.output_dir,
+            "stopped": self.stopped,
+            "command": self.command,
+            "goals": self.goals,
+            "command_missing": not self.command and not self.goals,
+            "snapshots": self.snapshots,
+            "topics": topics if topics is not None else [r.summary() for r in self.recorders],
+        }
 
     def _write_summary(self, summary=None):
-        """summary.json as of now: also a recorder that is killed leaves one (``"stopped": false``, the frame counts
-        of at most ``~summary_period_s`` ago)."""
+        """
+        summary.json as of now.
+
+        Also a recorder that is killed leaves one (``"stopped": false``, the frame counts of at most
+        ``~summary_period_s`` ago).
+        """
         try:
             write_json_atomically(self.summary_path, summary or self._summary())
         except OSError as error:
@@ -734,8 +898,10 @@ class VideoRecorder:
             self.timer.shutdown()
             summary = self._summary([r.close() for r in self.recorders])
             if summary["command_missing"]:
-                rospy.logerr("no command and no goal on %s during the recording: the videos say 'NO COMMAND YET'",
-                             self.command_topic)
+                rospy.logerr(
+                    "no command and no goal on %s during the recording: the videos say 'NO COMMAND YET'",
+                    self.command_topic,
+                )
             self._log_event("stop", **summary)
             self._write_summary(summary)
             self._publish_status()

@@ -1,41 +1,39 @@
-# Software License Agreement (BSD License)
+# Copyright (c) 2026, DFKI GmbH and contributors
 #
-#  Copyright (c) 2022, 2023, DFKI GmbH
-#  All rights reserved.
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
 #
-#  Redistribution and use in source and binary forms, with or without
-#  modification, are permitted provided that the following conditions
-#  are met:
+#    * Redistributions of source code must retain the above copyright
+#      notice, this list of conditions and the following disclaimer.
 #
-#   * Redistributions of source code must retain the above copyright
-#     notice, this list of conditions and the following disclaimer.
-#   * Redistributions in binary form must reproduce the above
-#     copyright notice, this list of conditions and the following
-#     disclaimer in the documentation and/or other materials provided
-#     with the distribution.
-#   * Neither the name of Willow Garage nor the names of its
-#     contributors may be used to endorse or promote products derived
-#     from this software without specific prior written permission.
+#    * Redistributions in binary form must reproduce the above copyright
+#      notice, this list of conditions and the following disclaimer in the
+#      documentation and/or other materials provided with the distribution.
 #
-#  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-#  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-#  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-#  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-#  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-#  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-#  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-#  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-#  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-#  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-#  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-#  POSSIBILITY OF SUCH DAMAGE.
+#    * Neither the name of the copyright holder nor the names of its
+#      contributors may be used to endorse or promote products derived from
+#      this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
 #
 #
 # Authors: Alexander Sung, Oscar Lima, Marc Vinci
 
 """
-The Tables Demo domain and environment specify concrete instances of the scenario for planning
- and include methods valid for both simulation and reality. It does not handle execution yet.
+The Tables Demo domain and environment specify concrete instances of the scenario for planning.
+
+It includes methods valid for both simulation and reality.
+It does not handle execution yet.
 """
 
 
@@ -132,6 +130,7 @@ class TablesDemoDomain(Domain):
     def initialize_tables_demo_problem(self) -> Problem:
         """
         Create UP Problem including all fluents and actions needed by the overall Tables Demo.
+
         Note: Initial states and goals are not defined yet.
         """
         problem = self.define_problem(
@@ -161,6 +160,7 @@ class TablesDemoDomain(Domain):
     def initialize_item_search_problem(self) -> Problem:
         """
         Create UP Problem including all fluents and actions needed by the item search subproblem.
+
         Note: Initial states and goals are not defined yet.
         """
         problem = self.define_problem(
@@ -347,9 +347,7 @@ class EnvironmentRepresentation:
         return True
 
     def pick_item(self, robot: Robot, pose: Pose, location: Location, item: Item) -> bool:
-        """
-        At pose, let robot look for item at location, pick it up, then move its arm to transport pose.
-        """
+        """At pose, let robot look for item at location, pick it up, then move its arm to transport pose."""
         print(f"Successfully picked up {item.name}.")
         self.robot_items[robot] = item
         self.believed_item_locations[item] = Location.get("on_robot")
