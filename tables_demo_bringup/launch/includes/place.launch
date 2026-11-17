@@ -16,6 +16,7 @@
   <arg name="mtc_place_reject_octomap_occupied" default="false" doc="with use_mtc: refuse place poses where the octomap sees an obstacle; safe feature flag, off in code, on in the sim" />
   <arg name="mtc_grasp_check_squeeze" default="false" doc="with use_mtc: close fully after the preset width before calling a pick held; safe feature flag, off in code, on in the sim" />
   <arg name="mtc_cable_replay_live_state" default="false" doc="true (with mtc_cable_plan_check): the cable guard's replay of a planned path through the carrier link chain goes on from the cable monitor's live chain (its chain_state service) and the path must also pass a replay from a fresh chain (both must pass), so the guard sees what the motions before the path did; the fresh chain is also what is used where the monitor resets its chain at every trajectory start; careful feature flag, off in code" />
+  <arg name="plan_place_during_detour" default="false" doc="true (with use_mtc): the closed-set untangle detour before a place is planned and cable-checked up front and sent as one motion while MTC plans the place from its end; that plan is used only when the arm arrives within plan_pick_during_start_move_tolerance_rad of it (else the place is planned again from where the arm stands), and the check that the gripper still holds the object runs on arrival, before the first place motion; the insert keeps its detour as before; careful feature flag, off in code" />
   <!-- Several Mobipicks in one sim: the robot's namespace (= its tf prefix), and the namespace of its pose
        selectors ('' = the global /pick_pose_selector_node etc. of a single robot, as before; e.g. mobipick2) -->
   <arg name="namespace" default="mobipick" />
@@ -43,6 +44,7 @@
     <param name="mtc_cable_path_shaping" type="bool" value="$(arg mtc_cable_path_shaping)" />
     <param name="mtc_cable_support_margin" type="bool" value="$(arg mtc_cable_support_margin)" />
     <param name="place_sample_within_reach" type="bool" value="$(arg place_sample_within_reach)" />
+    <param name="plan_place_during_detour" type="bool" value="$(arg plan_place_during_detour)" />
     <param name="place_free_footprints_first" type="bool" value="$(arg place_free_footprints_first)" />
     <param name="place_drop_implausible_boxes" type="bool" value="$(arg place_drop_implausible_boxes)" />
     <param name="mtc_cable_guard_named_moves" type="string" value="$(arg mtc_cable_guard_named_moves)" />

@@ -32,6 +32,7 @@
   <arg name="mtc_place_reject_octomap_occupied" default="false" doc="with use_mtc: refuse place poses where the octomap sees an obstacle; safe feature flag, off in code, on in the sim" />
   <arg name="mtc_grasp_check_squeeze" default="false" doc="with use_mtc: close fully after the preset width before calling a pick held; safe feature flag, off in code, on in the sim" />
   <arg name="mtc_cable_replay_live_state" default="false" doc="true (with mtc_cable_plan_check): the cable guard's replay of a planned path through the carrier link chain goes on from the cable monitor's live chain (its chain_state service) and the path must also pass a replay from a fresh chain (both must pass), so the guard sees what the motions before the path did; the fresh chain is also what is used where the monitor resets its chain at every trajectory start; careful feature flag, off in code" />
+  <arg name="plan_place_during_detour" default="false" doc="true (with use_mtc): the closed-set untangle detour before a place is planned and cable-checked up front and sent as one motion while MTC plans the place from its end; that plan is used only when the arm arrives within plan_pick_during_start_move_tolerance_rad of it (else the place is planned again from where the arm stands), and the check that the gripper still holds the object runs on arrival, before the first place motion; the insert keeps its detour as before; careful feature flag, off in code" />
   <arg name="mtc_cable_replay_detour" default="false" doc="true (with mtc_cable_plan_check): when the cable guard refused a closed-set pick by its chain replay alone, move the arm to untangle_cable_guide_2_right as a separate motion and plan the pick once more from there; no detour while the named-move guard only logs (the real robot default); careful feature flag, off in code" />
   <arg name="open_set_box_padding" default="0.0" doc="metres taken off every side of the open-set detector box of the target before it goes into the planning scene and the grasp geometry (the detector pads every side); 0.0 keeps the box as detected; careful feature flag, off in code" />
   <arg name="open_set_align_jaw_to_box" default="false" doc="a near-vertical open-set grasp whose jaw is well off the axes of the target box (across its diagonal) gets a copy turned about its approach onto the nearest box axis whose side fits the gripper, tried first; safe feature flag, off in code" />
@@ -193,6 +194,7 @@
     <arg name="open_set_align_jaw_narrowest_side" value="$(arg open_set_align_jaw_narrowest_side)" />
     <arg name="skip_pre_open_when_open" value="$(arg skip_pre_open_when_open)" />
     <arg name="plan_cache_named_moves" value="$(arg plan_cache_named_moves)" />
+    <arg name="plan_place_during_detour" value="$(arg plan_place_during_detour)" />
     <arg name="grasp_standing_tilt_band" value="$(arg grasp_standing_tilt_band)" />
     <arg name="grasp_pinch_retry_next" value="$(arg grasp_pinch_retry_next)" />
     <arg name="grasp_regrasp_on_overclose" value="$(arg grasp_regrasp_on_overclose)" />
@@ -255,6 +257,7 @@
     <arg name="open_set_align_jaw_narrowest_side" value="$(arg open_set_align_jaw_narrowest_side)" />
     <arg name="skip_pre_open_when_open" value="$(arg skip_pre_open_when_open)" />
     <arg name="plan_cache_named_moves" value="$(arg plan_cache_named_moves)" />
+    <arg name="plan_place_during_detour" value="$(arg plan_place_during_detour)" />
     <arg name="grasp_standing_tilt_band" value="$(arg grasp_standing_tilt_band)" />
     <arg name="grasp_pinch_retry_next" value="$(arg grasp_pinch_retry_next)" />
     <arg name="grasp_regrasp_on_overclose" value="$(arg grasp_regrasp_on_overclose)" />
@@ -316,6 +319,7 @@
     <arg name="open_set_align_jaw_narrowest_side" value="$(arg open_set_align_jaw_narrowest_side)" />
     <arg name="skip_pre_open_when_open" value="$(arg skip_pre_open_when_open)" />
     <arg name="plan_cache_named_moves" value="$(arg plan_cache_named_moves)" />
+    <arg name="plan_place_during_detour" value="$(arg plan_place_during_detour)" />
     <arg name="grasp_standing_tilt_band" value="$(arg grasp_standing_tilt_band)" />
     <arg name="grasp_pinch_retry_next" value="$(arg grasp_pinch_retry_next)" />
     <arg name="grasp_regrasp_on_overclose" value="$(arg grasp_regrasp_on_overclose)" />
