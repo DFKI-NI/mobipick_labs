@@ -13,6 +13,7 @@
   <arg name="offset_x" default="0.0" doc="x offset of its scene copy in Gazebo [m]; != 0: map -> map_frame static tf" />
   <arg name="world_config" default="moelk_tables" />
   <arg name="use_ur_polished_kinematics" default="false" />
+  <arg name="arm_max_acceleration" default="2.0" doc="rad/s^2, MoveIt acceleration limit of the six arm joints (2.0 = the tested value)" />
   <!-- bringup.launch arguments, passed on unchanged -->
   <arg name="anygrasp_handles_execution" default="false" />
   <arg name="use_mtc" default="true" />
@@ -93,6 +94,7 @@
     <arg name="namespace" value="$(arg namespace)" />
     <!-- only passed when enabled: a mobipick_moveit_config without this arg (upstream noetic) must keep launching -->
     <arg name="use_ur_polished_kinematics" value="true" if="$(arg use_ur_polished_kinematics)" />
+    <arg name="arm_max_acceleration" value="$(arg arm_max_acceleration)" unless="$(eval float(arm_max_acceleration) == 2.0)" />
     <arg name="use_pointcloud" value="true"/>
     <!-- Gazebo delivers about one gripper-camera frame per second here, so the octomap
          is fed from a cheaper variant of the robot config: see the file for why. -->
